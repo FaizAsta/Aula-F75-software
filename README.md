@@ -1,5 +1,7 @@
 <h1 align="center">Aula Control</h1><p align="center">
 
+<img width="1200" height="800" alt="7811" src="https://github.com/user-attachments/assets/0b2442a0-85e1-4abb-b8e8-1d85fde003f2" />
+
 <p align="center">
   <img src="https://img.shields.io/github/downloads/FaizAsta/Aula-F75-software/total?label=TOTAL%20DOWNLOADS&style=for-the-badge&logo=github&logoColor=white&color=1677C8" alt="Total Downloads">
   &nbsp;
@@ -56,10 +58,9 @@ Protocol research is based on these community projects:
 
 📸 Screenshots
 
-<p align="center">
-  <img width="100%" alt="Aula Control screenshot 1" src="https://github.com/user-attachments/assets/0c3f57ba-76e9-45fa-9436-657db9d93bea">
-</p><p align="center">
-  <img width="100%" alt="Aula Control screenshot 2" src="https://github.com/user-attachments/assets/56668f8f-44ad-4ec3-94f2-8e1f81df2a0b">
-</p><p align="center">
-  <img width="100%" alt="Aula Control screenshot 3" src="https://github.com/user-attachments/assets/344b3fd3-4bed-4d62-ab37-4fc67952d0a9">
-</p>
+<img width="1200" height="800" alt="7815" src="https://github.com/user-attachments/assets/9aaf0717-f295-44b5-b3d1-85a60a6deded" />
+<img width="1200" height="800" alt="7814" src="https://github.com/user-attachments/assets/134645b1-c78b-4047-950a-64ca2cd206d7" />
+<img width="1200" height="800" alt="7813" src="https://github.com/user-attachments/assets/033f5df9-0cfb-410c-ae1b-0a9df2a63600" />
+<img width="1200" height="800" alt="7810" src="https://github.com/user-attachments/assets/49bc8b68-292d-48a6-9975-257e5a9a2c12" />
+<img width="1200" height="800" alt="7812" src="https://github.com/user-attachments/assets/2c7c8bc7-3e79-43d5-8aa0-d27abc30f124" />
+
