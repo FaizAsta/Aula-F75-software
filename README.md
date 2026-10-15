@@ -1,6 +1,7 @@
 <h1 align="center">Aula Control</h1><p align="center">
 
-<img width="1200" height="800" alt="7811" src="https://github.com/user-attachments/assets/0b2442a0-85e1-4abb-b8e8-1d85fde003f2" />
+<img width="1200" height="541" alt="7816" src="https://github.com/user-attachments/assets/25d04cf5-3d2f-4601-bf91-aca291d21bd1" />
+
 
 <p align="center">
   <img src="https://img.shields.io/github/downloads/FaizAsta/Aula-F75-software/total?label=TOTAL%20DOWNLOADS&style=for-the-badge&logo=github&logoColor=white&color=1677C8" alt="Total Downloads">
