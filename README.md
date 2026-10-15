@@ -49,9 +49,6 @@ Protocol research is based on these community projects:
 - "marcoslor/Aula-F87-Controller" (https://github.com/marcoslor/Aula-F87-Controller)
 - "RustamSheoran/aula-f75" (https://github.com/RustamSheoran/aula-f75)
 
-📄 License
-
-See the "GPL-3.0 license" (https://www.gnu.org/licenses/gpl-3.0.html) if that is the license you've chosen for this project.
 
 <img width="1200" height="804" alt="unknown_2026 10 14-23 15" src="https://github.com/user-attachments/assets/0c3f57ba-76e9-45fa-9436-657db9d93bea" />
 <img width="1200" height="800" alt="WhatsApp Image 2026-10-14 at 11 18 37 PM" src="https://github.com/user-attachments/assets/56668f8f-44ad-4ec3-94f2-8e1f81df2a0b" />
