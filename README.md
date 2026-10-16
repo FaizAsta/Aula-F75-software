@@ -12,7 +12,7 @@ Battery and charging, lighting effects, per-key RGB, and a live preview of the b
 [![Electron](https://img.shields.io/badge/built%20with-Electron-47848f)](https://www.electronjs.org/)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue)](#license)
 
-[**Download**](../../releases) · [Features](#features) · [Supported keyboards](#supported-keyboards) · [Battery and charging](#battery-and-charging) · [Troubleshooting](#troubleshooting)
+[**Download**](../../releases) · [Features](#features) · [Design](#design) · [Supported keyboards](#supported-keyboards) · [Battery and charging](#battery-and-charging) · [Troubleshooting](#troubleshooting)
 
 ![Aula Control, Lighting tab](docs/screenshots/lighting.png)
 
@@ -48,6 +48,30 @@ Want to look around first? Turn on **Settings, Demo keyboard** to try every cont
 - **Connects by itself**, wakes a sleeping keyboard, and recovers after sleep, screen lock or unplugging.
 - Start with Windows, run in the tray, and a connection log for bug reports.
 
+## Design
+
+The window is frameless with large rounded corners. Minimize, maximize and close float above every screen as one rounded
+glass pill in the top-right corner, instead of the square Windows caption buttons.
+
+![Floating window controls in each state, and in the colours the keyboard can show](docs/screenshots/window-controls.png)
+
+- **One pill, three equal cells**: 132 × 36 px with thin light icons.
+- **Hover** lights the button under the pointer and **Close** turns red. While maximized, the middle button becomes the
+  restore icon and the window squares its corners.
+- **Close** follows your tray setting. With *Keep running in the tray when closed* on, it hides the window instead of quitting.
+- **It matches the rest of the UI.** The glass is neutral and picks up the keyboard's current colour for its rim and glow,
+  the same way the tabs do, so it changes with your lighting. There is no blur, so it costs the GPU nothing.
+
+To restyle it, set these variables in `:root` of [`src/css/app.css`](src/css/app.css) (the window-buttons block shows the defaults):
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `--win-tint` | the keyboard colour | Set `r g b` in `:root` (for example `22 134 106`) for one fixed colour instead |
+| `--win-w` | `42px` | Width of one button (the pill is three of them) |
+| `--win-h` | `36px` | Height of the pill |
+| `--win-pad` | `3px` | Gap between the rim and the buttons |
+| `--win-edge` | `12px` | Distance from the window's top and right edges |
+
 ## Supported keyboards
 
 | Model | Status |
@@ -82,6 +106,7 @@ The F75 and F87 report the same USB ids, so if the app cannot tell which you hav
 ## Using the app
 
 - **Refresh** (top right, **F5** or **Ctrl+R**) re-reads the keyboard. **Ctrl+S** applies your changes.
+- **Minimize, maximize and close** are the glass pill in the top-right corner (see [Design](#design)).
 - **Start** opens a list of connected devices (plus the demo keyboard); pick one to open it.
 - Changes you have not applied show an **Unsaved changes** bar, and a green dot marks the effect the keyboard is running.
 - The first time it connects, the app saves your original settings. **Settings, Backup, Load original** brings them back.
@@ -108,7 +133,7 @@ The F75 and F87 report the same USB ids, so if the app cannot tell which you hav
 | --- | --- |
 | ![Charging on the dongle](docs/screenshots/charging.png) | ![Charging on the cable](docs/screenshots/charging-cable.png) |
 
-Captured from the real interface running against simulated keyboards.
+Captured from the real interface running against simulated keyboards. The window-controls image is rendered from the app's own stylesheet.
 
 ## What's new
 
@@ -117,6 +142,10 @@ Captured from the real interface running against simulated keyboards.
 - **Live charging when you plug in while wireless.** On the 2.4G dongle, plugging in the USB-C cable now shows the
   charging bolt and animation at once, and unplugging stops them. Before, the app waited until it saw the level rise.
 - The connection log notes when the cable is plugged in or unplugged.
+- **Floating window buttons.** Minimize, maximize and close are now a rounded glass pill in the top-right corner instead of
+  square buttons in the title bar: three equal cells, thin light icons, a soft hover and a red close. The glass takes its
+  colour from the keyboard like the rest of the UI, and its size is set by CSS variables (see [Design](#design)).
+- Refreshed screenshots that show the new window controls.
 
 ## Credits
 
