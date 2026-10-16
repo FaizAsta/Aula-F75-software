@@ -7,10 +7,10 @@
 **An unofficial Windows app for AULA F75 and F87 keyboards.**<br>
 Battery and charging, lighting effects, per-key RGB, and a live preview of the board.
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4)](#download)
 [![Electron](https://img.shields.io/badge/built%20with-Electron-47848f)](https://www.electronjs.org/)
-[![License](https://img.shields.io/badge/license-MIT-green)](#license)
+[![License](https://img.shields.io/badge/license-GPL--3.0-blue)](#license)
 
 [**Download**](../../releases) · [Features](#features) · [Supported keyboards](#supported-keyboards) · [Battery and charging](#battery-and-charging) · [Troubleshooting](#troubleshooting)
 
@@ -112,7 +112,7 @@ Captured from the real interface running against simulated keyboards.
 
 ## What's new
 
-### 1.5.0
+### 1.2.0
 
 - **Live charging when you plug in while wireless.** On the 2.4G dongle, plugging in the USB-C cable now shows the
   charging bolt and animation at once, and unplugging stops them. Before, the app waited until it saw the level rise.
@@ -127,4 +127,4 @@ Protocol details come from these community projects: [TrueIG/AULA-F75-configurat
 
 ## License
 
-MIT. Aula Control is an independent project and is not affiliated with or endorsed by AULA.
+GPL-3.0. See the [LICENSE](LICENSE) file. Aula Control is an independent project and is not affiliated with or endorsed by AULA.
