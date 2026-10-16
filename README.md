@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="assets/icon.png" width="96" alt="Aula Control icon">
-
-# Aula Control
+<img src="docs/banner.png" width="800" alt="Aula Control">
 
 **An unofficial Windows app for AULA F75 and F87 keyboards.**<br>
 Battery and charging, lighting effects, per-key RGB, and a live preview of the board.
