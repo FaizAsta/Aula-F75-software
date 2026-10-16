@@ -60,16 +60,6 @@ glass pill in the top-right corner, instead of the square Windows caption button
 - **It matches the rest of the UI.** The glass is neutral and picks up the keyboard's current colour for its rim and glow,
   the same way the tabs do, so it changes with your lighting. There is no blur, so it costs the GPU nothing.
 
-To restyle it, set these variables in `:root` of [`src/css/app.css`](src/css/app.css) (the window-buttons block shows the defaults):
-
-| Variable | Default | What it does |
-| --- | --- | --- |
-| `--win-tint` | the keyboard colour | Set `r g b` in `:root` (for example `22 134 106`) for one fixed colour instead |
-| `--win-w` | `42px` | Width of one button (the pill is three of them) |
-| `--win-h` | `36px` | Height of the pill |
-| `--win-pad` | `3px` | Gap between the rim and the buttons |
-| `--win-edge` | `12px` | Distance from the window's top and right edges |
-
 ## Supported keyboards
 
 | Model | Status |
