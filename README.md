@@ -5,7 +5,7 @@
 **An unofficial Windows app for AULA F75 and F87 keyboards.**<br>
 Battery and charging, lighting effects, per-key RGB, and a live preview of the board.
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.3.1-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4)](#download)
 [![Electron](https://img.shields.io/badge/built%20with-Electron-47848f)](https://www.electronjs.org/)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue)](#license)
@@ -45,6 +45,8 @@ Want to look around first? Turn on **Settings, Demo keyboard** to try every cont
   restart with factory lighting.
 - **Connects by itself**, wakes a sleeping keyboard, and recovers after sleep, screen lock or unplugging.
 - Start with Windows, run in the tray, and a connection log for bug reports.
+- **Dark and light themes**: switch with the sun / moon button in the header, or choose Dark, Light or System (follows
+  Windows) under **Settings, Appearance**. The choice is remembered.
 
 ## Design
 
@@ -59,6 +61,16 @@ glass pill in the top-right corner, instead of the square Windows caption button
 - **Close** follows your tray setting. With *Keep running in the tray when closed* on, it hides the window instead of quitting.
 - **It matches the rest of the UI.** The glass is neutral and picks up the keyboard's current colour for its rim and glow,
   the same way the tabs do, so it changes with your lighting. There is no blur, so it costs the GPU nothing.
+
+To restyle it, set these variables in `:root` of [`src/css/app.css`](src/css/app.css) (the window-buttons block shows the defaults):
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `--win-tint` | the keyboard colour | Set `r g b` in `:root` (for example `22 134 106`) for one fixed colour instead |
+| `--win-w` | `42px` | Width of one button (the pill is three of them) |
+| `--win-h` | `36px` | Height of the pill |
+| `--win-pad` | `3px` | Gap between the rim and the buttons |
+| `--win-edge` | `12px` | Distance from the window's top and right edges |
 
 ## Supported keyboards
 
@@ -75,7 +87,7 @@ The F75 and F87 report the same USB ids, so if the app cannot tell which you hav
 
 | Connection | Lighting and per-key | Battery percentage | Charging bolt |
 | --- | --- | --- | --- |
-| **2.4G dongle** (recommended) | Yes | Yes, read about once a minute | Yes, at once when the USB-C cable is plugged in |
+| **2.4G dongle** (recommended) | Yes | Yes, read every 5 s while charging and every 15 s otherwise | Yes, at once when the USB-C cable is plugged in |
 | **USB-C cable** | Experimental | No, the cable has no battery report | Yes, whenever the cable is connected |
 | **Bluetooth** | No, Windows does not allow it | If Windows reports it | No |
 
@@ -94,6 +106,9 @@ The F75 and F87 report the same USB ids, so if the app cannot tell which you hav
 ## Using the app
 
 - **Refresh** (top right, **F5** or **Ctrl+R**) re-reads the keyboard. **Ctrl+S** applies your changes.
+- **Theme**: the sun / moon button next to Refresh flips between dark and light. In a narrow window it is hidden; the same
+  choice is under **Settings, Appearance**. The keyboard preview stays dark in both themes, because RGB light only reads
+  on dark keycaps.
 - **Minimize, maximize and close** are the glass pill in the top-right corner (see [Design](#design)).
 - **Start** opens a list of connected devices (plus the demo keyboard); pick one to open it.
 - Changes you have not applied show an **Unsaved changes** bar, and a green dot marks the effect the keyboard is running.
@@ -124,6 +139,50 @@ The F75 and F87 report the same USB ids, so if the app cannot tell which you hav
 Captured from the real interface running against simulated keyboards. The window-controls image is rendered from the app's own stylesheet.
 
 ## What's new
+
+### 1.3.1
+
+- **The battery percentage now updates live.** On the 2.4G dongle the level was read only once a minute, so it looked frozen,
+  also with the USB-C cable plugged in to charge. It is now read every 5 seconds while charging and every 15 seconds
+  otherwise, and the header, the Battery tab and the tray tooltip follow each new reading.
+- **Bigger battery icon in the header**, so the level and the charging bolt are easier to see.
+- Over the USB-C cable alone there is still no percentage: the cable has no battery report. Keep the keyboard on the 2.4G
+  dongle (cable plugged in to charge) to watch the level rise.
+
+### 1.3.0
+
+- **A more detailed Lighting tab.** Under the Effect heading there is now a one-line description of the selected effect and
+  chips for how it treats colour, whether its speed can be changed, and its firmware mode number. Every effect card also
+  shows a small label (Single colour, Multicolour, Reacts to typing, and so on) and a tooltip with the same description.
+- **Level meters and icons.** Brightness and Speed have a small meter that fills to the current level, and the Brightness,
+  Speed, Colour and sleep rows have icons.
+- **Status bar under the keyboard.** It shows the keyboard model and connection on the left, and the running effect, its
+  colour, speed and brightness on the right. It follows the Per-key tab too, and drops the least important chips when the
+  window is narrow.
+- Light, top-edge shading on the panels, softer swatches and clearer keyboard focus rings. The new styles are in
+  `src/css/detail.css`, add no animation or blur, and Lite mode still applies.
+
+### 1.2.3
+
+- **Rainbow in the preview now matches the keyboard.** The keyboard shows one colour at a time and steps through them (red,
+  green, blue, and so on). The preview used to show a smooth moving gradient. It now holds each colour and changes to the
+  next, on every key together, and the speed setting sets how long each colour is held.
+- **Breathing in the preview now matches too.** Each breath fades up from dark and back down to dark, and in multicolour the
+  next colour starts at the dark point. Before, the preview never went fully dark and its hue drifted slowly while it breathed.
+
+### 1.2.2
+
+- **Smoother click ripple and hover glide on the keyboard preview.** The ring that spreads from a click, the spotlight and the
+  lean toward the pointer now update on every screen refresh instead of at a fixed 30 fps, and a click shows its ring on the
+  very next frame. The lighting effects themselves still run at 30 fps, so idle cost is unchanged.
+- **Cheaper frames.** The key legends are measured once instead of on every frame, and their size under the pointer snaps to
+  1/8 px so the browser can reuse its text. A preview frame now costs roughly a third of what it did.
+
+### 1.2.1
+
+- **Fixed: the window buttons did nothing on the start screen and the device list.** Minimize, maximize and close now work on
+  every screen. The start and device screens had a drag strip across the whole top edge that sat over the buttons, so
+  Windows treated them as title bar and swallowed the clicks. The strip now stops before the buttons.
 
 ### 1.2.0
 
