@@ -62,16 +62,6 @@ glass pill in the top-right corner, instead of the square Windows caption button
 - **It matches the rest of the UI.** The glass is neutral and picks up the keyboard's current colour for its rim and glow,
   the same way the tabs do, so it changes with your lighting. There is no blur, so it costs the GPU nothing.
 
-To restyle it, set these variables in `:root` of [`src/css/app.css`](src/css/app.css) (the window-buttons block shows the defaults):
-
-| Variable | Default | What it does |
-| --- | --- | --- |
-| `--win-tint` | the keyboard colour | Set `r g b` in `:root` (for example `22 134 106`) for one fixed colour instead |
-| `--win-w` | `42px` | Width of one button (the pill is three of them) |
-| `--win-h` | `36px` | Height of the pill |
-| `--win-pad` | `3px` | Gap between the rim and the buttons |
-| `--win-edge` | `12px` | Distance from the window's top and right edges |
-
 ## Supported keyboards
 
 | Model | Status |
@@ -137,62 +127,6 @@ The F75 and F87 report the same USB ids, so if the app cannot tell which you hav
 | ![Charging on the dongle](docs/screenshots/charging.png) | ![Charging on the cable](docs/screenshots/charging-cable.png) |
 
 Captured from the real interface running against simulated keyboards. The window-controls image is rendered from the app's own stylesheet.
-
-## What's new
-
-### 1.3.1
-
-- **The battery percentage now updates live.** On the 2.4G dongle the level was read only once a minute, so it looked frozen,
-  also with the USB-C cable plugged in to charge. It is now read every 5 seconds while charging and every 15 seconds
-  otherwise, and the header, the Battery tab and the tray tooltip follow each new reading.
-- **Bigger battery icon in the header**, so the level and the charging bolt are easier to see.
-- Over the USB-C cable alone there is still no percentage: the cable has no battery report. Keep the keyboard on the 2.4G
-  dongle (cable plugged in to charge) to watch the level rise.
-
-### 1.3.0
-
-- **A more detailed Lighting tab.** Under the Effect heading there is now a one-line description of the selected effect and
-  chips for how it treats colour, whether its speed can be changed, and its firmware mode number. Every effect card also
-  shows a small label (Single colour, Multicolour, Reacts to typing, and so on) and a tooltip with the same description.
-- **Level meters and icons.** Brightness and Speed have a small meter that fills to the current level, and the Brightness,
-  Speed, Colour and sleep rows have icons.
-- **Status bar under the keyboard.** It shows the keyboard model and connection on the left, and the running effect, its
-  colour, speed and brightness on the right. It follows the Per-key tab too, and drops the least important chips when the
-  window is narrow.
-- Light, top-edge shading on the panels, softer swatches and clearer keyboard focus rings. The new styles are in
-  `src/css/detail.css`, add no animation or blur, and Lite mode still applies.
-
-### 1.2.3
-
-- **Rainbow in the preview now matches the keyboard.** The keyboard shows one colour at a time and steps through them (red,
-  green, blue, and so on). The preview used to show a smooth moving gradient. It now holds each colour and changes to the
-  next, on every key together, and the speed setting sets how long each colour is held.
-- **Breathing in the preview now matches too.** Each breath fades up from dark and back down to dark, and in multicolour the
-  next colour starts at the dark point. Before, the preview never went fully dark and its hue drifted slowly while it breathed.
-
-### 1.2.2
-
-- **Smoother click ripple and hover glide on the keyboard preview.** The ring that spreads from a click, the spotlight and the
-  lean toward the pointer now update on every screen refresh instead of at a fixed 30 fps, and a click shows its ring on the
-  very next frame. The lighting effects themselves still run at 30 fps, so idle cost is unchanged.
-- **Cheaper frames.** The key legends are measured once instead of on every frame, and their size under the pointer snaps to
-  1/8 px so the browser can reuse its text. A preview frame now costs roughly a third of what it did.
-
-### 1.2.1
-
-- **Fixed: the window buttons did nothing on the start screen and the device list.** Minimize, maximize and close now work on
-  every screen. The start and device screens had a drag strip across the whole top edge that sat over the buttons, so
-  Windows treated them as title bar and swallowed the clicks. The strip now stops before the buttons.
-
-### 1.2.0
-
-- **Live charging when you plug in while wireless.** On the 2.4G dongle, plugging in the USB-C cable now shows the
-  charging bolt and animation at once, and unplugging stops them. Before, the app waited until it saw the level rise.
-- The connection log notes when the cable is plugged in or unplugged.
-- **Floating window buttons.** Minimize, maximize and close are now a rounded glass pill in the top-right corner instead of
-  square buttons in the title bar: three equal cells, thin light icons, a soft hover and a red close. The glass takes its
-  colour from the keyboard like the rest of the UI, and its size is set by CSS variables (see [Design](#design)).
-- Refreshed screenshots that show the new window controls.
 
 ## Credits
 
