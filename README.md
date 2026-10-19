@@ -5,7 +5,7 @@
 **An unofficial Windows app for AULA F75 and F87 keyboards.**<br>
 Battery and charging, lighting effects, per-key RGB, and a live preview of the board.
 
-[![Version](https://img.shields.io/badge/version-1.3.1-blue)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.3.2-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4)](#download)
 [![Electron](https://img.shields.io/badge/built%20with-Electron-47848f)](https://www.electronjs.org/)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue)](#license)
@@ -61,6 +61,16 @@ glass pill in the top-right corner, instead of the square Windows caption button
 - **Close** follows your tray setting. With *Keep running in the tray when closed* on, it hides the window instead of quitting.
 - **It matches the rest of the UI.** The glass is neutral and picks up the keyboard's current colour for its rim and glow,
   the same way the tabs do, so it changes with your lighting. There is no blur, so it costs the GPU nothing.
+
+To restyle it, set these variables in `:root` of [`src/css/app.css`](src/css/app.css) (the window-buttons block shows the defaults):
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `--win-tint` | the keyboard colour | Set `r g b` in `:root` (for example `22 134 106`) for one fixed colour instead |
+| `--win-w` | `42px` | Width of one button (the pill is three of them) |
+| `--win-h` | `36px` | Height of the pill |
+| `--win-pad` | `3px` | Gap between the rim and the buttons |
+| `--win-edge` | `12px` | Distance from the window's top and right edges |
 
 ## Supported keyboards
 
@@ -127,6 +137,87 @@ The F75 and F87 report the same USB ids, so if the app cannot tell which you hav
 | ![Charging on the dongle](docs/screenshots/charging.png) | ![Charging on the cable](docs/screenshots/charging-cable.png) |
 
 Captured from the real interface running against simulated keyboards. The window-controls image is rendered from the app's own stylesheet.
+
+## What's new
+
+### 1.3.2
+
+- **Transmission animation.** While settings go to the keyboard, the Apply bar shows a link: computer, packets, keyboard, with
+  the real progress as a fill and the steps *Preparing*, *Transmitting* and *Verifying*. On the keyboard preview a scan line
+  sweeps across, signal rings leave the board and streaks fly in, and the status bar shows *Sending 42%*. When it ends, the bar
+  turns green with a tick (or amber / red if the keyboard did not keep everything), then leaves. Refresh and *Read battery now*
+  play the same animation in reverse (*Reading*). An automatic restore after a reset does too.
+- **Button animations.** Every button has a click ripple in the keyboard's colour (also for Enter and Space), and presses in
+  and springs back. Buttons that wait for the keyboard (*Read battery now*, *Restore now*, *Connect*, *Search again*) show a
+  spinner and a moving sheen, then a tick or a shake. Switches flash a ring, effect tiles send out a ring when picked, the chosen
+  segment label pops, the theme button turns the sun into the moon, and the window buttons, Back, Start and the brand icon each
+  react on hover. The Apply button gives a soft ring while there is something to apply. Hovers stay neutral: no rainbow ring.
+- **Transitions.** Tabs slide in from the side of the tab you picked and their cards rise in one after another, the header drops
+  in when you leave the start screen, device cards cascade in once, and the message on the preview, the Apply bar and toasts
+  fade or spring instead of popping.
+- **Fixed: the connection label in the header was cut off** ("Demo key...") at the default window size, and at the minimum
+  size a long battery label ("No reading") pushed the status dot over the tab bar. The header now drops the label, then the
+  wide battery text, then the theme button, as space runs out. The label shows in full on wide windows.
+- **Fixed: the keyboard drawing showed through the "No keyboard found" message**, most visibly in the light theme. It now fades
+  back while a message is up, and the scrim is more solid.
+- **Fixed: swatches and buttons scrolling under the Apply bar showed through it.** The bar is now nearly solid.
+- **Fixed: the multicolour swatch wrapped onto a line of its own** in the Colour card at the minimum window width.
+- All new motion is in `src/css/motion.css` and `src/js/motion.js`. It uses only transform, opacity and shadows (no blur), loops
+  only while something is happening, and is switched off entirely by the system's reduced-motion setting.
+
+### 1.3.1
+
+- **The battery percentage now updates live.** On the 2.4G dongle the level was read only once a minute, so it looked frozen,
+  also with the USB-C cable plugged in to charge. It is now read every 5 seconds while charging and every 15 seconds
+  otherwise, and the header, the Battery tab and the tray tooltip follow each new reading.
+- **Bigger battery icon in the header**, so the level and the charging bolt are easier to see.
+- Over the USB-C cable alone there is still no percentage: the cable has no battery report. Keep the keyboard on the 2.4G
+  dongle (cable plugged in to charge) to watch the level rise.
+
+### 1.3.0
+
+- **A more detailed Lighting tab.** Under the Effect heading there is now a one-line description of the selected effect and
+  chips for how it treats colour, whether its speed can be changed, and its firmware mode number. Every effect card also
+  shows a small label (Single colour, Multicolour, Reacts to typing, and so on) and a tooltip with the same description.
+- **Level meters and icons.** Brightness and Speed have a small meter that fills to the current level, and the Brightness,
+  Speed, Colour and sleep rows have icons.
+- **Status bar under the keyboard.** It shows the keyboard model and connection on the left, and the running effect, its
+  colour, speed and brightness on the right. It follows the Per-key tab too, and drops the least important chips when the
+  window is narrow.
+- Light, top-edge shading on the panels, softer swatches and clearer keyboard focus rings. The new styles are in
+  `src/css/detail.css`, add no animation or blur, and Lite mode still applies.
+
+### 1.2.3
+
+- **Rainbow in the preview now matches the keyboard.** The keyboard shows one colour at a time and steps through them (red,
+  green, blue, and so on). The preview used to show a smooth moving gradient. It now holds each colour and changes to the
+  next, on every key together, and the speed setting sets how long each colour is held.
+- **Breathing in the preview now matches too.** Each breath fades up from dark and back down to dark, and in multicolour the
+  next colour starts at the dark point. Before, the preview never went fully dark and its hue drifted slowly while it breathed.
+
+### 1.2.2
+
+- **Smoother click ripple and hover glide on the keyboard preview.** The ring that spreads from a click, the spotlight and the
+  lean toward the pointer now update on every screen refresh instead of at a fixed 30 fps, and a click shows its ring on the
+  very next frame. The lighting effects themselves still run at 30 fps, so idle cost is unchanged.
+- **Cheaper frames.** The key legends are measured once instead of on every frame, and their size under the pointer snaps to
+  1/8 px so the browser can reuse its text. A preview frame now costs roughly a third of what it did.
+
+### 1.2.1
+
+- **Fixed: the window buttons did nothing on the start screen and the device list.** Minimize, maximize and close now work on
+  every screen. The start and device screens had a drag strip across the whole top edge that sat over the buttons, so
+  Windows treated them as title bar and swallowed the clicks. The strip now stops before the buttons.
+
+### 1.2.0
+
+- **Live charging when you plug in while wireless.** On the 2.4G dongle, plugging in the USB-C cable now shows the
+  charging bolt and animation at once, and unplugging stops them. Before, the app waited until it saw the level rise.
+- The connection log notes when the cable is plugged in or unplugged.
+- **Floating window buttons.** Minimize, maximize and close are now a rounded glass pill in the top-right corner instead of
+  square buttons in the title bar: three equal cells, thin light icons, a soft hover and a red close. The glass takes its
+  colour from the keyboard like the rest of the UI, and its size is set by CSS variables (see [Design](#design)).
+- Refreshed screenshots that show the new window controls.
 
 ## Credits
 
