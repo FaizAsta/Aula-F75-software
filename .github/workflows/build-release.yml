@@ -1,0 +1,58 @@
+name: Build and release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Unpack the newest zip
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Filter 'aula-control-v*.zip' |
+            Sort-Object { if ($_.BaseName -match 'v(\d+)[._](\d+)[._](\d+)') { [version]"$($Matches[1]).$($Matches[2]).$($Matches[3])" } else { [version]'0.0.0' } } |
+            Select-Object -Last 1
+          if (-not $zip) { throw 'No aula-control-v*.zip found in the repository.' }
+          Write-Host "Building from $($zip.Name)"
+          Expand-Archive -Path $zip.FullName -DestinationPath build -Force
+          $pkg = Get-ChildItem -Path build -Recurse -Depth 1 -Filter package.json | Select-Object -First 1
+          if (-not $pkg) { throw 'No package.json inside the zip.' }
+          "APP_DIR=$($pkg.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Install
+        shell: bash
+        working-directory: ${{ env.APP_DIR }}
+        run: npm install
+
+      - name: Build installer and portable file
+        shell: bash
+        working-directory: ${{ env.APP_DIR }}
+        run: npm run dist -- --publish never
+
+      - name: Publish the release
+        shell: bash
+        working-directory: ${{ env.APP_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          [ -f RELEASE_NOTES.md ] || { echo "RELEASE_NOTES.md is missing in the zip."; exit 1; }
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          FILES="dist/Aula-Control-Setup.exe dist/Aula-Control-Portable.exe"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" $FILES --clobber
+            gh release edit "$TAG" --notes-file RELEASE_NOTES.md --latest
+          else
+            gh release create "$TAG" $FILES --title "Aula Control $VERSION" --notes-file RELEASE_NOTES.md --target "$GITHUB_SHA" --latest
+          fi
