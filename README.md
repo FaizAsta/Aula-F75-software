@@ -120,4 +120,4 @@ Protocol details come from these community projects: [TrueIG/AULA-F75-configurat
 
 ## License
 
-GPL-3.0. See the [LICENSE](LICENSE) file. Aula Control is an independent project and is not affiliated with or endorsed by AULA.
+MIT. See the [LICENSE](LICENSE) file. Aula Control is an independent project and is not affiliated with or endorsed by AULA.
