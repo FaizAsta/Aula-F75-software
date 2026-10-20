@@ -20,6 +20,9 @@ Battery and charging, lighting effects, per-key RGB, and a live preview of the b
 > hardware testing is limited, the app reads every setting back after writing it and tells you if the keyboard did not
 > keep it.
 
+> **Built with AI.** This project was built with the help of AI (Claude). The idea, the design decisions and the testing
+> are by the author.
+
 ## Download
 
 1. Open the [**Releases**](../../releases) page and download **Aula-Control-Setup.exe**.
