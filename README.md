@@ -5,43 +5,20 @@
 **An unofficial Windows app for AULA F75 and F87 keyboards.**<br>
 Battery and charging, lighting effects, per-key RGB, and a live preview of the board.
 
-[
-
-![Version](https://img.shields.io/badge/version-1.3.3-blue)
-
-](../../releases)
-[
-
-![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4)
-
-](#download)
-[
-
-![Electron](https://img.shields.io/badge/built%20with-Electron-47848f)
-
-](https://www.electronjs.org/)
-[
-
-![License](https://img.shields.io/badge/license-GPL--3.0-blue)
-
-](#license)
+[![Version](https://img.shields.io/badge/version-1.3.3-blue)](../../releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4)](#download)
+[![Electron](https://img.shields.io/badge/built%20with-Electron-47848f)](https://www.electronjs.org/)
+[![License](https://img.shields.io/badge/license-GPL--3.0-blue)](#license)
 
 [**Download**](../../releases) · [Features](#features) · [Design](#design) · [Supported keyboards](#supported-keyboards) · [Battery and charging](#battery-and-charging) · [Troubleshooting](#troubleshooting)
 
-
-
 ![Aula Control, Lighting tab](docs/screenshots/lighting.png)
-
-
 
 </div>
 
 > **Not affiliated with AULA.** The keyboard protocol comes from public reverse engineering of the 2.4G dongle. Because
 > hardware testing is limited, the app reads every setting back after writing it and tells you if the keyboard did not
 > keep it.
-
-> **Built with AI.** This project was built with the help of AI (Claude). The idea, the design decisions and the testing
-> are by the author.
 
 ## Download
 
@@ -80,8 +57,7 @@ glass pill in the top-right corner, instead of the square Windows caption button
 
 | Model | Status |
 | --- | --- |
-| **AULA F75** | Supported and tested on a real keyboard. The model this app was built for. |
-| **AULA F75 Pro** | **Not tested yet.** It may work, but the author has only tested on the F75. Reports are welcome. |
+| **AULA F75** | Supported. The model this app was built for. |
 | **AULA F87 / F87 Pro** | Supported (same protocol as the F75). Not yet tried on a physical F87. |
 | F99, F108 Pro, S-series, F75 Max and other AULA models | **Not supported yet.** Many use a different protocol, so the app leaves them alone. |
 
@@ -124,35 +100,13 @@ The F75 and F87 report the same USB ids, so if the app cannot tell which you hav
 
 | Per-key | Battery |
 | --- | --- |
-| 
-
-![Per-key tab](docs/screenshots/per-key.png)
-
- | 
-
-![Battery tab](docs/screenshots/battery.png)
-
- |
+| ![Per-key tab](docs/screenshots/per-key.png) | ![Battery tab](docs/screenshots/battery.png) |
 
 | Charging on the 2.4G dongle | Charging on the USB-C cable |
 | --- | --- |
-| 
-
-![Charging on the dongle](docs/screenshots/charging.png)
-
- | 
-
-![Charging on the cable](docs/screenshots/charging-cable.png)
-
- |
+| ![Charging on the dongle](docs/screenshots/charging.png) | ![Charging on the cable](docs/screenshots/charging-cable.png) |
 
 Captured from the real interface running against simulated keyboards.
-
-## Feedback and contributions
-
-Found a bug, or tried it on a different model such as the F75 Pro? Please open an
-[issue](../../issues) and attach the log from **Settings, Connection help**. I will try to fix problems as they come in.
-Ideas and pull requests are welcome too.
 
 ## Credits
 
