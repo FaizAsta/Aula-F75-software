@@ -8,7 +8,6 @@ Battery and charging, lighting effects, per-key RGB, and a live preview of the b
 [![Version](https://img.shields.io/badge/version-1.3.3-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4)](#download)
 [![Electron](https://img.shields.io/badge/built%20with-Electron-47848f)](https://www.electronjs.org/)
-[![License](https://img.shields.io/badge/license-GPL--3.0-blue)](#license)
 
 [**Download**](../../releases) · [Features](#features) · [Design](#design) · [Supported keyboards](#supported-keyboards) · [Battery and charging](#battery-and-charging) · [Troubleshooting](#troubleshooting)
 
@@ -47,30 +46,6 @@ Want to look around first? Turn on **Settings, Demo keyboard** to try every cont
 - Start with Windows, run in the tray, and a connection log for bug reports.
 - **Dark and light themes**: switch with the sun / moon button in the header, or choose Dark, Light or System (follows
   Windows) under **Settings, Appearance**. The choice is remembered.
-
-## Design
-
-The window is frameless with large rounded corners. Minimize, maximize and close float above every screen as one rounded
-glass pill in the top-right corner, instead of the square Windows caption buttons.
-
-![Floating window controls in each state, and in the colours the keyboard can show](docs/screenshots/window-controls.png)
-
-- **One pill, three equal cells**: 132 × 36 px with thin light icons.
-- **Hover** lights the button under the pointer and **Close** turns red. While maximized, the middle button becomes the
-  restore icon and the window squares its corners.
-- **Close** follows your tray setting. With *Keep running in the tray when closed* on, it hides the window instead of quitting.
-- **It matches the rest of the UI.** The glass is neutral and picks up the keyboard's current colour for its rim and glow,
-  the same way the tabs do, so it changes with your lighting. There is no blur, so it costs the GPU nothing.
-
-To restyle it, set these variables in `:root` of [`src/css/app.css`](src/css/app.css) (the window-buttons block shows the defaults):
-
-| Variable | Default | What it does |
-| --- | --- | --- |
-| `--win-tint` | the keyboard colour | Set `r g b` in `:root` (for example `22 134 106`) for one fixed colour instead |
-| `--win-w` | `42px` | Width of one button (the pill is three of them) |
-| `--win-h` | `36px` | Height of the pill |
-| `--win-pad` | `3px` | Gap between the rim and the buttons |
-| `--win-edge` | `12px` | Distance from the window's top and right edges |
 
 ## Supported keyboards
 
@@ -240,14 +215,3 @@ Captured from the real interface running against simulated keyboards. The window
   square buttons in the title bar: three equal cells, thin light icons, a soft hover and a red close. The glass takes its
   colour from the keyboard like the rest of the UI, and its size is set by CSS variables (see [Design](#design)).
 - Refreshed screenshots that show the new window controls.
-
-## Credits
-
-Protocol details come from these community projects: [TrueIG/AULA-F75-configurator](https://github.com/TrueIG/AULA-F75-configurator),
-[JavaProgswing/aula-f75](https://github.com/JavaProgswing/aula-f75),
-[marcoslor/Aula-F87-Controller](https://github.com/marcoslor/Aula-F87-Controller) and
-[RustamSheoran/aula-f75](https://github.com/RustamSheoran/aula-f75).
-
-## License
-
-GPL-3.0. See the [LICENSE](LICENSE) file. Aula Control is an independent project and is not affiliated with or endorsed by AULA.
