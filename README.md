@@ -8,7 +8,7 @@ Battery and charging, lighting effects, per-key RGB, and a live preview of the b
 [![Version](https://img.shields.io/badge/version-1.3.3-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4)](#download)
 [![Electron](https://img.shields.io/badge/built%20with-Electron-47848f)](https://www.electronjs.org/)
-[![License](https://img.shields.io/badge/license-MIT--3.0-blue)](#license)
+[![License](https://img.shields.io/badge/license-MIT-blue)](#license)
 
 [**Download**](../../releases) · [Features](#features) · [Design](#design) · [Supported keyboards](#supported-keyboards) · [Battery and charging](#battery-and-charging) · [Troubleshooting](#troubleshooting)
 
