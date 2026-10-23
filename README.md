@@ -154,23 +154,6 @@ Click a picture to see it full size.
 </tr>
 </table>
 
-## The keyboard pictures
-
-The pictures in `src/img/board` are rendered, not photographed: they are made from each model's layout and colours (`src/js/layout.js`, `src/js/skins.js`) by a small renderer that needs only Python with numpy, scipy and Pillow. To change a colourway or add a model, edit those files and run:
-
-```
-node scripts/render-board/dump-models.js > models.json
-python3 scripts/render-board/render.py models.json --out src/img/board --R 128 --ss 2 --caps all
-```
-
-(about two minutes). `--only f75` renders one skin, `--R` is the size in pixels per key and `--ss` the supersampling. Without the images the app draws the keyboard with shapes instead. The F75 Max board (shown only when a Max is connected) is still drawn with CSS.
-
-## Preset backgrounds
-
-Every PNG, JPEG or WebP picture in `src/img/backgrounds` is offered in **Settings > Theme > Preset backgrounds**. None is
-chosen by default. To add one, drop the file in that folder and rebuild with `npm run dist` (or *Build Windows App.bat*);
-the build packs the folder into the app, and there is no list to edit. The file name becomes the label.
-
 ## Troubleshooting
 
 - Close the official AULA driver. Only one program can use the keyboard at a time.
