@@ -63,8 +63,6 @@ No keyboard? Try **Settings, Demo keyboard**.
 - Key assignment (experimental)
 - Dark and light themes, tray icon, start with Windows
 
-<img src="docs/screenshots/keyboards.png" alt="The picture for each model: F75, F75 Pro, F87 and F75 Max" width="560">
-
 ## Screenshots
 
 All of these are the real app with a simulated keyboard (the Demo keyboard, or a simulated dongle, cable or F75 Max).
