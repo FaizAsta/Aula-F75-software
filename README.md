@@ -24,7 +24,7 @@
 **An unofficial Windows app for AULA F75 keyboards.**<br>
 Battery, lighting effects, per-key RGB and a live preview.
 
-[![Version](https://img.shields.io/badge/version-1.4.2-blue)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.4.3-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4)](#download)
 
 [**Download**](../../releases) · [Features](#features) · [Troubleshooting](#troubleshooting)
@@ -35,7 +35,7 @@ Battery, lighting effects, per-key RGB and a live preview.
 
 ## Read this first
 
-I made this app for myself because AULA's official software is bad and its UI is terrible. I'm sharing it for anyone
+I made this app for myself because AULA's official software is bad and its UI is terrible.I'm sharing it for anyone
 who wants to try it. It's free, and you use it on your own.
 
 I don't even know coding, so **use it at your own risk**, or leave if you have any issue. It was made with the help of
