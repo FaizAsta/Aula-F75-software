@@ -68,6 +68,8 @@ No keyboard? Try **Settings, Demo keyboard**.
 All of these are the real app with a simulated keyboard (the Demo keyboard, or a simulated dongle, cable or F75 Max).
 Click a picture to see it full size.
 
+<img width="1520" height="940" alt="15088" src="https://github.com/user-attachments/assets/fede3a1e-04ef-45cd-89e0-021097a551ba" />
+
 ### Start and devices
 
 <table>
