@@ -11,6 +11,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -28,6 +30,7 @@ jobs:
           $pkg = Get-ChildItem -Path build -Recurse -Depth 1 -Filter package.json | Select-Object -First 1
           if (-not $pkg) { throw 'No package.json inside the zip.' }
           "APP_DIR=$($pkg.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "ZIP_NAME=$($zip.Name)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Install
         shell: bash
@@ -49,10 +52,54 @@ jobs:
           [ -f RELEASE_NOTES.md ] || { echo "RELEASE_NOTES.md is missing in the zip."; exit 1; }
           VERSION=$(node -p "require('./package.json').version")
           TAG="v$VERSION"
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
           FILES="dist/Aula-Control-Setup.exe dist/Aula-Control-Portable.exe"
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" $FILES --clobber
             gh release edit "$TAG" --notes-file RELEASE_NOTES.md --latest
           else
             gh release create "$TAG" $FILES --title "Aula Control $VERSION" --notes-file RELEASE_NOTES.md --target "$GITHUB_SHA" --latest
+          fi
+
+      # Runs only when everything above worked, so a failed build leaves the zip where it is.
+      # The zip goes onto the dev branch first and is removed from this branch second: if the push to dev fails, nothing is lost.
+      - name: Move the zip to the dev branch
+        shell: bash
+        env:
+          DEV_BRANCH: dev
+        run: |
+          set -euo pipefail
+          SRC="$GITHUB_REF_NAME"
+          if [ "$SRC" = "$DEV_BRANCH" ]; then
+            echo "Running on $DEV_BRANCH already, nothing to move."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Create the dev branch from this branch if the repository does not have one yet, then put the zip on it.
+          if git ls-remote --exit-code --heads origin "$DEV_BRANCH" > /dev/null 2>&1; then
+            echo "Branch $DEV_BRANCH exists."
+            git fetch origin "$DEV_BRANCH"
+            git worktree add -B "$DEV_BRANCH" ../dev-branch "origin/$DEV_BRANCH"
+          else
+            echo "Branch $DEV_BRANCH does not exist: creating it from $SRC."
+            git worktree add -b "$DEV_BRANCH" ../dev-branch HEAD
+          fi
+          cp "$ZIP_NAME" "../dev-branch/$ZIP_NAME"
+          git -C ../dev-branch add -- "$ZIP_NAME"
+          if git -C ../dev-branch diff --cached --quiet; then
+            echo "$ZIP_NAME is already on $DEV_BRANCH."
+          else
+            git -C ../dev-branch commit -m "Add $ZIP_NAME (released as $RELEASE_TAG)"
+          fi
+          git -C ../dev-branch push origin "$DEV_BRANCH"
+
+          # Take the zip off this branch.
+          if git ls-files --error-unmatch -- "$ZIP_NAME" > /dev/null 2>&1; then
+            git rm -q -- "$ZIP_NAME"
+            git commit -m "Move $ZIP_NAME to $DEV_BRANCH after release $RELEASE_TAG"
+            git push origin "HEAD:refs/heads/$SRC"
+          else
+            echo "$ZIP_NAME is not tracked on $SRC, nothing to remove."
           fi
