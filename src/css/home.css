@@ -1,0 +1,242 @@
+/* Start screen, device picker and crosshair. Reduced motion is handled by the global rule at the end of app.css. */
+
+@property --ang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+.home {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  background: radial-gradient(70% 60% at 50% 40%, rgb(var(--glow) / 0.14), transparent 72%);
+  transition: opacity 0.5s var(--ease), transform 0.6s var(--ease), filter 0.5s, visibility 0s linear 0.6s;
+}
+.home::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(closest-side at 50% 50%, transparent 52%, var(--vignette));
+}
+.home[data-screen="app"] { opacity: 0; visibility: hidden; pointer-events: none; transform: scale(1.06); filter: blur(8px); }
+.shell:not(.lite), .shell:not(.lite) * { cursor: none; }
+.hm-drag, .shell .win-btns, .shell .win-btns *, .shell select { cursor: default; }
+.shell input[type="text"] { cursor: text; }
+.shell { --hue: 200; }
+.hm-fx { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; transition: opacity 0.6s; }
+.shell[data-screen="app"] .hm-fx { opacity: 0.5; }
+/* Drag strip for the start and device screens. It must stop short of the window-button pill: Electron builds its
+   draggable regions in document order (not z-order), and a drag region that covers a button turns that spot into
+   title bar, so Windows swallows the click and Minimize / Maximize / Close do nothing. */
+.hm-drag { position: absolute; top: 0; left: 0; right: calc(var(--win-pill) + var(--win-edge) + 8px); height: var(--top); z-index: 3; -webkit-app-region: drag; }
+
+/* ---------------------------------------------------------------- screens */
+
+.scr {
+  position: absolute;
+  inset: var(--top) 0 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0 28px 40px;
+  text-align: center;
+  transition: opacity 0.45s var(--ease), transform 0.55s var(--ease);
+}
+.home:not([data-screen="home"]) .scr-start,
+.home:not([data-screen="devices"]) .scr-devices,
+.home:not([data-screen="devices"]) .hm-back {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.4s var(--ease), transform 0.5s var(--ease), visibility 0s linear 0.5s;
+}
+.home:not([data-screen="home"]) .scr-start { transform: translateY(-26px) scale(0.97); }
+.home:not([data-screen="devices"]) .scr-devices { transform: translateY(26px); }
+
+.hm-in { animation: hmIn 0.8s var(--ease) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+@keyframes hmIn { from { opacity: 0; transform: translateY(18px); filter: blur(6px); } }
+
+/* ------------------------------------------------------------------ start */
+
+.hs-logo { display: block; border-radius: 16px; filter: drop-shadow(0 0 22px rgb(110 150 255 / 0.5)); animation: hmFloat 5s ease-in-out infinite; }
+@keyframes hmFloat { 50% { transform: translateY(-8px); } }
+.hs-title { margin: 22px 0 10px; font: 700 clamp(38px, 7vw, 74px)/1 var(--font-display); letter-spacing: 0.08em; }
+.hs-title span {
+  background: var(--rgb-text);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: rgbText 4s linear infinite;
+}
+.hs-sub { max-width: 420px; color: var(--muted); font-size: 14.5px; }
+.hs-hint { margin-top: 18px; color: var(--faint); font-size: 12px; letter-spacing: 0.04em; }
+
+.start-btn {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  margin-top: 38px;
+  padding: 0 34px 0 38px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--hi);
+  font: 700 14px var(--font-display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  filter: drop-shadow(0 0 18px rgb(110 150 255 / 0.35));
+  transition: transform 0.25s var(--spring);
+}
+.start-btn::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: -2;
+  border-radius: inherit;
+  background: conic-gradient(from var(--ang), #ff2d55, #ff9f0a, #ffd60a, #30d158, #0fd9ff, #4f6bff, #bf5af2, #ff2d55);
+  animation: hmSpin 3.5s linear infinite;
+}
+.start-btn::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--start-bg); transition: background 0.2s; }
+.start-btn:hover::after { background: var(--start-hover); }
+.start-btn:active { transform: scale(0.95); }
+.start-btn svg { transition: transform 0.25s var(--ease); }
+.start-btn:hover svg { transform: translateX(5px); }
+@keyframes hmSpin { to { --ang: 360deg; } }
+
+/* ---------------------------------------------------------------- devices */
+
+.hm-back { position: absolute; top: calc(var(--top) + 6px); left: 22px; z-index: 4; display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.4s, background 0.15s, color 0.15s, transform 0.18s var(--spring); }
+.hm-back .ico { width: 14px; height: 14px; }
+.hd-title { font-size: clamp(26px, 4vw, 36px); font-weight: 700; }
+.hd-sub { margin: 8px 0 22px; max-width: 440px; color: var(--muted); font-size: 13.5px; }
+.hm-radar { position: relative; width: 64px; height: 64px; margin: 4px 0 22px; }
+.hm-radar i { position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid hsl(var(--hue) 100% 65% / 0.7); animation: rgbPulse 2.4s var(--ease) infinite; }
+.hm-radar i:nth-child(2) { animation-delay: 0.8s; }
+.hm-radar i:nth-child(3) { animation-delay: 1.6s; }
+.hm-radar::after { content: ""; position: absolute; inset: 27px; border-radius: 50%; background: hsl(var(--hue) 100% 65%); box-shadow: 0 0 14px hsl(var(--hue) 100% 65%); }
+.hm-list { width: min(560px, 100%); display: grid; gap: 10px; min-height: 0; padding: 6px; overflow-y: auto; scrollbar-width: none; }
+.hm-actions { margin-top: 18px; }
+
+.hm-dev {
+  display: grid;
+  grid-template-columns: 46px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--r-tile);
+  background: rgb(var(--tile) / 0.78);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  animation: hmIn 0.55s var(--ease) backwards;
+  animation-delay: calc(var(--i) * 70ms);
+  transition: background 0.2s, box-shadow 0.25s, transform 0.25s var(--spring);
+}
+.hm-dev:hover { background: rgb(var(--tile-hover) / 0.92); transform: translateY(-2px); box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.26), 0 14px 28px -16px rgb(var(--shade) / 0.75); }
+.hm-dev:active { transform: scale(0.985); }
+.hm-dev.shake { animation: hmShake 0.4s; }
+@keyframes hmShake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+.hm-dev-ico { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; background: rgb(var(--ink) / 0.07); color: hsl(var(--hue) 100% 75%); }
+.hm-dev-ico .ico { width: 24px; height: 24px; }
+.hm-dev-txt { min-width: 0; }
+.hm-dev-txt b { display: block; font: 600 15px var(--font-display); }
+.hm-dev-txt small { display: block; margin-top: 2px; color: var(--muted); font: 12px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-dev-st { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; }
+.hm-dev-st i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.hm-dev-st em { font-style: normal; }
+.hm-dev[data-k="ok"] .hm-dev-st i { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+.hm-dev[data-k="warn"] .hm-dev-st i { background: var(--warn); }
+.hm-dev[data-k="bad"] .hm-dev-st i { background: var(--bad); }
+.hm-dev[data-k="busy"] .hm-dev-st i { background: hsl(var(--hue) 100% 65%); animation: blink 1s infinite; }
+.hm-dev-st .bat { margin-left: 4px; padding: 2px 8px; border-radius: 999px; background: rgb(var(--ink) / 0.08); color: var(--text); font: 600 12px var(--font); }
+.hm-dev-st .bat.chg { display: inline-flex; align-items: center; gap: 5px; color: var(--ok); }
+.hm-dev-st .bat.chg svg { width: 11px; height: 11px; fill: currentColor; animation: chgBolt 1.6s ease-in-out infinite; }
+
+/* -------------------------------------------------------------- crosshair */
+
+.xh { --x: 0px; --y: 0px; --w: 56px; --h: 56px; --mx: 0px; --my: 0px; --c: hsl(var(--hue) 100% 68%); position: absolute; inset: 0; z-index: 45; pointer-events: none; }
+.xh-h, .xh-v { position: absolute; left: 0; top: 0; background: var(--c); opacity: 0.4; }
+.xh-h {
+  width: 100%;
+  height: 1px;
+  transform: translateY(var(--y));
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(var(--x) - var(--w) / 2 - 8px), #0000 calc(var(--x) - var(--w) / 2 - 8px), #0000 calc(var(--x) + var(--w) / 2 + 8px), #000 calc(var(--x) + var(--w) / 2 + 8px));
+  mask-image: linear-gradient(90deg, #000 calc(var(--x) - var(--w) / 2 - 8px), #0000 calc(var(--x) - var(--w) / 2 - 8px), #0000 calc(var(--x) + var(--w) / 2 + 8px), #000 calc(var(--x) + var(--w) / 2 + 8px));
+}
+.xh-v {
+  width: 1px;
+  height: 100%;
+  transform: translateX(var(--x));
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(var(--y) - var(--h) / 2 - 8px), #0000 calc(var(--y) - var(--h) / 2 - 8px), #0000 calc(var(--y) + var(--h) / 2 + 8px), #000 calc(var(--y) + var(--h) / 2 + 8px));
+  mask-image: linear-gradient(180deg, #000 calc(var(--y) - var(--h) / 2 - 8px), #0000 calc(var(--y) - var(--h) / 2 - 8px), #0000 calc(var(--y) + var(--h) / 2 + 8px), #000 calc(var(--y) + var(--h) / 2 + 8px));
+}
+.xh-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--w);
+  height: var(--h);
+  border: 1.5px solid var(--c);
+  border-radius: 999px;
+  transform: translate(calc(var(--x) - 50%), calc(var(--y) - 50%));
+  box-shadow: 0 0 20px -4px var(--c), inset 0 0 16px -8px var(--c);
+  transition: border-radius 0.3s var(--ease);
+}
+.xh-ring::before, .xh-ring::after { content: ""; position: absolute; background: var(--c); }
+.xh-ring::before { left: -12px; right: -12px; top: 50%; height: 1.5px; margin-top: -0.75px; -webkit-mask-image: linear-gradient(90deg, #000 12px, #0000 12px, #0000 calc(100% - 12px), #000 calc(100% - 12px)); mask-image: linear-gradient(90deg, #000 12px, #0000 12px, #0000 calc(100% - 12px), #000 calc(100% - 12px)); }
+.xh-ring::after { top: -12px; bottom: -12px; left: 50%; width: 1.5px; margin-left: -0.75px; -webkit-mask-image: linear-gradient(180deg, #000 12px, #0000 12px, #0000 calc(100% - 12px), #000 calc(100% - 12px)); mask-image: linear-gradient(180deg, #000 12px, #0000 12px, #0000 calc(100% - 12px), #000 calc(100% - 12px)); }
+.xh-ring b { position: absolute; inset: 7px; border: 1px dashed var(--c); border-radius: inherit; opacity: 0.45; animation: hmRot 9s linear infinite; }
+@keyframes hmRot { to { rotate: 360deg; } }
+.xh[data-lock="1"] .xh-ring { border-radius: 18px; }
+.xh[data-lock="1"] .xh-ring b { opacity: 0; }
+.xh-dot { position: absolute; left: 0; top: 0; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px var(--c); transform: translate(var(--mx), var(--my)); }
+.xh.fire .xh-ring { animation: hmFire 0.5s var(--ease); }
+@keyframes hmFire { 35% { scale: 1.6; opacity: 0.4; } }
+
+/* ---------------------------------------------- main app: brand + entrance */
+
+.top .brand { justify-self: start; padding-right: 14px; cursor: pointer; -webkit-app-region: no-drag; transition: opacity 0.15s; }
+.top .brand:hover { opacity: 0.75; }
+.entering .top { animation: dropIn 0.5s var(--ease) backwards; }
+.entering .main { animation: riseIn 0.6s var(--ease) 0.1s backwards; }
+
+/* ------------------------------------- main app: same look as the start screen */
+
+/* The app shows only once it has been entered; before that the start screen owns the window. */
+.top, .main { transition: opacity 0.5s var(--ease) 0.15s, visibility 0s; }
+.shell:not([data-screen="app"]) :is(.top, .main, .applybar) { opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0s linear 0.3s; }
+.shell[data-screen="app"] .xh-h, .shell[data-screen="app"] .xh-v { opacity: 0.2; }
+
+.group { background: rgb(var(--card) / 0.84); }
+.stage { box-shadow: inset 0 0 0 1px var(--line); }
+.tab-ind { box-shadow: inset 0 0 0 1px rgb(var(--glow-ink) / 0.55), 0 0 18px -6px rgb(var(--glow) / 0.7); }
+.brand span {
+  background: var(--rgb-text);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* Hover (v1.4.8): a thin neutral edge and a soft dark shadow underneath. No colour, no ring. */
+.effect:hover:not([aria-checked="true"]):not(:disabled) { box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.3), 0 12px 24px -14px rgb(var(--shade) / 0.75); }
+.btn:hover:not(:disabled) { box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.2), 0 8px 18px -10px rgb(var(--shade) / 0.7); }
+.pill-btn:hover { box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.14); }
+.icon-btn:hover { box-shadow: none; }
+.btn.primary:not(:disabled) {
+  border: 2px solid transparent;
+  background: linear-gradient(var(--btn-bg), var(--btn-bg)) padding-box, conic-gradient(from var(--ang), #ff2d55, #ff9f0a, #ffd60a, #30d158, #0fd9ff, #4f6bff, #bf5af2, #ff2d55) border-box;
+}
+.btn.primary:not(:disabled):hover { animation: hmSpin 3.5s linear infinite; }
+
+/* Whatever is not on screen does not animate. */
+.home:not([data-screen="home"]) .scr-start, .home:not([data-screen="home"]) .scr-start *, .home:not([data-screen="home"]) .scr-start *::before, .home:not([data-screen="home"]) .scr-start *::after,
+.home:not([data-screen="devices"]) .scr-devices *, .home:not([data-screen="devices"]) .scr-devices *::before, .home:not([data-screen="devices"]) .scr-devices *::after { animation-play-state: paused; }

@@ -1,0 +1,137 @@
+{
+  "name": "aula-control",
+  "productName": "Aula Control",
+  "version": "1.4.6",
+  "description": "Unofficial companion app for AULA F75, F75 Pro and F87 keyboards: battery, lighting effects and per-key RGB.",
+  "main": "main.js",
+  "author": "Aula Control contributors",
+  "license": "GPL-3.0-only",
+  "aulaControl": {
+    "updateRepo": "FaizAsta/Aula-F75-software"
+  },
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "icon": "python3 scripts/make-icon.py",
+    "screenshots": "node scripts/screenshots.js",
+    "dist": "electron-builder --win nsis portable",
+    "dist:win": "electron-builder --win nsis portable",
+    "dist:linux": "electron-builder --linux AppImage deb tar.gz"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.aulacontrol.app",
+    "productName": "Aula Control",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "login-item.js",
+      "updater.js",
+      "bluetooth-linux.js",
+      "usage.js",
+      "RELEASE_NOTES.md",
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Aula Control",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "artifactName": "Aula-Control-Setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "Aula-Control-Portable.${ext}"
+    },
+    "extraResources": [
+      {
+        "from": "packaging/linux/70-aula-control.rules",
+        "to": "70-aula-control.rules"
+      }
+    ],
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "category": "Utility",
+      "executableName": "aula-control",
+      "maintainer": "Aula Control contributors",
+      "synopsis": "Unofficial companion app for AULA keyboards",
+      "desktop": {
+        "Name": "Aula Control",
+        "Comment": "Battery, lighting effects and per-key RGB for AULA keyboards",
+        "StartupWMClass": "Aula Control",
+        "Keywords": "keyboard;rgb;aula;f75;lighting;"
+      },
+      "artifactName": "Aula-Control-${version}-linux-${arch}.${ext}"
+    },
+    "deb": {
+      "afterInstall": "packaging/linux/after-install.sh",
+      "afterRemove": "packaging/linux/after-remove.sh",
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0"
+      ]
+    }
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
+  },
+  "homepage": "https://github.com/FaizAsta/Aula-F75-software",
+  "desktopName": "aula-control.desktop"
+}

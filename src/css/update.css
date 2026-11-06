@@ -1,0 +1,71 @@
+/* ==========================================================================
+   Software update dialog: a centred card over the whole window, a thin progress bar, the release notes, and one row
+   of full-width buttons. It sits below the window pill (z-index 60), so Minimize and Close still work behind it.
+   ========================================================================== */
+
+.upd {
+  position: absolute;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(var(--scrim) / 0.72);
+  backdrop-filter: blur(6px);
+  animation: fadeIn 0.25s both;
+}
+.upd[hidden] { display: none; }
+.upd-card {
+  width: min(460px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 28px;
+  background: rgb(var(--pop) / 0.97);
+  box-shadow: inset 0 0 0 1px var(--line-2), 0 30px 80px rgb(var(--shade) / 0.6);
+  overflow: hidden;
+}
+
+.upd-head { padding: 26px 26px 20px; text-align: center; }
+.upd-head h2 { margin: 0 0 8px; font-size: 22px; }
+.upd-sub { margin: 0; color: var(--text); font-size: 15px; line-height: 1.45; }
+.upd-bar { height: 8px; margin-top: 18px; border-radius: 999px; background: rgb(var(--ink) / 0.16); overflow: hidden; }
+.upd-bar[hidden] { display: none; }
+.upd-bar i { display: block; height: 100%; border-radius: inherit; background: var(--hi); transform: scaleX(0); transform-origin: 0 50%; transition: transform 0.25s linear; }
+.upd-meta { margin: 8px 0 0; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.upd-meta:empty { display: none; }
+
+.upd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 26px 18px; border-top: 1px solid var(--line); scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+.upd-body[hidden] { display: none; }
+.upd-body h3 { margin: 16px 0 6px; color: var(--muted); font-size: 15px; font-weight: 500; }
+.upd-notes { font-size: 14px; line-height: 1.5; }
+.upd-notes h4 { margin: 16px 0 6px; font-size: 17px; }
+.upd-notes p { margin: 8px 0; }
+.upd-notes ul { margin: 6px 0 10px; padding-left: 20px; }
+.upd-notes li { margin: 5px 0; }
+.upd-notes .none { color: var(--muted); }
+
+.upd-actions { display: flex; border-top: 1px solid var(--line); }
+.upd-actions:empty { display: none; }
+.upd-act { flex: 1 1 0; height: 54px; border: 0; background: transparent; color: var(--text); font: 500 16px var(--font); cursor: pointer; transition: background 0.15s; }
+.upd-act + .upd-act { border-left: 1px solid var(--line); }
+.upd-act:hover { background: rgb(var(--ink) / 0.06); }
+.upd-act.upd-main { font-weight: 700; }
+.upd-act:focus-visible { outline-offset: -3px; }
+
+/* The result of "Check for updates" in Settings: plain text colour instead of the muted hint colour, so it is noticed. */
+#updStatus[data-k] { color: var(--text); }
+#updStatus[data-k="bad"] { color: var(--bad); }
+
+/* Update icon: in the header, and as a button on the start and device screens (the header is hidden there). It shows as
+   soon as a newer version is found and stays until the app is updated, whatever was chosen in the dialog. */
+.upd-badge[hidden] { display: none; }
+.upd-badge { position: relative; color: var(--ok); }
+.upd-badge:hover { color: var(--ok); }
+.upd-badge .ico { width: 18px; height: 18px; }
+.upd-badge .upd-dot { position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); animation: updPulse 2s ease-in-out infinite; }
+@keyframes updPulse { 50% { transform: scale(1.35); opacity: 0.6; } }
+.hm-upd { position: absolute; top: calc(var(--top) + 6px); right: 22px; z-index: 4; display: inline-flex; align-items: center; gap: 6px; }
+.hm-upd[hidden] { display: none; }
+.hm-upd .ico { width: 15px; height: 15px; }
+.hm-upd.hm-upd, .hm-upd.hm-upd:hover { color: var(--ok); }

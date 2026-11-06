@@ -1,0 +1,58 @@
+/* ==========================================================================
+   Lite mode (v1.4.4). Loaded last. Idle cost is ~zero: nothing animates until you hover or focus it.
+   What changed: no full-window canvas grid, no custom cursor, no blur/backdrop/drop-shadow filters, no entrance
+   choreography, no endless ambient animations.
+   Hover (v1.4.8): quiet. No rainbow ring: a thin neutral edge, a soft fill and a small lift. Nothing animates.
+   To get the old look back, set LITE = false in js/home.js and delete this file's <link> in index.html.
+   ========================================================================== */
+
+/* ---- 1. Quiet hover. The actual hover rules live next to each control (app.css / home.css); this adds the swatch ring -- */
+:where(.effect, .btn, .pill-btn, .icon-btn, .swatch, .hm-dev, .color-pick) { position: relative; } /* zero specificity: never overrides .hm-back etc. */
+/* a swatch under the pointer gets a thin white halo, set off from the colour by a gap (the selected one has a thicker one) */
+.swatch:hover:not(:disabled):not([aria-checked="true"]) { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px rgb(var(--ink) / 0.55); }
+/* the start button and primary buttons already carry a rainbow border; it now spins only on hover/focus */
+.start-btn { filter: none; }
+.start-btn::before { animation: none; }
+.start-btn:is(:hover, :focus-visible)::before { animation: hmSpin 2.4s linear infinite; }
+
+/* ---- 2. No entrance choreography: panels just fade in quickly ------------------------------------------------- */
+.shell, .brand, .tabs, .top-right, .stage, .split > *, .settings > *, .group > .field, .effect, .overlay-card,
+.hm-dev, .entering .top, .entering .main, .toast { animation: none; }
+.panel:not([hidden]) { animation: fadeIn 0.15s both; }
+@keyframes hmIn { from { opacity: 0; } } /* was a rise + blur(6px) */
+
+/* ---- 3. No endless ambient animations --------------------------------------------------------------------------- */
+.stage::before, .hs-logo, .bat-bar i::after, .effect[data-live="true"] .live-dot, .dot[data-s]::after { animation: none; }
+.hs-logo { filter: none; }
+.effect[aria-checked="true"]::after { animation: none; box-shadow: 0 0 14px -2px rgb(var(--glow) / 0.28); }
+.xh-ring b { animation: none; }
+
+/* ---- 4. No blur / backdrop filters ------------------------------------------------------------------------------ */
+*, *::before, *::after { backdrop-filter: none !important; }
+.overlay { background: rgb(var(--scrim) / 0.94); } /* no blur here, so the scrim itself has to do the hiding */
+.home[data-screen="app"] { filter: none; }
+.rl-glow { display: none; }
+
+/* ---- 5. Connecting loader: keep the rainbow ring, drop the filter-based hue cycling -------------------------- */
+.rl-pulse { animation: rgbPulse 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; }
+.rl-pulse2 { animation-delay: 1.2s; }
+.rl-core { animation: corePulse 1.1s ease-in-out infinite, coreHue 3.6s linear infinite; box-shadow: none; }
+@keyframes coreHue {
+  0%, 100% { background: #ff2d55; } 17% { background: #ff9f0a; } 33% { background: #ffd60a; }
+  50% { background: #30d158; } 67% { background: #0fd9ff; } 83% { background: #bf5af2; }
+}
+
+/* ---- 6. Lite start screen: the grid canvas and crosshair are off, so give the real cursor back ------------------ */
+.lite .xh { display: none; }
+/* the old canvas grid is replaced by a static CSS keycap grid: costs nothing, fades out toward the edges */
+.lite .hm-fx {
+  background: linear-gradient(rgb(var(--ink) / 0.05) 1px, transparent 1px) 0 0 / 52px 52px,
+              linear-gradient(90deg, rgb(var(--ink) / 0.05) 1px, transparent 1px) 0 0 / 52px 52px;
+  -webkit-mask-image: radial-gradient(60% 55% at 50% 45%, #000, transparent 100%);
+  mask-image: radial-gradient(60% 55% at 50% 45%, #000, transparent 100%);
+}
+.lite :is(.effect, .tab-btn, .seg-btn, .swatch, .hm-dev, .start-btn, .pill-btn, .icon-btn, .btn, .brand, .hm-back, .switch):not(:disabled) { cursor: pointer; }
+
+/* ---- 7. Tabs: a soft fill behind the label on hover (the selected tab keeps its sliding pill) ----------------------- */
+.tab-btn { transition: color 0.15s, background 0.15s, transform 0.15s var(--spring); }
+.tab-btn:hover:not([aria-selected="true"]) { background: rgb(var(--ink) / 0.07); }
