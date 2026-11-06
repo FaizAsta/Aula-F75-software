@@ -17,6 +17,15 @@
   and every picture used here exists.
 -->
 
+<!--
+  BUMPING THE VERSION (note for anyone who edits this project, people and AI assistants alike).
+
+  When the version is bumped, change only the version number: in package.json ("version") and in the Version
+  badge below (the X.Y.Z in badge/version-X.Y.Z-blue). The only other edit is the new header at the top of
+  RELEASE_NOTES.md (see the note at the top of that file). Change nothing else: no README text, no screenshots,
+  no tests. `npm test` checks that the two numbers agree.
+-->
+
 <div align="center">
 
 <img src="docs/banner.png" width="800" alt="Aula Control">
@@ -24,7 +33,7 @@
 **An unofficial Windows app for AULA F75 keyboards.**<br>
 Battery, lighting effects, per-key RGB and a live preview.
 
-[![Version](https://img.shields.io/badge/version-1.4.3-blue)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.4.6-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4)](#download)
 
 [**Download**](../../releases) · [Features](#features) · [Troubleshooting](#troubleshooting)
@@ -35,7 +44,7 @@ Battery, lighting effects, per-key RGB and a live preview.
 
 ## Read this first
 
-I made this app for myself because AULA's official software is bad and its UI is terrible.I'm sharing it for anyone
+I made this app for myself because AULA's official software is bad and its UI is terrible. I'm sharing it for anyone
 who wants to try it. It's free, and you use it on your own.
 
 I don't even know coding, so **use it at your own risk**, or leave if you have any issue. It was made with the help of
@@ -57,18 +66,19 @@ No keyboard? Try **Settings, Demo keyboard**.
 
 ## Features
 
-- Battery level, charging indicator and low / fully charged alerts
+- Battery level, charging indicator and low / fully charged alerts, with a red breathing light on the keyboard while the battery is low
+- After an update, a small window lists what is new (only the headers from RELEASE_NOTES.md, not the descriptions)
 - 15 lighting effects and per-key RGB
-- Live preview of the keyboard as a rendered picture, a different one for each model (F75, F75 Pro, F87, F75 Max)
+- Live preview of the keyboard as a rendered picture, a different one for each model (F75, F75 Pro, F87, F75 Max); a Live / Picture switch on it: Live follows the keyboard and goes dark when it is off or asleep, Picture is just the unlit board with the hover animation
 - Key assignment (experimental)
 - Dark and light themes, tray icon, start with Windows
+
+<img src="docs/screenshots/keyboards.png" alt="The picture for each model: F75, F75 Pro, F87 and F75 Max" width="560">
 
 ## Screenshots
 
 All of these are the real app with a simulated keyboard (the Demo keyboard, or a simulated dongle, cable or F75 Max).
 Click a picture to see it full size.
-
-<img width="1520" height="940" alt="15088" src="https://github.com/user-attachments/assets/fede3a1e-04ef-45cd-89e0-021097a551ba" />
 
 ### Start and devices
 
@@ -154,10 +164,28 @@ Click a picture to see it full size.
 </tr>
 </table>
 
+## The keyboard pictures
+
+The pictures in `src/img/board` are rendered, not photographed: they are made from each model's layout and colours (`src/js/layout.js`, `src/js/skins.js`) by a small renderer that needs only Python with numpy, scipy and Pillow. To change a colourway or add a model, edit those files and run:
+
+```
+node scripts/render-board/dump-models.js > models.json
+python3 scripts/render-board/render.py models.json --out src/img/board --R 128 --ss 2 --caps all
+```
+
+(about two minutes). `--only f75` renders one skin, `--R` is the size in pixels per key and `--ss` the supersampling. Without the images the app draws the keyboard with shapes instead. The F75 Max board (shown on its Per-key screen) has its own pictures too (`max-base.webp` and its keycaps); its keys are placed on top of the picture as buttons, so you can still click and paint them. Without the pictures it is drawn with CSS.
+
+## Preset backgrounds
+
+Every PNG, JPEG or WebP picture in `src/img/backgrounds` is offered in **Settings > Theme > Preset backgrounds**. None is
+chosen by default. To add one, drop the file in that folder and rebuild with `npm run dist` (or *Build Windows App.bat*);
+the build packs the folder into the app, and there is no list to edit. The file name becomes the label.
+
 ## Troubleshooting
 
 - Close the official AULA driver. Only one program can use the keyboard at a time.
 - Lighting works over the 2.4G dongle (best) or USB-C cable. Bluetooth only gives the battery level.
+- The red low-battery light is written by the app, so it only works while Aula Control is running. Hidden in the tray is fine; if you quit the app, nothing watches the battery. Turn on **Start with Windows** in Settings, App to keep it running. Hover the tray icon to see what the app uses right now (CPU and memory, measured by Electron).
 - Still stuck? Open **Settings, Connection help** and save a log.
 
 ---

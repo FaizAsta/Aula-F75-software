@@ -1,0 +1,72 @@
+/* ==========================================================================
+   Battery tab, laid out like a phone's battery screen: a big level with the time to full or empty, a thick bar, a day
+   picker over hourly bars, and the stretch since the last charge. Loaded after app.css, so it overrides the old
+   battery block there. No animation of its own.
+   ========================================================================== */
+
+:root { --bar: #6f7b93; } /* battery-level bars: a slate that reads on both the dark and the light surface */
+
+.split-battery { grid-template-columns: 380px minmax(0, 1fr); }
+@media (max-width: 880px) {
+  .split-battery { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ------------------------------------------------------------------- level */
+
+.bat-hero { padding: 24px 22px 20px; gap: 16px; }
+.bat-read { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.bat-chg svg { width: 26px; height: 26px; }
+.bat-num { font: 600 46px/1 var(--font-display); }
+.bat-hero[data-chg="1"] .bat-num { color: var(--ok); }
+.bat-lbl { margin-left: auto; text-align: right; color: var(--muted); font-size: 14px; }
+
+.bat-bar { height: 26px; border-radius: 999px; }
+.bat-hero[data-chg="1"] .bat-bar i {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ok) 50%, #fff), var(--ok));
+}
+.bat-status { margin: -4px 0 0; color: var(--muted); font-size: 13.5px; }
+.bat-status:empty { display: none; }
+
+/* --------------------------------------------------------------- activity */
+
+.days { display: flex; gap: 4px; margin-bottom: 14px; }
+.day {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: 500 15px var(--font);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.day:hover { color: var(--text); }
+.day[aria-pressed="true"] { background: var(--raise); color: var(--hi); font-weight: 600; }
+.day-title { margin: 0 0 8px 4px; color: var(--muted); font-size: 14px; }
+
+.chart .night { fill: rgb(var(--ink) / 0.045); }
+.chart .bar { fill: var(--bar); }
+.chart .bar.chg { fill: var(--ok); }
+.chart .est { fill: rgb(var(--ink) / 0.14); stroke: none; }
+.chart .est.up { fill: var(--ok); fill-opacity: 0.22; }
+.chart .now { stroke: var(--text); stroke-width: 1.5; }
+.chart .bub { fill: var(--raise); }
+.chart .bub-t { fill: var(--text); font: 600 13px var(--font); }
+.chart .bub-bolt { fill: var(--text); stroke: none; }
+.chart .sarea { fill: var(--bar); fill-opacity: 0.55; stroke: none; }
+.chart .sarea.up { fill: var(--ok); fill-opacity: 0.4; }
+.chart .sline { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 1 6; stroke-linecap: round; animation: none; }
+.chart .axis.hi { fill: var(--muted); }
+
+/* ------------------------------------------------------------------ legend */
+
+.legend { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; color: var(--muted); font-size: 13px; }
+.legend li { display: flex; align-items: center; gap: 8px; }
+.legend li[hidden] { display: none; }
+.lg { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--bar); }
+.lg-chg { background: var(--ok); }
+.lg-est { background: rgb(var(--ink) / 0.3); }
+.lg-dot { width: 16px; height: 0; border-radius: 0; background: none; border-top: 3px dotted var(--accent); }

@@ -1,0 +1,202 @@
+/* ==========================================================================
+   Detail layer (v1.3.0). Loaded before lite.css, so lite mode still wins.
+   Adds information and finish, not motion: nothing here animates on its own,
+   and there are no blur or backdrop filters.
+   ========================================================================== */
+
+/* ------------------------------------------------------------------ surfaces */
+
+/* A faint light from the top edge on grouped surfaces, so they read as panels rather than flat boxes. */
+.group {
+  background:
+    linear-gradient(180deg, var(--lift), transparent 140px),
+    var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line), inset 0 1px 0 var(--hl), 0 14px 30px -22px rgb(var(--shade) / 0.7);
+}
+
+.block-head h2 { letter-spacing: 0.01em; }
+.block-head .val { color: rgb(var(--glow-ink)); font-weight: 600; }
+
+/* ---------------------------------------------------------------------- chips */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.04);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--muted);
+  font: 500 11.5px/1 var(--font);
+  white-space: nowrap;
+}
+.chip.accent {
+  color: rgb(var(--glow-ink));
+  background: rgb(var(--glow) / 0.1);
+  box-shadow: inset 0 0 0 1px rgb(var(--glow-ink) / 0.35);
+}
+.chip.mono { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+
+/* ------------------------------------------------------- effect heading + cards */
+
+.eff-desc {
+  margin: -4px 2px 10px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.eff-desc:empty { display: none; }
+.eff-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 2px 14px; }
+.eff-chips:empty { display: none; }
+
+.effect { gap: 6px; }
+.effect canvas { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.05); }
+.effect-name { color: inherit; }
+.effect-tag {
+  display: block;
+  margin: -2px 3px 0;
+  color: var(--faint);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.effect-tag:empty { display: none; }
+.effect:hover:not(:disabled) .effect-tag { color: var(--muted); }
+.effect[aria-checked="true"] .effect-tag { color: rgb(var(--glow-ink)); }
+.effect[aria-checked="true"] .effect-name { font-weight: 600; }
+
+/* ----------------------------------------------------------- field headers */
+
+.field-head h3 { display: flex; align-items: center; gap: 8px; }
+.fh-ico {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: var(--faint);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+.field:hover .fh-ico { stroke: var(--muted); }
+.fh-label { display: flex; align-items: center; gap: 8px; }
+.fh-right { display: flex; align-items: center; gap: 10px; }
+.field-head .val { color: var(--text); font-weight: 500; }
+
+/* Level meter: one tick per step, lit up to the current level. */
+.meter { display: inline-flex; align-items: flex-end; gap: 2px; height: 13px; }
+.meter i {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--raise);
+}
+.meter i:nth-child(1) { height: 4px; }
+.meter i:nth-child(2) { height: 6px; }
+.meter i:nth-child(3) { height: 8px; }
+.meter i:nth-child(4) { height: 10px; }
+.meter i:nth-child(5) { height: 13px; }
+.meter i.on { background: rgb(var(--glow-ink)); }
+
+/* ------------------------------------------------------------ colour swatches */
+
+.swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--hi), 0 6px 16px -4px rgb(var(--shade) / 0.6); }
+.swatch { box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.18), inset 0 -6px 10px -6px rgb(var(--shade) / 0.35); }
+
+/* ------------------------------------------------------- stage status bar */
+
+.stage-bar {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 10px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none; /* the keyboard underneath keeps its hover and click effects */
+}
+.sb-spacer { flex: 1; min-width: 0; }
+.sb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgb(var(--scrim) / 0.78);
+  box-shadow: inset 0 0 0 1px var(--line), 0 6px 14px -8px rgb(var(--shade) / 0.8);
+  color: var(--muted);
+  font: 500 11.5px/1 var(--font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sb-chip b { font-weight: 500; }
+.sb-fx { color: rgb(var(--glow-ink)); box-shadow: inset 0 0 0 1px rgb(var(--glow-ink) / 0.35), 0 6px 14px -8px rgb(var(--shade) / 0.8); }
+.sb-fx b { font-weight: 600; }
+.sb-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: none; }
+.sb-chip[data-s="ok"] .sb-dot { background: var(--ok); }
+.sb-chip[data-s="warn"] .sb-dot { background: var(--warn); }
+.sb-chip[data-s="bad"] .sb-dot { background: var(--bad); }
+.sb-chip[data-s="busy"] .sb-dot { background: var(--warn); }
+.sb-sw { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.28); flex: none; }
+
+/* Live / Picture switch in the top corner of the keyboard picture. */
+.stage-view {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 3;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgb(var(--scrim) / 0.78);
+  box-shadow: inset 0 0 0 1px var(--line), 0 6px 14px -8px rgb(var(--shade) / 0.8);
+}
+.stage-view[hidden] { display: none; }
+.sv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: 500 11.5px/1 var(--font);
+  cursor: pointer;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+.sv-btn:hover { color: var(--text); }
+.sv-btn[aria-pressed="true"] {
+  background: rgb(var(--glow-ink) / 0.14);
+  color: rgb(var(--glow-ink));
+  box-shadow: inset 0 0 0 1px rgb(var(--glow-ink) / 0.35);
+}
+.sv-btn:focus-visible { outline: 2px solid rgb(var(--glow-ink) / 0.85); outline-offset: 1px; }
+.sv-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: none; transition: background 0.3s var(--ease), box-shadow 0.3s var(--ease); }
+/* the dot says whether the keyboard itself is on: green = lit and following, grey = off or asleep */
+.stage-view[data-live="on"] .sv-dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+
+/* A narrow window drops the least important chips first. */
+@media (max-width: 880px) { #sbSpeed, #sbModel { display: none; } }
+@media (max-width: 700px) { #sbColor { display: none; } }
+
+/* ------------------------------------------------------------------ focus */
+
+.effect:focus-visible,
+.seg-btn:focus-visible,
+.swatch:focus-visible {
+  outline: 2px solid rgb(var(--glow-ink) / 0.85);
+  outline-offset: 2px;
+}
+
+/* The connecting / error card sits above the status bar. */
+.overlay { z-index: 2; }
