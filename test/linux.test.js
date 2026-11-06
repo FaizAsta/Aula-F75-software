@@ -50,6 +50,6 @@ test('power_supply batteries are matched by name and the laptop battery is ignor
 });
 
 test('the udev rule covers the supported keyboard ids', () => {
-  const rules = fs.readFileSync(path.join(__dirname, '..', 'packaging', 'linux', '99-aula-control.rules'), 'utf8');
+  const rules = fs.readFileSync(path.join(__dirname, '..', 'packaging', 'linux', '70-aula-control.rules'), 'utf8');
   for (const [v, p] of [['3554', 'fa09'], ['258a', '010c']]) assert.match(rules, new RegExp(`idVendor}=="${v}", ATTRS\\{idProduct}=="${p}".*uaccess`));
 });

@@ -1,8 +1,0 @@
-# Lets the logged-in user talk to AULA F75 / F75 Pro / F87 keyboards through hidraw, so Aula Control does not need root.
-# Install with:  sudo install -m 644 99-aula-control.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger
-# then unplug and replug the dongle or cable.
-
-# F75 2.4G dongle
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3554", ATTRS{idProduct}=="fa09", TAG+="uaccess", MODE="0660"
-# F75, F75 Pro and F87 over USB-C
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="010c", TAG+="uaccess", MODE="0660"

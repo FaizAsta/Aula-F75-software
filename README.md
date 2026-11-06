@@ -77,11 +77,11 @@ Grab one of these from [Releases](../../releases) (or build it yourself, see bel
 | `Aula-Control-<version>-linux-x64.deb` | `sudo apt install ./Aula-Control-*.deb` (installs the udev rule for you) |
 | `Aula-Control-<version>-linux-x64.tar.gz` | unpack and run `aula-control` |
 
-**Allow your user to open the keyboard (needed once, except with the .deb).** The app talks to the keyboard through
+**Allow your user to open the keyboard (needed once, except with the .deb; the file name must stay below `73-`).** The app talks to the keyboard through
 `/dev/hidraw*`, which normal users cannot open by default. Install the udev rule, then unplug and replug the dongle or cable:
 
 ```bash
-sudo install -m 644 packaging/linux/99-aula-control.rules /etc/udev/rules.d/
+sudo install -m 644 packaging/linux/70-aula-control.rules /etc/udev/rules.d/
 sudo udevadm control --reload && sudo udevadm trigger
 ```
 

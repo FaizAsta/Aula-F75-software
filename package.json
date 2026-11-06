@@ -75,8 +75,8 @@
     },
     "extraResources": [
       {
-        "from": "packaging/linux/99-aula-control.rules",
-        "to": "99-aula-control.rules"
+        "from": "packaging/linux/70-aula-control.rules",
+        "to": "70-aula-control.rules"
       }
     ],
     "linux": {
