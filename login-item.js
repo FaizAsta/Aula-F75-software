@@ -18,3 +18,25 @@ function loginItemOptions({ isPackaged, appPath, execPath, portableFile }) {
 }
 
 module.exports = { loginItemOptions };
+
+// ---- Linux ---------------------------------------------------------------------------------------------------------
+// Linux has no login-item API in Electron, so "Start at login" is an XDG autostart entry in ~/.config/autostart.
+
+const LINUX_AUTOSTART_NAME = 'aula-control.desktop';
+
+// One argument of a .desktop Exec line: quoted when it needs it (spaces, quotes and the like), with the characters the
+// Desktop Entry spec reserves inside quotes escaped.
+function desktopExecArg(s) {
+  const str = String(s).replace(/%/g, '%%');
+  if (!/[\s"'`$\\<>~|&;*?#()]/.test(str)) return str;
+  return `"${str.replace(/(["`$\\])/g, '\\$1')}"`;
+}
+
+// The AppImage runs from a temporary mount, so its real file (APPIMAGE) is what should start at login.
+function linuxAutostartEntry({ path: exe, args }) {
+  const exec = [desktopExecArg(exe), ...args.map((a) => (/^".*"$/.test(a) ? desktopExecArg(a.slice(1, -1)) : desktopExecArg(a)))].join(' ');
+  return ['[Desktop Entry]', 'Type=Application', 'Name=Aula Control', 'Comment=Battery and lighting for AULA keyboards', `Exec=${exec}`, 'Icon=aula-control', 'Terminal=false', 'X-GNOME-Autostart-enabled=true', ''].join('\n');
+}
+
+module.exports.LINUX_AUTOSTART_NAME = LINUX_AUTOSTART_NAME;
+module.exports.linuxAutostartEntry = linuxAutostartEntry;

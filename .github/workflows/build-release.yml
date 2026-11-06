@@ -7,99 +7,58 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - run: npm ci
+      - run: npm run dist:win -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            dist/Aula-Control-Setup.exe
+            dist/Aula-Control-Portable.exe
 
-      - name: Unpack the newest zip
-        shell: pwsh
-        run: |
-          $zip = Get-ChildItem -Filter 'aula-control-v*.zip' |
-            Sort-Object { if ($_.BaseName -match 'v(\d+)[._](\d+)[._](\d+)') { [version]"$($Matches[1]).$($Matches[2]).$($Matches[3])" } else { [version]'0.0.0' } } |
-            Select-Object -Last 1
-          if (-not $zip) { throw 'No aula-control-v*.zip found in the repository.' }
-          Write-Host "Building from $($zip.Name)"
-          Expand-Archive -Path $zip.FullName -DestinationPath build -Force
-          $pkg = Get-ChildItem -Path build -Recurse -Depth 1 -Filter package.json | Select-Object -First 1
-          if (-not $pkg) { throw 'No package.json inside the zip.' }
-          "APP_DIR=$($pkg.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          "ZIP_NAME=$($zip.Name)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run dist:linux -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.tar.gz
 
-      - name: Install
-        shell: bash
-        working-directory: ${{ env.APP_DIR }}
-        run: npm install
-
-      - name: Build installer and portable file
-        shell: bash
-        working-directory: ${{ env.APP_DIR }}
-        run: npm run dist -- --publish never
-
+  release:
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
       - name: Publish the release
-        shell: bash
-        working-directory: ${{ env.APP_DIR }}
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
         run: |
-          [ -f RELEASE_NOTES.md ] || { echo "RELEASE_NOTES.md is missing in the zip."; exit 1; }
+          [ -f RELEASE_NOTES.md ] || { echo "RELEASE_NOTES.md is missing."; exit 1; }
           VERSION=$(node -p "require('./package.json').version")
           TAG="v$VERSION"
-          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
-          FILES="dist/Aula-Control-Setup.exe dist/Aula-Control-Portable.exe"
+          FILES=$(find artifacts -type f)
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" $FILES --clobber
             gh release edit "$TAG" --notes-file RELEASE_NOTES.md --latest
           else
             gh release create "$TAG" $FILES --title "Aula Control $VERSION" --notes-file RELEASE_NOTES.md --target "$GITHUB_SHA" --latest
-          fi
-
-      # Runs only when everything above worked, so a failed build leaves the zip where it is.
-      # The zip goes onto the dev branch first and is removed from this branch second: if the push to dev fails, nothing is lost.
-      - name: Move the zip to the dev branch
-        shell: bash
-        env:
-          DEV_BRANCH: dev
-        run: |
-          set -euo pipefail
-          SRC="$GITHUB_REF_NAME"
-          if [ "$SRC" = "$DEV_BRANCH" ]; then
-            echo "Running on $DEV_BRANCH already, nothing to move."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          # Create the dev branch from this branch if the repository does not have one yet, then put the zip on it.
-          if git ls-remote --exit-code --heads origin "$DEV_BRANCH" > /dev/null 2>&1; then
-            echo "Branch $DEV_BRANCH exists."
-            git fetch origin "$DEV_BRANCH"
-            git worktree add -B "$DEV_BRANCH" ../dev-branch "origin/$DEV_BRANCH"
-          else
-            echo "Branch $DEV_BRANCH does not exist: creating it from $SRC."
-            git worktree add -b "$DEV_BRANCH" ../dev-branch HEAD
-          fi
-          cp "$ZIP_NAME" "../dev-branch/$ZIP_NAME"
-          git -C ../dev-branch add -- "$ZIP_NAME"
-          if git -C ../dev-branch diff --cached --quiet; then
-            echo "$ZIP_NAME is already on $DEV_BRANCH."
-          else
-            git -C ../dev-branch commit -m "Add $ZIP_NAME (released as $RELEASE_TAG)"
-          fi
-          git -C ../dev-branch push origin "$DEV_BRANCH"
-
-          # Take the zip off this branch.
-          if git ls-files --error-unmatch -- "$ZIP_NAME" > /dev/null 2>&1; then
-            git rm -q -- "$ZIP_NAME"
-            git commit -m "Move $ZIP_NAME to $DEV_BRANCH after release $RELEASE_TAG"
-            git push origin "HEAD:refs/heads/$SRC"
-          else
-            echo "$ZIP_NAME is not tracked on $SRC, nothing to remove."
           fi

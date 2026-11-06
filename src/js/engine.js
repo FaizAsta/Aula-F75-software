@@ -405,7 +405,7 @@
       if (!last && !usable.every((c) => c.openError)) return { done: false };
       // Every interface refused to open: another program has them, which is a different problem from silence.
       this.error = usable.every((c) => c.openError)
-        ? 'Windows would not let the app open the keyboard. Another program, such as the official AULA driver, is probably using it.'
+        ? 'The system would not let the app open the keyboard. Another program, such as the official AULA driver, is probably using it. On Linux, also check that the udev rule from the README is installed (and replug the keyboard).'
         : usable.some((c) => c.meta.mode === 'wired')
         ? 'The keyboard did not answer over the USB-C cable. Unplug the cable, wait five seconds and plug it in again, and close any other AULA software. If it still fails, use Settings, Connection help, Save compatibility report: the cable uses its own protocol and the report shows what it said.'
         : 'The keyboard did not answer on any interface.';
@@ -489,7 +489,7 @@
       const { io, meta } = c;
       let t = null;
       try {
-        if (io.open) await withTimeout(Promise.resolve(io.open()), this.ioTimeoutMs, 'Windows did not answer when the app opened the keyboard.');
+        if (io.open) await withTimeout(Promise.resolve(io.open()), this.ioTimeoutMs, 'The system did not answer when the app opened the keyboard.');
         const Link = io.sendFeature ? FeatureTransport : Transport;
         t = new Link(io, { timeout: this.transportTimeout, sendTimeout: this.ioTimeoutMs, log: (d, p) => this._log(d, p) });
         this._probes.add(t);

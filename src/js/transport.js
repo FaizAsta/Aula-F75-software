@@ -138,7 +138,7 @@
       if (this._sendDead) throw new CommError('The keyboard stopped accepting requests.');
       this._log('tx', p);
       try {
-        await withTimeout(this.io.send(p), this.sendTimeout, 'Windows did not accept a request to the keyboard.');
+        await withTimeout(this.io.send(p), this.sendTimeout, 'The system did not accept a request to the keyboard.');
       } catch (err) {
         // After one send that never came back the handle is not worth asking again: fail fast so a retry can start clean.
         if (err instanceof CommError) this._sendDead = true;
@@ -305,7 +305,7 @@
       if (this._sendDead) throw new CommError('The keyboard stopped accepting requests.');
       this._log('tx', p);
       try {
-        await withTimeout(this.io.sendFeature(p), this.sendTimeout, 'Windows did not accept a request to the keyboard.');
+        await withTimeout(this.io.sendFeature(p), this.sendTimeout, 'The system did not accept a request to the keyboard.');
       } catch (err) {
         if (err instanceof CommError) this._sendDead = true;
         throw err;
@@ -314,7 +314,7 @@
 
     async _get() {
       try {
-        const raw = await withTimeout(this.io.getFeature(), this.sendTimeout, 'Windows did not return an answer from the keyboard.');
+        const raw = await withTimeout(this.io.getFeature(), this.sendTimeout, 'The system did not return an answer from the keyboard.');
         const b = raw instanceof Uint8Array ? raw : new Uint8Array(raw.buffer ? raw.buffer : raw, raw.byteOffset || 0, raw.byteLength);
         this._log('rx', b);
         return b;
