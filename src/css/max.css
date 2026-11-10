@@ -1,0 +1,242 @@
+/* F75 Max screen (max-ui.js). Replaces the F75 preview and panels while an F75 Max is connected. */
+
+#maxRoot { display: none; }
+.shell[data-family="max"] #maxRoot:not([hidden]) {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 2px 40px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+  animation: fadeIn 0.2s both;
+}
+.shell[data-family="max"] #applybar { display: none !important; }
+/* The keyboard picture area at the top is the F75 screen's own stage: while a Max is connected it holds the Max's picture (the
+   board built in max-ui.js) instead of the F75 preview canvas, with the same chips and Live / Picture switch. The F75 session
+   has nothing to say about a Max, so its "no keyboard" message stays hidden. */
+.stage-max { display: none; }
+.shell[data-family="max"] .stage-canvas { visibility: hidden; } /* kept at its size, so the F75 drawing code never sees an empty box */
+.shell[data-family="max"] .stage .overlay { display: none !important; }
+.shell[data-family="max"] .stage-max {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 12px 16px 38px; /* the chips sit along the foot */
+  container-type: size;
+}
+.stage-max .mx-board.mx-photo { width: min(100cqw, calc(100cqh * var(--ar, 2.15))); }
+/* the keys only take the pointer while the Per-key page is open */
+.stage-max:not([data-paint="1"]) .mx-key { pointer-events: none; cursor: default; }
+.stage-max:not([data-paint="1"]) .mx-grid { touch-action: auto; }
+/* The tab bar is shared: Lighting, Per-key and Keys (shown as Keyboard) are the Max's sections, Settings is the app's. */
+.shell[data-family="max"] #tab-battery { display: none; }
+.shell[data-family="max"][data-max-view="max"] .panels { display: none; }
+.shell[data-family="max"][data-max-view="app"] #maxRoot { display: none; }
+
+.mx-effects { grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); }
+.mx-effect { gap: 4px; padding: 12px; }
+.mx-effect .effect-tag { min-height: 14px; color: var(--muted); font-size: 11px; opacity: 0.85; }
+
+/* The F75 Max board: drawn with the Max skin (skins.js sets the --sk-* colours on .mx-board). Light comes from the top left:
+   the case has a bevelled edge and a sheen, the plate is a well with a shadow at its top, each cap has a bevel, a dished
+   face, a soft highlight and a fine grain, and the knob is brushed metal with a knurled rim. A key that has a colour painted
+   on it takes that colour on its face and lights its slot; keys without one are dimmed. */
+.mx-board {
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  position: relative;
+  padding: 22px 22px 24px;
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.025) 28%, rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.14)),
+    linear-gradient(180deg, var(--sk-case-top, #2b302d), var(--sk-case-bottom, #131715));
+  box-shadow:
+    inset 0 0 0 1px var(--sk-case-edge, rgba(255, 255, 255, 0.14)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+    inset 0 0 0 5px rgba(255, 255, 255, 0.02),
+    0 7px 0 -1px color-mix(in srgb, var(--sk-case-bottom, #131715) 55%, #000),
+    0 26px 44px -16px rgba(0, 0, 0, 0.7);
+}
+.mx-board::after { /* grain on the case */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--grain);
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+.mx-grid { position: relative; width: 100%; aspect-ratio: 16 / 6; touch-action: none; user-select: none; -webkit-user-select: none; }
+.mx-grid::before { /* the well the keys sit in: dark, with a shadow along its top and a lit lower lip */
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #000, var(--sk-plate, #070908) 14%);
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.75), inset 3px 0 6px rgba(0, 0, 0, 0.4), inset 0 -1px 0 var(--sk-plate-edge, rgba(255, 255, 255, 0.12));
+  pointer-events: none;
+}
+.mx-key {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 0 0.3em;
+  overflow: hidden;
+  isolation: isolate;
+  border: 2px solid var(--sk-slot, #030504);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 18%, rgba(0, 0, 0, 0) 82%, rgba(0, 0, 0, 0.34)),
+    linear-gradient(180deg, var(--body-a, var(--sk-body-a, #191c1b)), var(--body-b, var(--sk-body-b, #0a0c0b)));
+  background-clip: padding-box;
+  color: var(--sk-ink, #f5f7f6);
+  font: 600 clamp(9px, 1.05vw, 12px) var(--font);
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.08s, filter 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+/* the cap's top face, sitting inside its sides: bevel, dish, highlight and grain */
+.mx-key::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: 9%;
+  right: 9%;
+  top: 6%;
+  bottom: 20%;
+  border-radius: 6px;
+  background:
+    var(--grain),
+    radial-gradient(90% 80% at 28% 18%, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 35%, rgba(0, 0, 0, 0.28)),
+    linear-gradient(180deg, var(--sk-face-a, #92969c), var(--sk-face-b, #72767c));
+  background-blend-mode: soft-light, normal, normal, normal;
+  box-shadow:
+    0 0 0 1.5px rgba(0, 0, 0, 0.5),
+    0 -1px 0 1.5px rgba(255, 255, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+  filter: brightness(0.62);
+  transition: filter 0.15s;
+}
+.mx-key[data-on="1"] { border-color: color-mix(in srgb, var(--c) 88%, transparent); box-shadow: 0 0 10px -1px color-mix(in srgb, var(--c) 60%, transparent), inset 0 -3px 0 -1px var(--c); }
+.mx-key[data-on="1"]::before {
+  background:
+    var(--grain),
+    radial-gradient(90% 80% at 28% 18%, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 35%, rgba(0, 0, 0, 0.22)),
+    linear-gradient(180deg, color-mix(in srgb, var(--c) 86%, #fff), var(--c));
+  background-blend-mode: soft-light, normal, normal, normal;
+  filter: none;
+}
+.mx-key:hover { filter: brightness(1.25); }
+.mx-key:active { transform: scale(0.94); }
+.mx-screen { /* the small colour screen: a black bezel, a lit panel and a reflection across the glass */
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 7px;
+  border: 3px solid #050606;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.16) 0 28%, rgba(255, 255, 255, 0) 28.5%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.55) 0 30%, transparent 30%) 12% 28% / 62% 5px no-repeat,
+    linear-gradient(90deg, rgba(120, 255, 190, 0.7) 0 55%, transparent 55%) 12% 52% / 62% 5px no-repeat,
+    linear-gradient(90deg, rgba(255, 255, 255, 0.35) 0 40%, transparent 40%) 12% 76% / 62% 5px no-repeat,
+    radial-gradient(120% 140% at 15% 0%, rgba(70, 224, 140, 0.45), transparent 62%),
+    linear-gradient(135deg, #0b2418, #06100b);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 0 6px rgba(0, 0, 0, 0.8), 0 0 14px -4px rgba(70, 224, 140, 0.5);
+  pointer-events: none;
+}
+.mx-knob { /* brushed metal ring with a knurled rim, and a machined dark top */
+  position: absolute;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 36% 30%, rgba(255, 255, 255, 0.16), transparent 38%),
+    repeating-radial-gradient(circle, rgba(255, 255, 255, 0.05) 0 1px, rgba(0, 0, 0, 0) 1px 3px) center / 62% 62% no-repeat,
+    radial-gradient(circle, var(--sk-knob-face, #0d0e12) 0 63%, rgba(0, 0, 0, 0.55) 64% 66%, transparent 67%),
+    repeating-conic-gradient(from 0deg, rgba(0, 0, 0, 0.28) 0 1.5deg, rgba(0, 0, 0, 0) 1.5deg 6deg),
+    conic-gradient(from -50deg, #f1f3f6, #4b4f57, #9399a2, #c3c7ce, #f1f3f6, #4b4f57, #9399a2, #c3c7ce, #f1f3f6);
+  box-shadow: 0 0 0 4px var(--sk-slot, #030504), 0 4px 8px 3px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+/* The rendered picture of the board (max-ui.js sets .mx-photo when src/img/board has it): the case, plate, knob and screen
+   are the picture behind the keys, and each key wears its keycap sprite. The sprite reaches 0.25 key units past the key on
+   every side (for its shadow) and its flat face is at 12.5% / 9.5% / 12.5% / 33.9% of a key; both are in key units, so they
+   are divided by the key's width in units (--kw). A key that has a colour painted on it takes it on its face and lights the
+   gap round it. The keys' own look from above (a CSS cap) is not used here. */
+.mx-board.mx-photo {
+  padding: 0;
+  width: 100%;
+  border-radius: 0;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  box-shadow: none;
+}
+.mx-photo::after, .mx-photo .mx-grid::before, .mx-photo .mx-screen, .mx-photo .mx-knob { display: none; }
+.mx-photo .mx-grid {
+  position: absolute;
+  aspect-ratio: auto;
+  container-type: size;
+}
+.mx-photo .mx-key {
+  --u: calc(100cqw / 16); /* one key unit */
+  --face: rgba(0, 0, 0, 0);
+  overflow: visible;
+  border: 0;
+  border-radius: calc(var(--u) * 0.14);
+  background: none;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 calc(var(--u) * 0.3);
+  font: 600 max(8px, calc(var(--u) * 0.33)) / 1 var(--font);
+  color: var(--sk-ink, #f5f7f6);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+.mx-photo .mx-key[data-long="1"] { font-size: max(7px, calc(var(--u) * 0.245)); letter-spacing: -0.01em; }
+.mx-photo .mx-key::before { /* the cap sprite */
+  z-index: -2;
+  left: calc(-25% / var(--kw, 1));
+  right: auto;
+  top: -25%;
+  bottom: auto;
+  width: calc(100% + 50% / var(--kw, 1));
+  height: 150%;
+  border-radius: 0;
+  background: var(--cap, none) 0 0 / 100% 100% no-repeat;
+  box-shadow: none;
+  filter: none;
+}
+.mx-photo .mx-key::after { /* the colour on the cap's face */
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: calc(12.5% / var(--kw, 1));
+  right: calc(12.5% / var(--kw, 1));
+  top: 9.5%;
+  bottom: 33.9%;
+  border-radius: calc(var(--u) * 0.1);
+  background: var(--c, transparent);
+  mix-blend-mode: hard-light;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.mx-photo .mx-key[data-on="1"]::after { opacity: 0.9; }
+.mx-photo .mx-key[data-on="1"] {
+  border: 0;
+  box-shadow: 0 0 calc(var(--u) * 0.1) calc(var(--u) * 0.015) color-mix(in srgb, var(--c) 42%, transparent), 0 calc(var(--u) * 0.04) calc(var(--u) * 0.3) color-mix(in srgb, var(--c) 34%, transparent);
+}
+.mx-photo .mx-key:hover { filter: brightness(1.18); }
+
+.mx-status { margin: 18px 2px 0; }
+.mx-status[data-s="ok"] { color: var(--ok); }
+.mx-status[data-s="bad"] { color: var(--bad); }
