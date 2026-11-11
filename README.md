@@ -35,8 +35,9 @@ Battery, lighting effects, per-key RGB and a live preview.
 
 [![Version](https://img.shields.io/badge/version-1.4.7-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20%7C%20Linux-0078d4)](#download)
+[![Discord](https://img.shields.io/badge/Discord-join%20the%20server-5865F2?logo=discord&logoColor=white)](https://discord.gg/BdeQygyRwN)
 
-[**Download**](../../releases) · [Features](#features) · [Troubleshooting](#troubleshooting)
+[**Download**](../../releases) · [Features](#features) · [Troubleshooting](#troubleshooting) · [Discord](https://discord.gg/BdeQygyRwN)
 
 ![Aula Control, Lighting tab](docs/screenshots/lighting.png)
 
@@ -74,6 +75,10 @@ No keyboard? Try **Settings, Demo keyboard**.
   then unplug and plug the keyboard.
 
 On Linux the app does not update itself: it tells you a new version is out and opens the release page. *Start with Windows* does nothing there.
+
+## Community
+
+Join the [Discord server](https://discord.gg/BdeQygyRwN) to share ideas, ask for help or tell us about a problem. Ideas for new features are welcome.
 
 ## Features
 
@@ -161,7 +166,7 @@ Click a picture to see it full size.
 
 <table>
 <tr>
-<td align="center" width="50%"><a href="docs/screenshots/update.png"><img src="docs/screenshots/update.png" alt="The Software Update window" width="430"></a><br><sub>Software update, with the release notes</sub></td>
+<td align="center" width="50%"><a href="docs/screenshots/update.png"><img src="docs/screenshots/update.png" alt="The Software Update window" width="430"></a><br><sub>Software update: new version, download size, Later or Update now</sub></td>
 <td align="center" width="50%"><a href="docs/screenshots/window-controls.png"><img src="docs/screenshots/window-controls.png" alt="The flat window buttons in each state" width="430"></a><br><sub>The window buttons: idle, hover, close hover and maximized</sub></td>
 </tr>
 </table>
