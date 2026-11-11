@@ -1,0 +1,183 @@
+name: Build and release
+
+# Upload a zip of the project (for example aula-control-v1_4_7.zip) to the top folder of the main branch. This then:
+#   1. unpacks the zip into main (the project's files are replaced by the zip's; the .github folder is never touched),
+#   2. builds Windows (Setup + Portable) and Linux (AppImage + .deb),
+#   3. publishes the release v<version from package.json>, with RELEASE_NOTES.md as its text,
+#   4. moves the zip to the dev branch (it is removed from main).
+#
+# Actions > Build and release > Run workflow builds main as it is. A zip still waiting in main's top folder is unpacked first.
+
+on:
+  push:
+    branches: [main]
+    paths: ['*.zip']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-release
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.unpack.outputs.sha }}
+      zip: ${{ steps.unpack.outputs.zip }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Unpack the zip into main
+        id: unpack
+        run: |
+          set -euo pipefail
+          # The newest zip in the top folder.
+          ZIP=""
+          BEST=-1
+          for f in ./*.zip; do
+            [ -e "$f" ] || continue
+            f="${f#./}"
+            T=$(git log -1 --format=%ct -- "$f")
+            T=${T:-0}
+            if [ "$T" -gt "$BEST" ]; then BEST=$T; ZIP="$f"; fi
+          done
+          if [ -z "$ZIP" ]; then
+            echo "No zip in the top folder: building main as it is."
+            echo "zip=" >> "$GITHUB_OUTPUT"
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Unpacking $ZIP"
+          OUT="$RUNNER_TEMP/unzipped"
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+          unzip -q "$ZIP" -d "$OUT"
+          rm -rf "$OUT/__MACOSX"
+          SRC="$OUT"
+          # A zip with one folder inside (like aula-control/) is stepped into.
+          if [ "$(find "$OUT" -mindepth 1 -maxdepth 1 | wc -l)" -eq 1 ] && [ -d "$(find "$OUT" -mindepth 1 -maxdepth 1)" ]; then
+            SRC="$(find "$OUT" -mindepth 1 -maxdepth 1)"
+          fi
+          [ -f "$SRC/package.json" ] || { echo "There is no package.json in $ZIP, so it is not the app."; exit 1; }
+          # Replace the project with the zip's files. Files that are not in the zip are removed from main.
+          # Never touched: .git, .github and the zips in the top folder.
+          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github ! -name '*.zip' -exec rm -rf {} +
+          (cd "$SRC" && tar --exclude='./.github' -cf - .) | tar -xf -
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "main already has the files of $ZIP."
+          else
+            git commit -q -m "Unpack $ZIP"
+            git push origin HEAD:main
+          fi
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: extract
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.extract.outputs.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: npm run dist -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*.exe
+          if-no-files-found: error
+
+  linux:
+    needs: extract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.extract.outputs.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: npm run dist:linux -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            linux/99-aula-control.rules
+          if-no-files-found: error
+
+  release:
+    needs: [extract, windows, linux]
+    # Runs when Windows built, even if Linux failed, so a Linux problem never stops the Windows update.
+    if: ${{ !cancelled() && needs.windows.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.extract.outputs.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.extract.outputs.sha }}
+        run: |
+          [ -f RELEASE_NOTES.md ] || { echo "RELEASE_NOTES.md is missing."; exit 1; }
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          FILES=$(find artifacts -type f)
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" $FILES --clobber
+            gh release edit "$TAG" --notes-file RELEASE_NOTES.md --latest
+          else
+            gh release create "$TAG" $FILES --title "Aula Control $VERSION" --notes-file RELEASE_NOTES.md --target "$SHA" --latest
+          fi
+
+  archive:
+    needs: [extract, release]
+    if: ${{ needs.release.result == 'success' && needs.extract.outputs.zip != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Move the zip to the dev branch
+        env:
+          ZIP: ${{ needs.extract.outputs.zip }}
+        run: |
+          set -euo pipefail
+          [ -f "$ZIP" ] || { echo "$ZIP is not in main any more, nothing to move."; exit 0; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp "$ZIP" "$RUNNER_TEMP/archive.zip"
+          if git ls-remote --exit-code --heads origin dev > /dev/null 2>&1; then
+            git fetch -q origin dev
+            git checkout -q -B dev origin/dev
+          else
+            echo "There is no dev branch yet: creating it."
+            git checkout -q --orphan dev
+            git rm -rfq .
+          fi
+          cp "$RUNNER_TEMP/archive.zip" "$ZIP"
+          git add "$ZIP"
+          git commit -q -m "Add $ZIP" || echo "dev already has this exact zip."
+          git push origin dev
+          git checkout -q -f main
+          git rm -q "$ZIP"
+          git commit -q -m "Move $ZIP to the dev branch"
+          git push origin HEAD:main
