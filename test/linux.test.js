@@ -59,8 +59,10 @@ test('the workflow unpacks the zip into main, builds Windows and Linux, releases
   assert.match(wf, /dist\/\*\.exe/);
   assert.match(wf, /dist\/\*\.AppImage/);
   assert.match(wf, /dist\/\*\.deb/);
+  assert.match(wf, /dist\/\*\.tar\.gz/, 'the Linux .tar.gz goes on the release with the AppImage and the .deb');
   assert.match(wf, /linux\/99-aula-control\.rules/);
-  assert.match(wf, /--notes-file RELEASE_NOTES\.md/);
+  assert.match(wf, /printf "## What's new in %s\\n" "\$VERSION"/, 'the release text is only the header of this version');
+  assert.doesNotMatch(wf, /--notes-file RELEASE_NOTES\.md/, 'the older sections of RELEASE_NOTES.md must not become the release text');
   assert.match(wf, /git push origin dev/);
   assert.match(wf, /git rm -q "\$ZIP"/);
 });

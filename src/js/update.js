@@ -11,7 +11,7 @@
 
   const $ = (s) => document.querySelector(s);
   const box = $('#upd');
-  let info = null; // the update on offer: { version, current, notes, mode, size }
+  let info = null; // the update on offer: { version, current, mode, size } (the dialog shows no release notes)
   let phase = 'closed'; // closed | offer | downloading | ready | installing | error
 
   // The update icons (header, and the start and device screens): visible whenever a newer version is known.
@@ -29,51 +29,6 @@
   for (const b of badges) b.addEventListener('click', () => latest && show(latest));
 
   const mb = (n) => `${(n / 1048576).toFixed(n >= 104857600 ? 0 : 1)} MB`;
-
-  // A small, safe subset of Markdown for the release notes: headings, bullets, **bold**, paragraphs. Built with
-  // textContent only, so nothing in a release description can inject markup. Images and links are reduced to their text.
-  function inline(parent, text) {
-    const clean = text.replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/`/g, '');
-    clean.split(/(\*\*[^*]+\*\*)/).forEach((part) => {
-      if (!part) return;
-      if (/^\*\*[^*]+\*\*$/.test(part)) {
-        const b = document.createElement('b');
-        b.textContent = part.slice(2, -2);
-        parent.append(b);
-      } else parent.append(part);
-    });
-  }
-
-  function renderNotes(target, md) {
-    target.textContent = '';
-    let list = null;
-    for (const raw of String(md || '').split(/\r?\n/)) {
-      const line = raw.trim();
-      if (!line) {
-        list = null;
-        continue;
-      }
-      const bullet = /^[-*+]\s+(.*)$/.exec(line);
-      const head = /^#{1,6}\s+(.*)$/.exec(line);
-      if (bullet) {
-        if (!list) target.append((list = document.createElement('ul')));
-        const li = document.createElement('li');
-        inline(li, bullet[1]);
-        list.append(li);
-      } else {
-        list = null;
-        const n = document.createElement(head ? 'h4' : 'p');
-        inline(n, head ? head[1] : line);
-        target.append(n);
-      }
-    }
-    if (!target.firstChild) {
-      const p = document.createElement('p');
-      p.className = 'none';
-      p.textContent = 'No release notes were written for this version.';
-      target.append(p);
-    }
-  }
 
   function actions(list) {
     const row = $('#updActions');
@@ -105,7 +60,6 @@
     const page = info.mode === 'page';
     $('#updSub').textContent = `Aula Control ${info.version} is available. You have ${info.current}.${page ? ' Open the download page to get it.' : ''}`;
     $('#updMeta').textContent = !page && info.size ? `Download size: ${mb(info.size)}` : '';
-    $('#updBody').hidden = false;
     bar(null);
     const focus = actions([
       { label: 'Later', run: () => close(true) },
@@ -119,7 +73,6 @@
     phase = 'ready';
     $('#updSub').textContent = `Aula Control ${info.version} has been downloaded. Install it now? Aula Control closes and opens again when it is done.`;
     $('#updMeta').textContent = '';
-    $('#updBody').hidden = false;
     bar(null);
     const focus = actions([
       { label: 'Later', run: () => close(true) },
@@ -149,7 +102,6 @@
     phase = 'error';
     $('#updSub').textContent = message || 'The update did not work.';
     $('#updMeta').textContent = '';
-    $('#updBody').hidden = false;
     bar(null);
     actions([
       { label: 'Close', run: () => close(true) },
@@ -160,8 +112,6 @@
   function show(next) {
     if (phase !== 'closed' || !next) return; // never replace a dialog that is already open
     info = next;
-    renderNotes($('#updNotes'), info.notes);
-    $('#updBody').scrollTop = 0;
     box.hidden = false;
     offer();
   }
