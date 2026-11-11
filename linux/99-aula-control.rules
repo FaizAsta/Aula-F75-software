@@ -1,0 +1,18 @@
+# Lets the logged-in user talk to AULA keyboards (and their 2.4G dongles) through /dev/hidraw, so Aula Control can
+# read the battery and change the lighting without root.
+#
+# The .deb installs this file to /etc/udev/rules.d by itself. With the AppImage, copy it there once:
+#   sudo cp 99-aula-control.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+# then unplug and plug the keyboard (or the dongle) again.
+#
+# The ids are the ones in KNOWN_IDS in main.js.
+
+# F75 2.4G dongle
+KERNEL=="hidraw*", ATTRS{idVendor}=="3554", ATTRS{idProduct}=="fa09", TAG+="uaccess"
+# F75, F75 Pro and F87 over USB-C
+KERNEL=="hidraw*", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="010c", TAG+="uaccess"
+# Other AULA keyboards over USB-C
+KERNEL=="hidraw*", ATTRS{idVendor}=="0c45", ATTRS{idProduct}=="800a", TAG+="uaccess"
+# Other AULA 2.4G dongle
+KERNEL=="hidraw*", ATTRS{idVendor}=="05ac", ATTRS{idProduct}=="024f", TAG+="uaccess"

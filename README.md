@@ -30,14 +30,13 @@
 
 <img src="docs/banner.png" width="800" alt="Aula Control">
 
-**An unofficial app for AULA F75 keyboards, for Windows and Linux.**<br>
+**An unofficial Windows and Linux app for AULA F75 keyboards.**<br>
 Battery, lighting effects, per-key RGB and a live preview.
 
-[![Version](https://img.shields.io/badge/version-1.4.6-blue)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.4.7-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20%7C%20Linux-0078d4)](#download)
-[![License](https://img.shields.io/badge/license-GPL--3.0-green)](LICENSE)
 
-[**Download**](../../releases) · [Linux](#linux) · [Build from source](#build-from-source) · [Features](#features) · [Troubleshooting](#troubleshooting)
+[**Download**](../../releases) · [Features](#features) · [Troubleshooting](#troubleshooting)
 
 ![Aula Control, Lighting tab](docs/screenshots/lighting.png)
 
@@ -57,8 +56,6 @@ If you get an error, comment on the release.
 
 Not affiliated with AULA.
 
-This is open source software under the [GNU GPL v3](LICENSE). Issues and pull requests are welcome.
-
 ## Download
 
 Get **Aula-Control-Setup.exe** from [Releases](../../releases) and run it. No admin needed.
@@ -67,37 +64,16 @@ A portable **Aula-Control-Portable.exe** is there too.
 Windows may warn about an unknown publisher because the app isn't code-signed: choose *More info, Run anyway*.
 No keyboard? Try **Settings, Demo keyboard**.
 
-### Linux
+**Linux (64-bit, new and untested):** get one of these from [Releases](../../releases).
 
-Grab one of these from [Releases](../../releases) (or build it yourself, see below):
+- **Aula-Control-amd64.deb** for Ubuntu, Debian, Mint and Pop!_OS. Double-click it and press Install (or run
+  `sudo apt install ./Aula-Control-amd64.deb`). It also sets up keyboard access, so unplug and plug the keyboard once after installing.
+- **Aula-Control-x86_64.AppImage** for any other distro. Right-click it, Properties, allow executing as a program, then double-click it.
+  Keyboard access needs one step the AppImage cannot do itself: download **99-aula-control.rules** from the same release and run
+  `sudo cp 99-aula-control.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules && sudo udevadm trigger`,
+  then unplug and plug the keyboard.
 
-| File | How |
-|---|---|
-| `Aula-Control-<version>-linux-x64.AppImage` | `chmod +x` it and run it |
-| `Aula-Control-<version>-linux-x64.deb` | `sudo apt install ./Aula-Control-*.deb` (installs the udev rule for you) |
-| `Aula-Control-<version>-linux-x64.tar.gz` | unpack and run `aula-control` |
-
-**Allow your user to open the keyboard (needed once, except with the .deb; the file name must stay below `73-`).** The app talks to the keyboard through
-`/dev/hidraw*`, which normal users cannot open by default. Install the udev rule, then unplug and replug the dongle or cable:
-
-```bash
-sudo install -m 644 packaging/linux/70-aula-control.rules /etc/udev/rules.d/
-sudo udevadm control --reload && sudo udevadm trigger
-```
-
-If the app says another program has the keyboard but the official driver is not running, this rule is almost always the missing piece.
-
-Notes for Linux:
-
-- *Start at login* writes `~/.config/autostart/aula-control.desktop`.
-- *Keep running in the tray when closed* is off by default on Linux: GNOME shows no tray icon without the AppIndicator extension,
-  so the window would otherwise vanish with no way back. Turn it on if your desktop has a tray.
-- The Bluetooth battery level is read from the kernel / BlueZ (`/sys/class/power_supply`, then `bluetoothctl`). BlueZ may need
-  `experimental` mode (`bluetoothd -E`) before it reports a battery for some keyboards.
-- Updates are not installed by the app on Linux: it tells you when a new release exists and opens the release page.
-- If Electron refuses to start with a sandbox error (some distributions disable unprivileged user namespaces), either enable them
-  or start the app with `--no-sandbox`.
-- Developed on Linux without a keyboard to hand for every model: please report what works on yours.
+On Linux the app does not update itself: it tells you a new version is out and opens the release page. *Start with Windows* does nothing there.
 
 ## Features
 
@@ -106,7 +82,7 @@ Notes for Linux:
 - 15 lighting effects and per-key RGB
 - Live preview of the keyboard as a rendered picture, a different one for each model (F75, F75 Pro, F87, F75 Max); a Live / Picture switch on it: Live follows the keyboard and goes dark when it is off or asleep, Picture is just the unlit board with the hover animation
 - Key assignment (experimental)
-- Dark and light themes, tray icon, start at login
+- Dark and light themes, tray icon, start with Windows
 
 <img src="docs/screenshots/keyboards.png" alt="The picture for each model: F75, F75 Pro, F87 and F75 Max" width="560">
 
@@ -164,7 +140,7 @@ Click a picture to see it full size.
 <table>
 <tr>
 <td align="center" width="50%"><a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="Settings, Keyboard page" width="430"></a><br><sub>Settings, Keyboard: connection, model, tools</sub></td>
-<td align="center" width="50%"><a href="docs/screenshots/settings-app.png"><img src="docs/screenshots/settings-app.png" alt="Settings, App page" width="430"></a><br><sub>Settings, App: tray, start at login, updates</sub></td>
+<td align="center" width="50%"><a href="docs/screenshots/settings-app.png"><img src="docs/screenshots/settings-app.png" alt="Settings, App page" width="430"></a><br><sub>Settings, App: tray, start with Windows, updates</sub></td>
 </tr>
 <tr>
 <td align="center" width="50%"><a href="docs/screenshots/settings-theme.png"><img src="docs/screenshots/settings-theme.png" alt="Settings, Theme page with the background pictures" width="430"></a><br><sub>Settings, Theme: dark or light, background picture and opacity, preset backgrounds</sub></td>
@@ -219,29 +195,9 @@ the build packs the folder into the app, and there is no list to edit. The file 
 ## Troubleshooting
 
 - Close the official AULA driver. Only one program can use the keyboard at a time.
-- Linux: install the udev rule (see [Linux](#linux)) and replug the keyboard.
 - Lighting works over the 2.4G dongle (best) or USB-C cable. Bluetooth only gives the battery level.
 - The red low-battery light is written by the app, so it only works while Aula Control is running. Hidden in the tray is fine; if you quit the app, nothing watches the battery. Turn on **Start with Windows** in Settings, App to keep it running. Hover the tray icon to see what the app uses right now (CPU and memory, measured by Electron).
 - Still stuck? Open **Settings, Connection help** and save a log.
-
-## Build from source
-
-Needs [Node.js](https://nodejs.org) 20 or newer.
-
-```bash
-npm install
-npm start              # run the app
-npm test               # run the tests
-npm run dist:linux     # AppImage, .deb and .tar.gz in dist/
-npm run dist:win       # Windows installer and portable exe (run on Windows)
-```
-
-Until v1.4.6 the source was only shipped as a zip inside the repository; it now lives in the repository itself.
-
-## Contributing
-
-Pull requests are welcome. Run `npm test` before sending one, and read the note at the top of this README's source about keeping
-the screenshots current when the UI changes.
 
 ---
 

@@ -5,8 +5,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const { execFile } = require('node:child_process');
-const { loginItemOptions, linuxAutostartEntry, LINUX_AUTOSTART_NAME } = require('./login-item');
-const { bluetoothBatteryLinux } = require('./bluetooth-linux');
+const { loginItemOptions } = require('./login-item');
 const updater = require('./updater');
 const pkg = require('./package.json');
 const bgLib = require('./src/js/background.js');
@@ -26,6 +25,11 @@ const isAulaHid = (d) =>
 
 const ICON = path.join(__dirname, 'assets', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
 const TRAY_ICON = path.join(__dirname, 'assets', 'tray.png');
+
+// An AppImage cannot carry Chromium's setuid sandbox helper, and newer Ubuntu releases block the other way Chromium has of
+// making a sandbox, so the AppImage would not open at all. The installed .deb keeps the sandbox. The app only ever loads
+// its own bundled pages.
+if (process.platform === 'linux' && process.env.APPIMAGE) app.commandLine.appendSwitch('no-sandbox');
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
@@ -55,9 +59,7 @@ function frostWanted() {
 
 // ------------------------------------------------------------------ settings
 
-// Many Linux desktops (GNOME in particular) show no tray icon without an extension, so closing the window would hide the app
-// with no way back. There the window really closes unless the person turns the tray option on.
-const DEFAULTS = { closeToTray: process.platform !== 'linux', openAtLogin: false, startMinimized: false, autoUpdate: true };
+const DEFAULTS = { closeToTray: true, openAtLogin: false, startMinimized: false, autoUpdate: true };
 let settings = { ...DEFAULTS };
 const settingsFile = () => path.join(app.getPath('userData'), 'host-settings.json');
 
@@ -151,26 +153,10 @@ const loginOpts = () =>
     isPackaged: app.isPackaged,
     appPath: app.getAppPath(),
     execPath: process.execPath,
-    portableFile: process.env.PORTABLE_EXECUTABLE_FILE || process.env.APPIMAGE, // an AppImage runs from a temporary mount
+    portableFile: process.env.PORTABLE_EXECUTABLE_FILE,
   });
 
-const linuxAutostartFile = () => path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'autostart', LINUX_AUTOSTART_NAME);
-
 function applyLoginItem() {
-  if (process.platform === 'linux') {
-    try {
-      const file = linuxAutostartFile();
-      if (settings.openAtLogin) {
-        fs.mkdirSync(path.dirname(file), { recursive: true });
-        fs.writeFileSync(file, linuxAutostartEntry(loginOpts()));
-      } else {
-        fs.rmSync(file, { force: true });
-      }
-    } catch (err) {
-      console.error('Could not update the autostart entry', err);
-    }
-    return;
-  }
   try {
     app.setLoginItemSettings({ openAtLogin: !!settings.openAtLogin, ...loginOpts() });
   } catch (err) {
@@ -180,13 +166,6 @@ function applyLoginItem() {
 
 // What Windows really has, not just what we saved. Only Windows and macOS can report it.
 function loginState() {
-  if (process.platform === 'linux') {
-    try {
-      return { openAtLogin: fs.existsSync(linuxAutostartFile()), blocked: false };
-    } catch (_) {
-      return { openAtLogin: !!settings.openAtLogin, blocked: false };
-    }
-  }
   if (process.platform !== 'win32' && process.platform !== 'darwin') return { openAtLogin: !!settings.openAtLogin, blocked: false };
   try {
     const s = app.getLoginItemSettings(loginOpts());
@@ -441,7 +420,6 @@ async function installUpdate() {
 
 function bluetoothBattery(pattern) {
   return new Promise((resolve) => {
-    if (process.platform === 'linux') return bluetoothBatteryLinux(pattern).then(resolve, () => resolve(null));
     if (process.platform !== 'win32') return resolve(null);
     const pat = String(pattern || 'AULA|F75|F87').slice(0, 64);
     try {

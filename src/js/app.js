@@ -86,7 +86,7 @@
   const PREF_KEY = 'aula.prefs';
   // Shown under the switch. The light is written by this app, so it needs the app to be running: hidden in the tray counts, quitting does not.
   const LOW_LIGHT_NOTE =
-    'This only works while Aula Control is running in the background (hidden in the tray is fine). If the app is closed or quit, nothing watches the battery and the light will not turn red. Turn on Start at login in Settings > App to keep it running. Needs the 2.4G dongle or the USB-C cable. Hover the tray icon to see what the app uses right now.';
+    'This only works while Aula Control is running in the background (hidden in the tray is fine). If the app is closed or quit, nothing watches the battery and the light will not turn red. Turn on Start with Windows in Settings > App to keep it running. Needs the 2.4G dongle or the USB-C cable. Hover the tray icon to see what the app uses right now.';
   const prefs = { demo: false, low: 20, full: true, lowLight: true, animate: !reduceMotion, tool: 'select', theme: 'dark', frost: true };
   try {
     Object.assign(prefs, JSON.parse(store.getItem(PREF_KEY) || '{}'));
@@ -714,7 +714,7 @@
         show(
           btOnly ? 'Keyboard found over Bluetooth' : 'No keyboard found',
           btOnly
-            ? `Your system reports its battery (${s.battery.percent}%). Apps cannot change lighting over Bluetooth: for that, plug in the 2.4G dongle or the USB-C cable and set the keyboard’s switch to match.`
+            ? `Windows reports its battery (${s.battery.percent}%). Windows does not let apps change lighting over Bluetooth: for that, plug in the 2.4G dongle or the USB-C cable and set the keyboard’s switch to match.`
             : W.hasHid() || prefs.demo
             ? 'Plug in the 2.4G dongle or the USB-C cable and set the keyboard’s switch to match. It shows up here within a few seconds.'
             : 'This window cannot reach USB devices.',
@@ -1010,9 +1010,9 @@
 
   // -------------------------------------------------------------- battery tab
 
-  // Names the system may list the keyboard under when it is paired over Bluetooth.
+  // Names Windows may list the keyboard under when it is paired over Bluetooth.
   const BT_PATTERN = 'AULA|F75|F87';
-  const SOURCES = { dongle: '2.4G dongle', usb: 'USB-C cable', demo: 'Demo keyboard', bluetooth: 'Bluetooth, via the system' };
+  const SOURCES = { dongle: '2.4G dongle', usb: 'USB-C cable', demo: 'Demo keyboard', bluetooth: 'Bluetooth, via Windows' };
 
   function renderBattery() {
     const b = session.battery;
@@ -1050,7 +1050,7 @@
     else if (p === null) {
       if (session.link === 'feature') hint = 'The USB-C cable has no battery report. Switch the keyboard to the 2.4G dongle to read it.';
       else if (session.mode === 'wired') hint = 'Some keyboards do not report battery over the USB-C cable. Switch to the 2.4G dongle to read it.';
-      else if (!session.connected) hint = host ? 'Connect the keyboard, or pair it over Bluetooth so the system can report its battery.' : 'Connect the keyboard to read its battery.';
+      else if (!session.connected) hint = host ? 'Connect the keyboard, or pair it over Bluetooth so Windows can report its battery.' : 'Connect the keyboard to read its battery.';
     }
     $('#batHint').textContent = hint;
 
@@ -1317,7 +1317,7 @@
     const i = Math.max(0, T.CHOICES.indexOf(T.pref()));
     for (const b of $$('.seg-btn', seg)) b.setAttribute('aria-checked', b.dataset.themePref === T.pref() ? 'true' : 'false');
     seg.style.setProperty('--i', i);
-    $('#themeHint').textContent = T.pref() === 'system' ? `Following the system, which is ${T.resolved()} right now.` : 'Dark, light, or the same as the system.';
+    $('#themeHint').textContent = T.pref() === 'system' ? `Following Windows, which is ${T.resolved()} right now.` : 'Dark, light, or the same as Windows.';
   }
 
   // Background: either a picture the person picked (kept as a data URL under 'aula.bg') or one of the preset pictures in
@@ -2078,8 +2078,8 @@
           try {
             const st = await host.setSettings({ [key]: next });
             paint(st); // shows what the app really ended up with
-            if (key === 'openAtLogin' && next && !st.openAtLogin) toast('The startup entry could not be created, so it stays off.', 'bad');
-            else if (key === 'openAtLogin' && next && st.loginBlocked) toast('Aula Control is switched off in your system’s startup settings. Turn it on there.', 'warn', 8000);
+            if (key === 'openAtLogin' && next && !st.openAtLogin) toast('Windows did not accept the startup entry, so it stays off.', 'bad');
+            else if (key === 'openAtLogin' && next && st.loginBlocked) toast('Windows has Aula Control switched off under Settings, Apps, Startup. Turn it on there.', 'warn', 8000);
           } catch (_) {
             btn.setAttribute('aria-checked', next ? 'false' : 'true');
             toast('Could not change that setting.', 'bad');
@@ -2268,7 +2268,7 @@
       });
     }
 
-    // Bluetooth battery through the system, only when the keyboard link is not giving us one.
+    // Bluetooth battery through Windows, only when the keyboard link is not giving us one.
     const pollBluetooth = async () => {
       if (!host || prefs.demo) return;
       const b = session.battery;

@@ -9,6 +9,8 @@
   description). So start every bullet with a bold title, as the older sections do.
 -->
 
+## What's new in 1.4.7
+
 ## What's new in 1.4.6
 
 - **No false error when the change went through:** after Apply the app read the keyboard back once, a fraction of a second later. A keyboard that was a little slow to apply (the 2.4G dongle and the USB-C cable both can be) still showed its old settings at that moment, so the app said "did not keep every change" or "is running another effect" while the light was changing on the real keyboard. The app now asks again for up to about two seconds and stops as soon as the keyboard shows the change. A keyboard that really ignores a write is still reported.

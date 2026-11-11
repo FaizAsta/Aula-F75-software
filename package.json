@@ -1,14 +1,13 @@
 {
   "name": "aula-control",
   "productName": "Aula Control",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "Unofficial companion app for AULA F75, F75 Pro and F87 keyboards: battery, lighting effects and per-key RGB.",
   "main": "main.js",
-  "author": "Aula Control contributors",
+  "author": "",
   "license": "GPL-3.0-only",
-  "aulaControl": {
-    "updateRepo": "FaizAsta/Aula-F75-software"
-  },
+  "homepage": "https://github.com/FaizAsta/Aula-F75-software",
+  "aulaControl": { "updateRepo": "FaizAsta/Aula-F75-software" },
   "private": true,
   "scripts": {
     "start": "electron .",
@@ -16,8 +15,7 @@
     "icon": "python3 scripts/make-icon.py",
     "screenshots": "node scripts/screenshots.js",
     "dist": "electron-builder --win nsis portable",
-    "dist:win": "electron-builder --win nsis portable",
-    "dist:linux": "electron-builder --linux AppImage deb tar.gz"
+    "dist:linux": "electron-builder --linux AppImage deb"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -26,36 +24,10 @@
   "build": {
     "appId": "com.aulacontrol.app",
     "productName": "Aula Control",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "login-item.js",
-      "updater.js",
-      "bluetooth-linux.js",
-      "usage.js",
-      "RELEASE_NOTES.md",
-      "src/**/*",
-      "assets/**/*",
-      "package.json"
-    ],
+    "directories": { "output": "dist" },
+    "files": ["main.js", "preload.js", "login-item.js", "updater.js", "usage.js", "RELEASE_NOTES.md", "src/**/*", "assets/**/*", "package.json"],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
+      "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }],
       "icon": "assets/icon.ico"
     },
     "nsis": {
@@ -73,65 +45,20 @@
     "portable": {
       "artifactName": "Aula-Control-Portable.${ext}"
     },
-    "extraResources": [
-      {
-        "from": "packaging/linux/70-aula-control.rules",
-        "to": "70-aula-control.rules"
-      }
-    ],
     "linux": {
-      "target": [
-        {
-          "target": "AppImage",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "deb",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "tar.gz",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
+      "target": [{ "target": "AppImage", "arch": ["x64"] }, { "target": "deb", "arch": ["x64"] }],
       "icon": "assets/icon.png",
       "category": "Utility",
       "executableName": "aula-control",
-      "maintainer": "Aula Control contributors",
-      "synopsis": "Unofficial companion app for AULA keyboards",
-      "desktop": {
-        "Name": "Aula Control",
-        "Comment": "Battery, lighting effects and per-key RGB for AULA keyboards",
-        "StartupWMClass": "Aula Control",
-        "Keywords": "keyboard;rgb;aula;f75;lighting;"
-      },
-      "artifactName": "Aula-Control-${version}-linux-${arch}.${ext}"
+      "synopsis": "Battery, lighting and per-key RGB for AULA keyboards",
+      "maintainer": "Aula Control <aula-control@users.noreply.github.com>"
+    },
+    "appImage": {
+      "artifactName": "Aula-Control-x86_64.AppImage"
     },
     "deb": {
-      "afterInstall": "packaging/linux/after-install.sh",
-      "afterRemove": "packaging/linux/after-remove.sh",
-      "depends": [
-        "libgtk-3-0",
-        "libnotify4",
-        "libnss3",
-        "libxss1",
-        "libxtst6",
-        "xdg-utils",
-        "libatspi2.0-0",
-        "libuuid1",
-        "libsecret-1-0"
-      ]
+      "artifactName": "Aula-Control-amd64.deb",
+      "fpm": ["linux/99-aula-control.rules=/etc/udev/rules.d/99-aula-control.rules"]
     }
-  },
-  "allowScripts": {
-    "electron@33.4.11": true
-  },
-  "homepage": "https://github.com/FaizAsta/Aula-F75-software",
-  "desktopName": "aula-control.desktop"
+  }
 }

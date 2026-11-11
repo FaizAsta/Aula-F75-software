@@ -1,55 +1,90 @@
 'use strict';
 
+/*
+ * The Linux build: package.json asks for an AppImage and a .deb, the udev rule covers every USB id the app opens, the
+ * GitHub workflow builds both systems and attaches all files to one release, and the Windows updater is not confused by
+ * the extra files on that release.
+ */
+
 const test = require('node:test');
-const assert = require('node:assert');
+const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { linuxAutostartEntry, loginItemOptions } = require('../login-item');
-const bt = require('../bluetooth-linux');
+const updater = require('../updater');
 
-test('autostart entry for an installed app runs the binary with --hidden', () => {
-  const o = loginItemOptions({ isPackaged: true, appPath: '/opt/Aula Control/resources/app.asar', execPath: '/opt/Aula Control/aula-control' });
-  const text = linuxAutostartEntry(o);
-  assert.match(text, /^\[Desktop Entry\]/);
-  assert.match(text, /^Exec="\/opt\/Aula Control\/aula-control" --hidden$/m);
-  assert.match(text, /^Type=Application$/m);
+const root = path.join(__dirname, '..');
+const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
+const pkg = JSON.parse(read('package.json'));
+
+test('package.json builds an AppImage and a .deb for Linux with fixed file names', () => {
+  assert.equal(pkg.scripts['dist:linux'], 'electron-builder --linux AppImage deb');
+  assert.deepEqual(pkg.build.linux.target.map((t) => t.target).sort(), ['AppImage', 'deb']);
+  assert.equal(pkg.build.appImage.artifactName, 'Aula-Control-x86_64.AppImage');
+  assert.equal(pkg.build.deb.artifactName, 'Aula-Control-amd64.deb');
+  assert.ok(pkg.build.linux.maintainer, 'a .deb needs a maintainer');
+  assert.ok(fs.existsSync(path.join(root, pkg.build.linux.icon)), 'the Linux icon exists');
 });
 
-test('autostart entry for an AppImage points at the real file, not the temporary mount', () => {
-  const o = loginItemOptions({ isPackaged: true, appPath: '/tmp/.mount_x/resources/app.asar', execPath: '/tmp/.mount_x/aula-control', portableFile: '/home/me/Apps/Aula-Control.AppImage' });
-  assert.match(linuxAutostartEntry(o), /^Exec=\/home\/me\/Apps\/Aula-Control\.AppImage --hidden$/m);
+test('the Windows build is unchanged', () => {
+  assert.equal(pkg.scripts.dist, 'electron-builder --win nsis portable');
+  assert.equal(pkg.build.nsis.artifactName, 'Aula-Control-Setup.${ext}');
+  assert.equal(pkg.build.portable.artifactName, 'Aula-Control-Portable.${ext}');
 });
 
-test('autostart entry from source passes the app folder as one argument', () => {
-  const o = loginItemOptions({ isPackaged: false, appPath: '/home/me/my apps/aula', execPath: '/home/me/my apps/aula/node_modules/electron/dist/electron' });
-  assert.match(linuxAutostartEntry(o), /^Exec="[^"]*electron" "\/home\/me\/my apps\/aula" --hidden$/m);
+test('the udev rule covers every USB id main.js opens, and the .deb installs it', () => {
+  const main = read('main.js');
+  const block = main.match(/const KNOWN_IDS = \[([\s\S]*?)\];/);
+  assert.ok(block, 'KNOWN_IDS in main.js');
+  const ids = [...block[1].matchAll(/\[0x([0-9a-f]{4}), 0x([0-9a-f]{4})\]/gi)].map((m) => [m[1].toLowerCase(), m[2].toLowerCase()]);
+  assert.ok(ids.length >= 4, 'found the ids');
+  const rules = read('linux/99-aula-control.rules');
+  for (const [v, p] of ids) {
+    assert.match(rules, new RegExp(`idVendor}=="${v}", ATTRS{idProduct}=="${p}", TAG\\+="uaccess"`), `no rule for ${v}:${p}`);
+  }
+  assert.ok(pkg.build.deb.fpm.some((a) => a.startsWith('linux/99-aula-control.rules=/etc/udev/rules.d/')));
 });
 
-test('bluetoothctl output is parsed', () => {
-  assert.strictEqual(bt.parseBatteryPercentage('Name: AULA F75\n\tBattery Percentage: 0x57 (87)\n'), 87);
-  assert.strictEqual(bt.parseBatteryPercentage('Name: AULA F75\n'), null);
-  assert.deepStrictEqual(bt.parseDevices('Device AA:BB:CC:DD:EE:FF AULA F75\nDevice 11:22:33:44:55:66 Mouse\nnoise'), [
-    { address: 'AA:BB:CC:DD:EE:FF', name: 'AULA F75' },
-    { address: '11:22:33:44:55:66', name: 'Mouse' },
-  ]);
+// The workflow is not in the project zip (the unpack step never touches .github), so this runs only in a checkout that has it.
+const wfFile = path.join(root, '.github', 'workflows', 'build.yml');
+test('the workflow unpacks the zip into main, builds Windows and Linux, releases, then moves the zip to dev', { skip: !fs.existsSync(wfFile) && 'build.yml is not in this copy' }, () => {
+  const wf = read('.github/workflows/build.yml');
+  assert.match(wf, /paths: \['\*\.zip'\]/, 'starts when a zip is uploaded');
+  assert.match(wf, /workflow_dispatch/);
+  assert.match(wf, /contents: write/);
+  assert.match(wf, /tar --exclude='\.\/\.github'/, 'the .github folder of the zip is never copied');
+  assert.match(wf, /windows-latest/);
+  assert.match(wf, /ubuntu-latest/);
+  assert.match(wf, /npm run dist -- --publish never/);
+  assert.match(wf, /npm run dist:linux -- --publish never/);
+  assert.match(wf, /dist\/\*\.exe/);
+  assert.match(wf, /dist\/\*\.AppImage/);
+  assert.match(wf, /dist\/\*\.deb/);
+  assert.match(wf, /linux\/99-aula-control\.rules/);
+  assert.match(wf, /--notes-file RELEASE_NOTES\.md/);
+  assert.match(wf, /git push origin dev/);
+  assert.match(wf, /git rm -q "\$ZIP"/);
 });
 
-test('power_supply batteries are matched by name and the laptop battery is ignored', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ps-'));
-  const mk = (name, files) => {
-    fs.mkdirSync(path.join(dir, name));
-    for (const [k, v] of Object.entries(files)) fs.writeFileSync(path.join(dir, name, k), v + '\n');
-  };
-  mk('BAT0', { capacity: 50, scope: 'System', model_name: 'F75 laptop pack' });
-  mk('hid-AA:BB-battery', { capacity: 64, model_name: 'AULA F75' });
-  const re = /AULA|F75|F87/i;
-  assert.deepStrictEqual(bt.fromPowerSupply(re, dir), { name: 'AULA F75', level: 64 });
-  assert.strictEqual(bt.fromPowerSupply(/nothing/i, dir), null);
-  fs.rmSync(dir, { recursive: true, force: true });
+test('the AppImage turns the sandbox off, the installed app does not', () => {
+  const main = read('main.js');
+  assert.match(main, /process\.platform === 'linux' && process\.env\.APPIMAGE\) app\.commandLine\.appendSwitch\('no-sandbox'\)/);
 });
 
-test('the udev rule covers the supported keyboard ids', () => {
-  const rules = fs.readFileSync(path.join(__dirname, '..', 'packaging', 'linux', '70-aula-control.rules'), 'utf8');
-  for (const [v, p] of [['3554', 'fa09'], ['258a', '010c']]) assert.match(rules, new RegExp(`idVendor}=="${v}", ATTRS\\{idProduct}=="${p}".*uaccess`));
+const release = (names) => ({
+  tag_name: 'v9.9.9',
+  html_url: 'https://github.com/o/r/releases/tag/v9.9.9',
+  body: '',
+  assets: names.map((name) => ({ name, size: 10, browser_download_url: `https://github.com/o/r/releases/download/v9.9.9/${name}` })),
+});
+const ALL = ['Aula-Control-Setup.exe', 'Aula-Control-Portable.exe', 'Aula-Control-x86_64.AppImage', 'Aula-Control-amd64.deb', '99-aula-control.rules'];
+
+test('with Linux files on the release, the installed Windows app still downloads the Setup exe', () => {
+  const info = updater.pickRelease(release(ALL), { repo: 'o/r', current: '1.0.0', installable: true });
+  assert.equal(info.mode, 'install');
+  assert.equal(info.asset.name, 'Aula-Control-Setup.exe');
+});
+
+test('on Linux the app only opens the release page', () => {
+  const info = updater.pickRelease(release(ALL), { repo: 'o/r', current: '1.0.0', installable: false });
+  assert.equal(info.mode, 'page');
 });
