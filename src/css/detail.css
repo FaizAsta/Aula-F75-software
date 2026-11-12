@@ -185,6 +185,13 @@
 /* the dot says whether the keyboard itself is on: green = lit and following, grey = off or asleep */
 .stage-view[data-live="on"] .sv-dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
 
+/* Picture: only the image. The status chips and the link animation that lie over the keyboard are hidden, and the picture takes
+   no pointer at all (the Live / Picture switch sits above it and keeps working). Set by app.js (data-pic on .stage). */
+.stage[data-pic="1"] .stage-bar,
+.stage[data-pic="1"] .stage-tx { display: none !important; }
+.stage[data-pic="1"] .stage-canvas,
+.stage[data-pic="1"] .stage-max { pointer-events: none; }
+
 /* A narrow window drops the least important chips first. */
 @media (max-width: 880px) { #sbSpeed, #sbModel { display: none; } }
 @media (max-width: 700px) { #sbColor { display: none; } }

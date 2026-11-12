@@ -46,9 +46,11 @@ test('the udev rule covers every USB id main.js opens, and the .deb installs it'
 
 // The workflow is not in the project zip (the unpack step never touches .github), so this runs only in a checkout that has it.
 const wfFile = path.join(root, '.github', 'workflows', 'build.yml');
-test('the workflow unpacks the zip into main, builds Windows and Linux, releases, then moves the zip to dev', { skip: !fs.existsSync(wfFile) && 'build.yml is not in this copy' }, () => {
+test('the workflow starts on any upload to main, unpacks a new zip into main, builds Windows and Linux, releases, then moves the zip to dev', { skip: !fs.existsSync(wfFile) && 'build.yml is not in this copy' }, () => {
   const wf = read('.github/workflows/build.yml');
-  assert.match(wf, /paths: \['\*\.zip'\]/, 'starts when a zip is uploaded');
+  assert.match(wf, /push:\s*\n\s*branches: \[main\]/, 'starts by itself on any upload to main');
+  assert.doesNotMatch(wf, /^\s*paths:/m, 'no path filter: single files start it too, not only a zip');
+  assert.match(wf, /git diff --name-only --diff-filter=AM "\$BEFORE" "\$AFTER"/, 'only a zip that this push added is unpacked');
   assert.match(wf, /workflow_dispatch/);
   assert.match(wf, /contents: write/);
   assert.match(wf, /tar --exclude='\.\/\.github'/, 'the .github folder of the zip is never copied');

@@ -33,7 +33,7 @@
 **An unofficial Windows and Linux app for AULA F75 keyboards.**<br>
 Battery, lighting effects, per-key RGB and a live preview.
 
-[![Version](https://img.shields.io/badge/version-1.4.7-blue)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20%7C%20Linux-0078d4)](#download)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20server-5865F2?logo=discord&logoColor=white)](https://discord.gg/BdeQygyRwN)
 
@@ -42,6 +42,25 @@ Battery, lighting effects, per-key RGB and a live preview.
 ![Aula Control, Lighting tab](docs/screenshots/lighting.png)
 
 </div>
+
+## New: Liquid glass UI (experimental)
+
+Aula Control now has a second look: **Liquid glass**. Panels, buttons, switches and sliders become glass that bends and
+blurs the picture behind them, a bit like iOS. Turn it on in **Settings, Theme, UI**. **Classic** is still the default, so
+nothing changes unless you pick Liquid glass.
+
+<div align="center">
+
+<img src="docs/screenshots/lighting-glass.png" alt="The Lighting tab in Liquid glass, over the built-in background picture" width="760">
+
+<sub>The Lighting tab in Liquid glass, over the built-in background picture</sub>
+
+</div>
+
+> [!CAUTION]
+> **Liquid glass is experimental.** It is **not stable** and it **can be laggy**, more so on weaker or older computers.
+> It may also look off or glitch in places, and I have not tested it everywhere. It looks best with a background picture
+> (Settings, Theme). If anything misbehaves, switch back to **Classic** in the same place. Nothing else is affected.
 
 ## Read this first
 
@@ -80,14 +99,17 @@ On Linux the app does not update itself: it tells you a new version is out and o
 
 Join the [Discord server](https://discord.gg/BdeQygyRwN) to share ideas, ask for help or tell us about a problem. Ideas for new features are welcome.
 
+In the app, press **Support** (on the start screen and in the top bar) for the Discord invite and the other links.
+
 ## Features
 
 - Battery level, charging indicator and low / fully charged alerts, with a red breathing light on the keyboard while the battery is low
 - After an update, a small window lists what is new (only the headers from RELEASE_NOTES.md, not the descriptions)
 - 15 lighting effects and per-key RGB
-- Live preview of the keyboard as a rendered picture, a different one for each model (F75, F75 Pro, F87, F75 Max); a Live / Picture switch on it: Live follows the keyboard and goes dark when it is off or asleep, Picture is just the unlit board with the hover animation
+- Live preview of the keyboard as a rendered picture, a different one for each model (F75, F75 Pro, F87, F75 Max); a Live / Picture switch on it: Live follows the keyboard and goes dark when it is off or asleep, Picture is only a still image of the board in its current light colours, with no animation, no pointer effects and nothing laid over it
 - Key assignment (experimental)
 - Dark and light themes, tray icon, start with Windows
+- Liquid glass UI (experimental, not stable, can be laggy): an optional second look in Settings > Theme > UI; Classic stays the default
 
 <img src="docs/screenshots/keyboards.png" alt="The picture for each model: F75, F75 Pro, F87 and F75 Max" width="560">
 
@@ -159,6 +181,14 @@ Click a picture to see it full size.
 <tr>
 <td align="center" width="50%"><a href="docs/screenshots/connecting.png"><img src="docs/screenshots/connecting.png" alt="Reading your keyboard, waking it up" width="430"></a><br><sub>Reading the keyboard (waking it up)</sub></td>
 <td align="center" width="50%"><a href="docs/screenshots/asleep.png"><img src="docs/screenshots/asleep.png" alt="Keyboard is asleep" width="430"></a><br><sub>The keyboard is asleep: press any key</sub></td>
+</tr>
+</table>
+
+### Support
+
+<table>
+<tr>
+<td align="center" width="50%"><a href="docs/screenshots/support.png"><img src="docs/screenshots/support.png" alt="The Support menu with the Discord invite" width="430"></a><br><sub>The Support button opens the Discord invite and the other links</sub></td>
 </tr>
 </table>
 

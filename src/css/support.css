@@ -1,0 +1,83 @@
+/* ==========================================================================
+   Support: the button in the header and on the start screen, and the small menu of links it opens (support.js).
+   Colours come from the same variables as everything else, so the light theme and the keyboard tint apply.
+   ========================================================================== */
+
+.sup-btn .ico { width: 16px; height: 16px; }
+.sup-btn[aria-expanded="true"] { background: rgb(var(--ink) / 0.14); box-shadow: inset 0 0 0 1px var(--line-2); }
+
+/* Start screen: top left, where the Back button sits on the next screen. */
+.hm-support { position: absolute; top: calc(var(--top) + 6px); left: 22px; z-index: 4; display: inline-flex; align-items: center; gap: 6px; }
+.hm-support .ico { width: 15px; height: 15px; }
+.hm-support[hidden] { display: none; }
+.home:not([data-screen="home"]) .hm-support {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease), visibility 0s linear 0.5s;
+}
+
+/* Near the minimum window width the header keeps only the icon. */
+@media (max-width: 1120px) {
+  .sup-btn { padding: 0 9px; }
+  .sup-btn span { display: none; }
+}
+
+/* The menu. It floats above the page but below the window buttons (z-index 60), so Minimize and Close always work. */
+.sup-pop {
+  position: absolute;
+  z-index: 50;
+  width: 304px;
+  padding: 6px;
+  background: rgb(var(--pop) / 0.98);
+  border-radius: var(--r-tile);
+  box-shadow: inset 0 0 0 1px var(--line-2), 0 18px 40px rgb(var(--shade) / 0.5);
+  transform-origin: top right;
+  animation: supIn 0.18s var(--ease) both;
+  -webkit-app-region: no-drag;
+}
+.sup-pop[hidden] { display: none; }
+.sup-pop[data-side="left"] { transform-origin: top left; }
+
+.sup-head { margin: 7px 10px 6px; color: var(--muted); font-size: 11.5px; letter-spacing: 0.02em; }
+
+.sup-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.sup-item:hover { background: rgb(var(--ink) / 0.08); }
+.sup-item:focus-visible { outline: none; background: rgb(var(--ink) / 0.08); box-shadow: inset 0 0 0 1px var(--line-2); }
+
+.sup-ico { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 10px; background: rgb(var(--ink) / 0.07); color: var(--text); }
+.sup-ico[data-k="discord"] { background: #5865f2; color: #fff; } /* Discord's own blue, the same as the badge in the README */
+.sup-ico .ico { width: 18px; height: 18px; }
+.sup-fill { fill: currentColor; stroke: none; }
+
+.sup-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sup-txt b { font-weight: 600; font-size: 13.5px; }
+.sup-txt small { color: var(--muted); font-size: 12px; line-height: 1.35; }
+
+.sup-arrow { display: grid; color: var(--faint); transition: color 0.15s, transform 0.2s var(--ease); }
+.sup-arrow .ico { width: 15px; height: 15px; }
+.sup-item:hover .sup-arrow, .sup-item:focus-visible .sup-arrow { color: var(--text); transform: translate(1px, -1px); }
+
+@keyframes supIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.lite .sup-pop, .lite .sup-arrow { animation: none; transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .sup-pop { animation: none; }
+  .sup-arrow { transition: none; }
+}

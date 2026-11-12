@@ -44,6 +44,12 @@
   } catch (_) {
     allowed = true;
   }
-  on = allowed && !PICTURE_KEYS.some((k) => !!saved[k]);
+  let glass = false; // the Liquid glass style (glass.js) paints its own backdrop, so no frosting
+  try {
+    glass = JSON.parse(saved[PREF_KEY] || '{}').style === 'glass';
+  } catch (_) {
+    glass = false;
+  }
+  on = allowed && !glass && !PICTURE_KEYS.some((k) => !!saved[k]);
   root.classList.toggle('frost', on);
 })();

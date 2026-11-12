@@ -94,7 +94,7 @@ const previousVersion = (v) => {
  * `fakes` holds the test doubles as functions: the page's security policy forbids building code from text at run time.
  */
 function pageSetup(cfg, fakes) {
-  const memory = { 'aula.prefs': JSON.stringify(cfg.prefs) };
+  const memory = { 'aula.prefs': JSON.stringify(cfg.prefs), ...(cfg.memory || {}) };
   const winCbs = [];
   const upd = {};
   window.__upd = upd;
@@ -105,6 +105,7 @@ function pageSetup(cfg, fakes) {
     getSettings: async () => ({ ...keep }),
     setSettings: async (patch) => Object.assign(keep, patch),
     version: async () => cfg.version,
+    openSupport: async () => true, // the Support menu: the real app opens the link in the browser
     listBackgrounds: async () => cfg.backgrounds,
     loadMemory: () => memory,
     setMemory: (k, v) => {
@@ -229,14 +230,14 @@ async function finish(file) {
 
 const state = { browser: null, base: '' };
 
-async function open(scenario = 'demo', { theme = 'dark', model = 'f75', demo } = {}) {
+async function open(scenario = 'demo', { theme = 'dark', model = 'f75', demo, extra = {}, memory = {} } = {}) {
   const ctx = await state.browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: SCALE, reducedMotion: 'no-preference', colorScheme: theme === 'light' ? 'light' : 'dark' });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e.stack || e)));
   page.on('console', (m) => m.type() === 'error' && errors.push('console.error: ' + m.text()));
-  const prefs = { demo: demo !== undefined ? demo : scenario === 'demo', model, modelSet: true, theme };
-  await page.addInitScript({ content: initScript({ prefs, scenario, version: PKG.version, backgrounds: BACKGROUNDS }) });
+  const prefs = { demo: demo !== undefined ? demo : scenario === 'demo', model, modelSet: true, theme, ...extra };
+  await page.addInitScript({ content: initScript({ prefs, scenario, version: PKG.version, backgrounds: BACKGROUNDS, memory }) });
   await page.goto(state.base);
   await page.waitForFunction(() => window.aulaApp && document.querySelector('#hmStart'));
   await page.addStyleTag({ content: LOOK });
@@ -338,6 +339,30 @@ const SHOTS = {
     await enter(page);
     await snap(page, 'lighting');
     check(page, 'lighting');
+    await page.ctx.close();
+  },
+
+  // The Support button in the header, with its menu open.
+  // Liquid glass (experimental) needs a picture to bend, so this one runs over the preset background that ships with the app.
+  async 'lighting-glass'() {
+    const preset = BACKGROUNDS[0];
+    const page = await open('demo', { extra: { style: 'glass' }, memory: preset ? { 'aula.bgPreset': preset, 'aula.bgOpacity': '0.5' } : {} });
+    await enter(page);
+    await tab(page, 'lighting', 1200);
+    await wait(800);
+    await snap(page, 'lighting-glass');
+    check(page, 'lighting-glass');
+    await page.ctx.close();
+  },
+
+  async support() {
+    const page = await open();
+    await enter(page);
+    await page.click('#supBtn');
+    await page.waitForSelector('#supPop:not([hidden])');
+    await wait(500); // the menu's entrance
+    await snap(page, 'support');
+    check(page, 'support');
     await page.ctx.close();
   },
 

@@ -10,14 +10,17 @@
   <link rel="stylesheet" href="css/detail.css">
   <link rel="stylesheet" href="css/battery.css">
   <link rel="stylesheet" href="css/update.css">
+  <link rel="stylesheet" href="css/support.css">
   <link rel="stylesheet" href="css/keys.css">
   <link rel="stylesheet" href="css/max.css">
   <link rel="stylesheet" href="css/lite.css">
   <link rel="stylesheet" href="css/motion.css">
+  <link rel="stylesheet" href="css/glass.css">
   <link rel="icon" href="../assets/icon.png">
   <script src="js/boot.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/frost.js"></script>
+  <script src="js/glass.js"></script>
 </head>
 <body>
 <div class="shell" data-screen="home">
@@ -47,6 +50,10 @@
         <svg class="ico bat-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="17" height="10" rx="2.5"/><path d="M22 10.5v3"/><rect class="bat-fill" id="batFill" x="4.2" y="9.2" width="0" height="5.6" rx="1.1"/><path class="bat-bolt" d="M11.5 8.3 8.1 12.6h2l-.8 3.1 3.6-4.4h-2.2z"/></svg>
         <span id="batChipText">No reading</span>
       </button>
+      <button class="pill-btn sup-btn" id="supBtn" type="button" data-support aria-haspopup="menu" aria-expanded="false" aria-controls="supPop" title="Help and community">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.4"/><path d="M6 6l3.6 3.6M14.4 14.4 18 18M18 6l-3.6 3.6M9.6 14.4 6 18"/></svg>
+        <span>Support</span>
+      </button>
       <button class="icon-btn upd-badge" id="updBadge" type="button" hidden aria-label="Update available">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></svg>
         <i class="upd-dot" aria-hidden="true"></i>
@@ -57,10 +64,10 @@
   <main class="main">
     <section class="stage" aria-label="Keyboard preview">
       <div class="stage-canvas"><canvas id="kb" aria-label="Preview of the keyboard lighting" role="img"></canvas></div>
-      <!-- Live follows the real keyboard (and goes dark when it is off or asleep); Picture is just the keyboard, unlit, with the hover animation. -->
+      <!-- Live follows the real keyboard (and goes dark when it is off or asleep); Picture is only a still image of the keyboard in its current light colours: no animation, no pointer effects, nothing laid over it. -->
       <div class="stage-view" id="stageView" role="group" aria-label="What the keyboard picture shows" data-live="off">
         <button class="sv-btn" type="button" data-view="live" aria-pressed="true" title="The picture follows your keyboard, lights and all. It goes dark when the keyboard is off or asleep."><i class="sv-dot" aria-hidden="true"></i>Live</button>
-        <button class="sv-btn" type="button" data-view="picture" aria-pressed="false" title="Just a picture of the keyboard, with no lighting. The keys still rise when you move the pointer over them.">Picture</button>
+        <button class="sv-btn" type="button" data-view="picture" aria-pressed="false" title="Only a still picture of the keyboard in its current light colours. Nothing moves and nothing reacts to the pointer.">Picture</button>
       </div>
       <div class="stage-bar" id="stageBar" aria-hidden="true">
         <span class="sb-chip" id="sbModel"><b></b></span>
@@ -433,10 +440,65 @@
                     </div>
                   </div>
                 </div>
+                <div class="srow">
+                  <div class="srow-text"><b>UI</b><span class="tag warn style-tag" id="styleTag" hidden>Experimental</span><p class="hint" id="styleHint">Classic is the original look. Liquid glass (experimental) bends the picture behind the controls, like iOS.</p><p class="hint caution" id="styleCaution" hidden>Caution: Liquid glass is experimental. It may look off or run slower on some computers. If anything misbehaves, switch back to Classic.</p></div>
+                  <div class="srow-ctl">
+                    <div class="seg seg-2" id="segStyle" style="--n:2" role="radiogroup" aria-label="UI">
+                      <button class="seg-btn" role="radio" data-style-pref="classic" type="button">Classic</button>
+                      <button class="seg-btn" role="radio" data-style-pref="glass" type="button">Liquid glass</button>
+                    </div>
+                  </div>
+                </div>
                 <!-- Only shown where Windows can frost the window (Windows 11 22H2 and later); see js/frost.js. -->
                 <div class="srow" id="frostRow" hidden>
                   <div class="srow-text"><b>Frosted window</b><p class="hint" id="frostHint">Lets the desktop show through the window, blurred. Only with the default background.</p></div>
                   <div class="srow-ctl"><button class="switch" id="swFrost" role="switch" aria-checked="true" aria-label="Frosted window" type="button"><i></i></button></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="set" id="glassSection" hidden>
+              <h2>Liquid glass</h2>
+              <div class="group">
+                <div class="srow">
+                  <div class="srow-text"><b>Blur</b><p class="hint">How soft the picture looks behind the glass. 0 is clear.</p></div>
+                  <div class="srow-ctl">
+                    <div class="bg-opacity">
+                      <input class="range" id="gBlur" data-glass="blur" type="range" min="0" max="12" step="0.5" value="0" aria-label="Blur">
+                      <output id="gBlurVal" for="gBlur"></output>
+                    </div>
+                  </div>
+                </div>
+                <div class="srow">
+                  <div class="srow-text"><b>Edge width</b><p class="hint">How far in from the rim the bending reaches.</p></div>
+                  <div class="srow-ctl">
+                    <div class="bg-opacity">
+                      <input class="range" id="gBezel" data-glass="bezel" type="range" min="4" max="28" step="1" value="4" aria-label="Edge width">
+                      <output id="gBezelVal" for="gBezel"></output>
+                    </div>
+                  </div>
+                </div>
+                <div class="srow">
+                  <div class="srow-text"><b>Refraction</b><p class="hint">How strongly the rim bends the picture.</p></div>
+                  <div class="srow-ctl">
+                    <div class="bg-opacity">
+                      <input class="range" id="gAmount" data-glass="amount" type="range" min="0" max="60" step="1" value="0" aria-label="Refraction">
+                      <output id="gAmountVal" for="gAmount"></output>
+                    </div>
+                  </div>
+                </div>
+                <div class="srow">
+                  <div class="srow-text"><b>Colour fringe</b><p class="hint">A thin rainbow edge where the glass bends light.</p></div>
+                  <div class="srow-ctl">
+                    <div class="bg-opacity">
+                      <input class="range" id="gChroma" data-glass="chroma" type="range" min="0" max="100" step="5" value="0" aria-label="Colour fringe">
+                      <output id="gChromaVal" for="gChroma"></output>
+                    </div>
+                  </div>
+                </div>
+                <div class="srow">
+                  <div class="srow-text"><b>Reset glass</b><p class="hint">Back to the default look.</p></div>
+                  <div class="srow-ctl"><button class="btn small ghost" id="glassReset" type="button">Reset</button></div>
                 </div>
               </div>
             </section>
@@ -551,6 +613,10 @@
       <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></svg><span>Update available</span>
     </button>
 
+    <button class="btn ghost small hm-support" id="supBtnHome" type="button" data-lock data-support aria-haspopup="menu" aria-expanded="false" aria-controls="supPop">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.4"/><path d="M6 6l3.6 3.6M14.4 14.4 18 18M18 6l-3.6 3.6M9.6 14.4 6 18"/></svg><span>Support</span>
+    </button>
+
     <section class="scr scr-start" aria-label="Start">
       <div class="hm-in" style="--d:100"><img class="hs-logo" src="../assets/icon.png" alt="" width="72" height="72"></div>
       <h1 class="hs-title hm-in" style="--d:220">AULA <span>CONTROL</span></h1>
@@ -619,6 +685,7 @@
   <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 </div>
 
+<script src="js/support-links.js"></script>
 <script src="js/protocol.js"></script>
 <script src="js/keys.js"></script>
 <script src="js/layout.js"></script>
@@ -641,6 +708,7 @@
 <script src="js/app.js"></script>
 <script src="js/home.js"></script>
 <script src="js/update.js"></script>
+<script src="js/support.js"></script>
 <script src="js/whatsnew-ui.js"></script>
 </body>
 </html>

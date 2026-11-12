@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('aulaHost', {
   version: () => ipcRenderer.invoke('host:version'),
   whatsNew: () => ipcRenderer.invoke('host:whats-new'),
   whatsNewSeen: () => ipcRenderer.send('host:whats-new-seen'),
+  openSupport: (id) => ipcRenderer.invoke('host:open-support', String(id)),
   listBackgrounds: () => ipcRenderer.invoke('host:list-backgrounds'),
   loadMemory: () => ipcRenderer.sendSync('host:mem-load'),
   setMemory: (key, value) => ipcRenderer.send('host:mem-set', key, value),
@@ -41,6 +42,7 @@ contextBridge.exposeInMainWorld('aulaHost', {
     return () => ipcRenderer.removeListener('host:power', fn);
   },
   bluetoothBattery: (pattern) => ipcRenderer.invoke('host:bt-battery', pattern),
+  idleSeconds: () => ipcRenderer.invoke('host:idle'),
   setTray: (text) => ipcRenderer.send('host:tray', text),
   notify: (title, body) => ipcRenderer.send('host:notify', { title, body }),
   saveFile: (name, text) => ipcRenderer.invoke('host:save-file', { name, text }),

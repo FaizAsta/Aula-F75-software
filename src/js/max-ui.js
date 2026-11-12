@@ -301,9 +301,8 @@
      */
     function litColours() {
       if (tab === 'perkey') return (led) => max.keyColors.get(led) || null; // painting always shows its colours
-      const view = ctx.getView ? ctx.getView() : 'live';
       const l = max.lighting;
-      if (view === 'picture' || !max.present) return null;
+      if (!max.present) return null; // Picture shows the same colours as Live: a still image of the board as it is now
       if (l.mode === 1 && !l.colorful) return () => l.rgb;
       return null;
     }
@@ -359,6 +358,8 @@
         sv.hidden = perkey || tab === 'keyboard'; // painting and the keyboard page always show the board, as on the F75
         for (const b of sv.querySelectorAll('.sv-btn')) b.setAttribute('aria-pressed', String((b.dataset.view === 'picture') === picture));
         sv.dataset.live = picture ? 'pic' : !max.present || l.mode === 0 ? 'off' : 'on';
+        const stage = sv.closest('.stage');
+        if (stage) stage.dataset.pic = picture && !sv.hidden ? '1' : ''; // Picture: only the image, as on the F75 screen
       }
     }
 

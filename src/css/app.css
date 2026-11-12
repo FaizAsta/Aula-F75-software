@@ -173,6 +173,20 @@ b { font-weight: 600; }
 }
 .shell:not([data-screen="app"]) .app-bg { opacity: 0; }
 
+/* While a background picture is chosen (app.js puts class "has-picture" on <html>) the panels are see-through, so the picture
+   shows through them instead of being hidden behind solid boxes. --glass is how much of the panel's own colour is kept:
+   lower shows more picture, higher reads more easily. Works in both themes because it mixes the theme's own --surface.
+   The blur that would make this look frosted is left out on purpose (lite mode switches every backdrop-filter off). */
+:root.has-picture { --glass: 70%; --glass-hi: 80%; }
+/* The small grey text (hints, labels) would sink into a bright picture seen through a dark panel, so inside the panels it is a
+   little lighter. Only on dark: on the light theme the panels are white and that text is already dark. */
+:root.has-picture:not([data-theme="light"]) :is(.group, .help-body, .effect) { --muted: #bcc2d1; --faint: #8d94a6; }
+.has-picture .group,
+.has-picture .help-body,
+.has-picture .effect { background: color-mix(in srgb, var(--surface) var(--glass), transparent); }
+.has-picture .effect:hover:not(:disabled),
+.has-picture .effect[aria-checked="true"] { background: color-mix(in srgb, var(--surface-2) var(--glass-hi), transparent); }
+
 /* The page takes its tint from whatever the keyboard is showing. */
 .shell::before {
   content: "";
@@ -770,6 +784,8 @@ html.frost, html.frost body { background: transparent; }
 .srow-text { flex: 1 1 260px; min-width: 0; }
 .srow-text b { font-weight: 500; }
 .srow-text .hint { margin-top: 3px; }
+.srow-text .style-tag { margin-left: 8px; vertical-align: 1px; }
+.hint.caution { color: var(--warn); }
 .srow-ctl { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: none; flex-wrap: wrap; justify-content: flex-end; }
 
 .help-body { padding: 18px 20px; border-radius: var(--r-group); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }

@@ -1,7 +1,7 @@
 {
   "name": "aula-control",
   "productName": "Aula Control",
-  "version": "1.4.7",
+  "version": "1.5.0",
   "description": "Unofficial companion app for AULA F75, F75 Pro and F87 keyboards: battery, lighting effects and per-key RGB.",
   "main": "main.js",
   "author": "",
@@ -18,7 +18,7 @@
     "dist:linux": "electron-builder --linux AppImage deb"
   },
   "devDependencies": {
-    "electron": "^33.0.0",
+    "electron": "^45.2.3",
     "electron-builder": "^25.1.8"
   },
   "build": {

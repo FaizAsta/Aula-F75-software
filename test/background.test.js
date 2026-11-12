@@ -155,3 +155,26 @@ test('every picture shipped in the presets folder is a name the app accepts', ()
   assert.deepEqual(BG.presetNames(pics), [...pics].sort((a, b) => a.localeCompare(b, 'en', { numeric: true, sensitivity: 'base' })));
   for (const f of pics) assert.ok(fs.statSync(path.join(dir, f)).size <= 10 * 1024 * 1024, `${f} is under 10 MB (about 3 MB is plenty; the app keeps 1920 px)`);
 });
+
+test('with a picture as the background the panels are see-through, and only then', () => {
+  // app.js flags <html> whenever a picture (preset or the person\'s own) is on, and removes the flag when there is none.
+  const js = read('js', 'app.js');
+  assert.match(js, /document\.documentElement\.classList\.toggle\('has-picture', on\)/);
+
+  const css = read('css', 'app.css');
+  const vars = /:root\.has-picture\s*\{([^}]*)\}/.exec(css);
+  assert.ok(vars, 'the CSS sets --glass while a picture is on');
+  const glass = Number(/--glass:\s*(\d+)%/.exec(vars[1])[1]);
+  const glassHi = Number(/--glass-hi:\s*(\d+)%/.exec(vars[1])[1]);
+  assert.ok(glass >= 55 && glass <= 85, `the panels keep ${glass}% of their colour: see-through, but still readable on a bright picture`);
+  assert.ok(glassHi > glass && glassHi < 100, 'a hovered or chosen tile is a little stronger, and still not solid');
+
+  // Cards, help boxes and effect tiles all follow it, mixing the theme's own colour so dark and light both work.
+  assert.match(css, /\.has-picture \.group,\s*\.has-picture \.help-body,\s*\.has-picture \.effect\s*\{\s*background:\s*color-mix\(in srgb, var\(--surface\) var\(--glass\), transparent\);/);
+  assert.match(css, /\.has-picture \.effect\[aria-checked="true"\]\s*\{\s*background:\s*color-mix\(in srgb, var\(--surface-2\) var\(--glass-hi\), transparent\);/);
+
+  // Nothing see-through is painted without the flag, and no blur is used (lite mode turns every backdrop-filter off).
+  const rules = css.slice(css.indexOf(':root.has-picture'), css.indexOf(':root.has-picture') + 1400);
+  assert.doesNotMatch(rules, /backdrop-filter/);
+  assert.equal((css.match(/color-mix\(in srgb, var\(--surface/g) || []).length, 2, 'only the two has-picture rules use it');
+});

@@ -11,6 +11,7 @@ const pkg = require('./package.json');
 const bgLib = require('./src/js/background.js');
 const { usageLine } = require('./usage');
 const whatsNew = require('./src/js/whatsnew.js');
+const supportLinks = require('./src/js/support-links.js');
 
 // USB IDs the app is allowed to open through WebHID, plus any HID device whose name says AULA, F75 (which includes the F75 Pro) or F87.
 const KNOWN_IDS = [
@@ -54,7 +55,13 @@ function frostWanted() {
   } catch (_) {
     allowed = true;
   }
-  return FROST_OK && allowed && !FROST_PICTURE_KEYS.some((k) => !!mem[k]);
+  let glass = false; // the Liquid glass style paints its own backdrop, so the window stays solid
+  try {
+    glass = JSON.parse(mem['aula.prefs'] || '{}').style === 'glass';
+  } catch (_) {
+    glass = false;
+  }
+  return FROST_OK && allowed && !glass && !FROST_PICTURE_KEYS.some((k) => !!mem[k]);
 }
 
 // ------------------------------------------------------------------ settings
@@ -200,14 +207,44 @@ function sendWinState() {
   if (win && !win.isDestroyed()) win.webContents.send('host:win-state', winState());
 }
 
+let frostOn = false; // what the window's background material was last set to (kept so it can be re-applied)
+
 /** Turns the frosted (acrylic) window background on or off. Does nothing where it is not supported. */
 function setFrost(on) {
   if (!FROST_OK || !win || win.isDestroyed() || typeof win.setBackgroundMaterial !== 'function') return;
+  frostOn = !!on;
   try {
     win.setBackgroundMaterial(on ? 'acrylic' : 'none');
   } catch (err) {
     console.error('Could not change the window background material', err);
   }
+}
+
+// Frosted glass and rounded corners after a maximize (Windows 11). Electron 33 did a real Windows maximize on a window with a
+// background material. That drops the acrylic and squares the corners, and Windows did not bring either back on restore, so
+// only closing the app fixed it. Electron 34.2 and later maximize such a window themselves (resize to the work area, corners
+// off, then corners on again on restore), and later releases fixed more of changing the material on a window that is already
+// open. package.json asks for a release with those fixes, and test/frost.test.js fails if it is lowered again.
+// What follows is only a backstop for a restore that Electron's own handling does not cover. Writing the frame styles again
+// (setMaximizable does that inside Electron) makes Windows rebuild the frame, and the background material is applied again so
+// the acrylic follows the rounded shape. It only runs when the window is back at its normal size and does nothing off Windows.
+let frameFixTimers = [];
+function refreshFrame() {
+  if (process.platform !== 'win32') return;
+  for (const t of frameFixTimers) clearTimeout(t);
+  // The window event fires before Windows has finished its restore animation, so redo it once the animation is over.
+  frameFixTimers = [0, 150, 400].map((ms) =>
+    setTimeout(() => {
+      if (!win || win.isDestroyed() || win.isMaximized() || win.isFullScreen() || win.isMinimized()) return;
+      try {
+        win.setMaximizable(false);
+        win.setMaximizable(true);
+        if (FROST_OK && typeof win.setBackgroundMaterial === 'function') win.setBackgroundMaterial(frostOn ? 'acrylic' : 'none');
+      } catch (err) {
+        console.error('Could not refresh the window frame', err);
+      }
+    }, ms),
+  );
 }
 
 function createWindow() {
@@ -237,6 +274,7 @@ function createWindow() {
   });
 
   win.setMenuBarVisibility(false);
+  frostOn = FROST_OK && frostAtStart; // created with acrylic on; setFrost(false) just below switches it off again
   if (FROST_OK && !frostAtStart) setFrost(false);
   win.loadFile(path.join(__dirname, 'src', 'index.html'));
 
@@ -253,6 +291,8 @@ function createWindow() {
     }
   });
   win.on('closed', () => {
+    for (const t of frameFixTimers) clearTimeout(t);
+    frameFixTimers = [];
     win = null;
   });
   // Signing out or shutting down must not be held up by "keep running in the tray".
@@ -266,6 +306,8 @@ function createWindow() {
 
   // The page swaps its maximize / restore icon, so tell it whenever that changes.
   for (const ev of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen']) win.on(ev, sendWinState);
+  // Coming back from maximized / full screen / minimized: make sure the rounded corners come back too (see refreshFrame).
+  for (const ev of ['unmaximize', 'leave-full-screen', 'restore']) win.on(ev, refreshFrame);
 
   // Anything that tries to navigate away or open a window is not ours.
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -489,6 +531,18 @@ function registerIpc() {
     whatsNewState = null;
     recordRunVersion();
   });
+  // The Support menu sends only the id of a link; the address comes from the list in src/js/support-links.js, so the page
+  // cannot make the app open anything else. https: opens the browser and mailto: the mail app.
+  ipcMain.handle('host:open-support', async (_e, id) => {
+    const link = supportLinks.find(id);
+    if (!link) return false;
+    try {
+      await shell.openExternal(link.url);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  });
 
   // Preset backgrounds: the pictures in src/img/backgrounds (inside the app package once it is built). Only file names go
   // to the page; it builds the address itself, and only for names that pass the same check.
@@ -551,6 +605,15 @@ function registerIpc() {
     if (typeof on === 'boolean') setFrost(on);
   });
   ipcMain.handle('host:bt-battery', (_e, pattern) => bluetoothBattery(pattern));
+  // Seconds since anyone last touched the keyboard or mouse. The page stops asking the keyboard questions while this is high,
+  // so the keyboard's own sleep timer is not restarted by the app's regular battery and lighting reads.
+  ipcMain.handle('host:idle', () => {
+    try {
+      return powerMonitor.getSystemIdleTime();
+    } catch (_) {
+      return 0;
+    }
+  });
 
   ipcMain.on('host:tray', (_e, text) => {
     if (!tray) return;

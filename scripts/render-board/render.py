@@ -12,6 +12,9 @@ Nothing is typed in twice: colours and layouts come from the app (dump-models.js
   node scripts/render-board/dump-models.js > models.json
   python3 scripts/render-board/render.py models.json --out src/img/board --R 128 --ss 2
 
+After a render, run scripts/render-board/mips.py: it makes the smaller copies of every picture that the app uses at the
+sizes a screen really shows (see its header). A render drops the old copies from the manifest, so they are never mixed.
+
 Only numpy, scipy and Pillow are needed. Output (per skin): <skin>-base.webp (case, plate, slots, knob, desk shadow) and
 one cap sprite per (width, accent) pair, plus manifest.json. Sizes in the manifest are pixels at --R pixels per key.
 """
@@ -660,6 +663,7 @@ def main():
         try:
             manifest = json.load(open(mpath))
             manifest['scale'] = args.R
+            manifest.pop('mips', None)  # the smaller copies belong to the pictures they were made from: run mips.py again after this
         except Exception:
             pass
     manifest['mc'] = MC

@@ -129,3 +129,12 @@ test('the desktop app asks for acrylic only where Windows 11 22H2+ supports it, 
   assert.match(main, /setBackgroundMaterial\(on \? 'acrylic' : 'none'\)/);
   assert.match(read('preload.js'), /frost:\s*\{\s*supported:\s*frostSupported/);
 });
+
+test('Electron is new enough to keep the frost and the rounded corners through maximize and restore', () => {
+  // Electron 33 did a real Windows maximize on a window with a background material: the acrylic and the rounded corners were
+  // lost and only closing the app brought them back. Electron 34.2 fixed the maximize, and later releases fixed changing the
+  // material on an open window, so anything older than 38 is too old.
+  const pkg = JSON.parse(read('package.json'));
+  const major = Number(String(pkg.devDependencies.electron).match(/(\d+)\./)[1]);
+  assert.ok(major >= 38, `package.json asks for Electron ${pkg.devDependencies.electron}; use 38 or newer`);
+});

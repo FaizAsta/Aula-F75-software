@@ -9,6 +9,7 @@
   const M = window.AulaMock;
   const T = window.AulaTheme || null; // theme.js, loaded in <head>
   const BG = window.AulaBg; // background.js: the custom background picture
+  const G = window.AulaGlass || null; // glass.js, loaded in <head>: the Liquid glass style
   const host = window.aulaHost || null;
   const B = window.AulaBattery; // battery.js: estimates, hourly bars, stretch since the last charge
   const MO = window.AulaMotion || null; // motion.js: ripples, button tasks and the data-link animation (optional)
@@ -87,7 +88,7 @@
   // Shown under the switch. The light is written by this app, so it needs the app to be running: hidden in the tray counts, quitting does not.
   const LOW_LIGHT_NOTE =
     'This only works while Aula Control is running in the background (hidden in the tray is fine). If the app is closed or quit, nothing watches the battery and the light will not turn red. Turn on Start with Windows in Settings > App to keep it running. Needs the 2.4G dongle or the USB-C cable. Hover the tray icon to see what the app uses right now.';
-  const prefs = { demo: false, low: 20, full: true, lowLight: true, animate: !reduceMotion, tool: 'select', theme: 'dark', frost: true };
+  const prefs = { demo: false, low: 20, full: true, lowLight: true, animate: !reduceMotion, tool: 'select', style: 'classic', theme: 'dark', frost: true };
   try {
     Object.assign(prefs, JSON.parse(store.getItem(PREF_KEY) || '{}'));
   } catch (_) {
@@ -99,6 +100,8 @@
   delete prefs.tab;
   prefs.lowLight = prefs.lowLight !== false; // red breathing light on the keyboard while the battery is low: on unless the person turned it off
   prefs.frost = prefs.frost !== false; // frosted window (Settings > Theme): on unless the person turned it off
+  prefs.style = prefs.style === 'glass' ? 'glass' : 'classic'; // Settings > Theme > Style: the original look until Liquid glass is picked
+  if (G) prefs.glass = G.clean(prefs.glass); // the four Liquid glass sliders
   // Keyboard model: decides the preview layout and which LED each key is. Unknown or missing falls back to the F75.
   // What the keyboard picture shows: 'live' (follows the keyboard, the original behaviour) or 'picture' (just the board).
   prefs.view = prefs.view === 'picture' ? 'picture' : 'live';
@@ -125,7 +128,7 @@
     }
     return W.discover();
   };
-  const session = new E.Session({ discover, storage: store });
+  const session = new E.Session({ discover, storage: store, idleSeconds: host && host.idleSeconds ? () => host.idleSeconds() : null });
 
   // Key assignment (the Keys tab) lives in keys-ui.js; it gets the session, the layout and a few callbacks.
   const KUI = window.AulaKeysUI
@@ -152,7 +155,7 @@
         // the F75 preview has nothing to draw while a Max is connected (the Max's own picture is in the stage), so it rests
         idlePreview: (on) => {
           if (on) view.stop();
-          else if (prefs.animate) view.start();
+          else if (prefs.animate && prefs.view !== 'picture') view.start(); // Picture is a still image: no loop
         },
         onLeave: () => scheduleRender(),
       })
@@ -256,10 +259,35 @@
     rootStyle.setProperty('--glow', c.map((v) => Math.round(v)).join(' '));
     applyGlowInk();
   };
-  if (prefs.animate) view.start();
+  if (prefs.animate && prefs.view !== 'picture') view.start(); // Picture (saved from last time) is a still image: no loop
 
-  /** The picture is just a picture (no lighting) when the person chose Picture. Key editing always needs the live board. */
+  /** Picture: only a still image of the board in the colours it has now. Key editing always needs the live board. */
   const pictureOnly = () => prefs.view === 'picture' && tab !== 'perkey' && tab !== 'keys';
+
+  /**
+   * Switches the keyboard view between live and Picture. Picture is a single still frame of the board in its current
+   * light colours: the drawing loop is stopped, and the pointer effects (keys that rise, the lean, the bob, click
+   * ripples), the intro sweep, key presses and the fades are all off, so nothing on it ever moves. Going back to Live
+   * turns them all on again. Safe to call as often as needed; it only acts when the mode changes.
+   */
+  let picWas = null;
+  function syncPicture() {
+    const pic = pictureOnly();
+    if (pic === picWas) return;
+    picWas = pic;
+    view.opts.animate = pic ? false : prefs.animate;
+    view.opts.hoverFx = !pic;
+    if (pic) {
+      view.stop();
+      // Drop anything half way through, so the one frame that is drawn is a clean still.
+      view.ripples = [];
+      view.hover = null;
+      view.introAt = -1;
+      view.pressedAt.clear();
+      view.hm.ta = 0;
+      view.hm.a = 0;
+    } else if (prefs.animate && !(MXU && MXU.active())) view.start();
+  }
   /**
    * The real keyboard is off: asleep, unplugged, not found, or nothing read from it yet. While the app is only
    * (re)connecting or reading settings it keeps the last answer, so a sleeping keyboard that is being checked every few
@@ -285,7 +313,7 @@
     const palette = e.slot >= 0 ? [0, 1, 2, 3, 4, 5, 6].map((j) => P.getPaletteColor(s.cur.rgb, e, j)) : M.DEFAULT_PALETTE;
     return {
       mode: perKey ? P.MODE_CUSTOM : e.mode,
-      dim: pictureOnly() || (!perKey && keyboardOff()), // Picture: no lights. Live: dark while the real keyboard is off or asleep
+      dim: !pictureOnly() && !perKey && keyboardOff(), // Live: dark while the real keyboard is off or asleep. Picture shows its current colours
       brightness: (P.getBrightness(s.cur.led, eff) * P.LEVEL_MAX) / s.brightMax, // the preview's scale is 0..4 whatever the keyboard offers
       speed: P.getSpeed(s.cur.led, e),
       colorIndex: P.effectiveColorIndex(s.cur.led, e),
@@ -559,6 +587,7 @@
     renderApply();
     if (MO) MO.writing(applying || session.restoring);
     view.opts.flat = tab === 'perkey' || tab === 'keys';
+    syncPicture();
     view.setState(previewState());
     if (MXU && MXU.active()) MXU.show(tab); // also repaints the header chips with the Max's link and battery
   }
@@ -814,6 +843,8 @@
     const picture = prefs.view === 'picture';
     for (const b of box.querySelectorAll('.sv-btn')) b.setAttribute('aria-pressed', String((b.dataset.view === 'picture') === picture));
     box.dataset.live = picture ? 'pic' : keyboardOff() ? 'off' : 'on';
+    const stage = box.closest('.stage');
+    if (stage) stage.dataset.pic = pictureOnly() ? '1' : ''; // Picture: the style sheet hides everything laid over the image
   }
 
   function renderLighting() {
@@ -1311,6 +1342,41 @@
     renderTheme();
   }
 
+  // Style (Settings > Theme): Classic, or Liquid glass with its four sliders (blur, edge width, refraction, colour fringe).
+  const GLASS_UNITS = { blur: ' px', bezel: ' px', amount: ' px', chroma: '%' };
+  function renderStyle() {
+    if (!G) {
+      for (const b of $$('#segStyle .seg-btn')) b.disabled = true;
+      return;
+    }
+    const glass = prefs.style === 'glass';
+    const seg = $('#segStyle');
+    for (const b of $$('.seg-btn', seg)) b.setAttribute('aria-checked', b.dataset.stylePref === prefs.style ? 'true' : 'false');
+    seg.style.setProperty('--i', glass ? 1 : 0);
+    $('#glassSection').hidden = !glass;
+    $('#styleTag').hidden = !glass; // the experimental tag and caution only while Liquid glass is on
+    $('#styleCaution').hidden = !glass;
+    $('#styleHint').textContent = glass
+      ? 'Liquid glass bends the picture behind the controls. Looks best with a background picture.'
+      : 'Classic is the original look. Liquid glass (experimental) bends the picture behind the controls, like iOS.';
+    for (const rng of $$('#glassSection input[data-glass]')) {
+      const k = rng.dataset.glass;
+      const v = prefs.glass[k];
+      if (+rng.value !== v) rng.value = v;
+      rng.style.setProperty('--pf', (v - +rng.min) / (+rng.max - +rng.min));
+      $(`#${rng.id}Val`).textContent = `${v}${GLASS_UNITS[k]}`;
+    }
+  }
+  function setStyle(style) {
+    if (!G || (style !== 'classic' && style !== 'glass')) return;
+    prefs.style = style;
+    savePrefs();
+    G.setParams(prefs.glass);
+    G.set(style === 'glass');
+    renderStyle();
+    renderBackground(); // the frosted window steps aside while the glass paints its own backdrop
+  }
+
   function renderTheme() {
     if (!T) return;
     const seg = $('#segTheme');
@@ -1353,15 +1419,20 @@
     $('#frostRow').hidden = !can;
     if (!can) return;
     $('#swFrost').setAttribute('aria-checked', prefs.frost ? 'true' : 'false');
-    $('#frostHint').textContent = picture
-      ? 'Not shown while a background picture is chosen. Remove the picture to see it.'
-      : 'Lets the desktop show through the window, blurred. Only with the default background.';
+    const glass = prefs.style === 'glass';
+    $('#frostHint').textContent = glass
+      ? 'Not shown with the Liquid glass style, which paints its own backdrop.'
+      : picture
+        ? 'Not shown while a background picture is chosen. Remove the picture to see it.'
+        : 'Lets the desktop show through the window, blurred. Only with the default background.';
+    picture = picture || glass; // Liquid glass paints its own backdrop, so like a picture it keeps the window solid
     F.set(prefs.frost && !picture);
   }
   function renderBackground() {
     const cur = currentBackground();
     const on = cur.kind !== 'none';
     const layer = $('#appBg');
+    document.documentElement.classList.toggle('has-picture', on); // the panels turn see-through (app.css)
     renderFrost(on);
     layer.style.backgroundImage = cur.css;
     layer.hidden = !on;
@@ -1919,6 +1990,22 @@
     $('#swDemo').addEventListener('click', () => setDemo(!prefs.demo));
     // theme: Settings has the three choices (dark, light, system)
     for (const b of $$('#segTheme .seg-btn')) b.addEventListener('click', () => setTheme(b.dataset.themePref));
+    // style: Classic or Liquid glass, and the glass sliders (the picture follows the slider while it moves; saved on release)
+    for (const b of $$('#segStyle .seg-btn')) b.addEventListener('click', () => setStyle(b.dataset.stylePref));
+    for (const rng of $$('#glassSection input[data-glass]')) {
+      rng.addEventListener('input', () => {
+        prefs.glass = G.clean({ ...prefs.glass, [rng.dataset.glass]: rng.value });
+        G.setParams(prefs.glass);
+        renderStyle();
+      });
+      rng.addEventListener('change', savePrefs);
+    }
+    $('#glassReset').addEventListener('click', () => {
+      prefs.glass = G.clean(null);
+      G.setParams(prefs.glass);
+      savePrefs();
+      renderStyle();
+    });
     // theme page: custom background
     $('#bgPick').addEventListener('click', () => {
       $('#bgFile').value = '';
@@ -1986,6 +2073,11 @@
       renderTheme();
     });
     renderTheme();
+    if (G) {
+      G.setParams(prefs.glass);
+      G.set(prefs.style === 'glass'); // glass.js already read the saved choice before the first paint; this keeps the two in step
+    }
+    renderStyle();
     const modelSel = $('#modelSel');
     for (const m of L.MODELS) modelSel.append(el('option', { value: m.id, text: m.name }));
     modelSel.value = prefs.model;
@@ -2118,6 +2210,7 @@
         if (next === prefs.view) return;
         prefs.view = next;
         savePrefs();
+        syncPicture(); // before the sweep below: a still picture has no sweep, and Live needs its animation back first
         if (next === 'live' && prefs.animate && !keyboardOff()) view.playIntro(true); // the lights sweep back on
         render();
       });
@@ -2238,7 +2331,7 @@
           view.stop();
           return;
         }
-        if (viewWas && prefs.animate) view.start();
+        if (viewWas && prefs.animate && !pictureOnly()) view.start();
         kickThumb();
         scheduleRender();
         if (!prefs.demo) session.nudge();

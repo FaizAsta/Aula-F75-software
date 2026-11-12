@@ -50,26 +50,49 @@
     return null;
   }
 
+  const loaded = (file) => {
+    const f = files.get(file);
+    return !!(f && f.ok);
+  };
+
   /**
-   * The pictures of a skin, or null until every one of them has loaded (so a board is never half photo, half drawing), and
-   * for a skin that has none.
-   * { scale, mc, face, base: { img, w, h, ox, oy }, cap(w, accentName) -> { img, w, h, file } | null }
-   * `scale` is pixels per key unit in the files; `mc` the margin kept round each cap sprite (key units); `face` where the
-   * flat top of a cap is (key units from the cap's corner: l, t, r from the sides and top, b up from the bottom).
+   * The pictures at one size: the big ones from the manifest itself (`man.scale` pixels per key), or a smaller copy from
+   * `man.mips` (made by scripts/render-board/mips.py). Both have the same shape: { base, caps }.
    */
-  function skin(id) {
-    if (!man || !man.skins || !man.skins[id]) return null;
+  function entryAt(id, level) {
     const e = man.skins[id];
-    if (!e.base) return null;
-    preload(id);
-    const loaded = (file) => {
-      const f = files.get(file);
-      return !!(f && f.ok);
-    };
-    if (!loaded(e.base.file)) return null;
-    for (const c of Object.values(e.caps || {})) if (!loaded(c.file)) return null;
+    if (!e || !e.base) return null;
+    if (level === man.scale) return e;
+    const m = man.mips && man.mips[level] && man.mips[level][id];
+    return m && m.base ? m : null;
+  }
+
+  /** The sizes there are, biggest first (the manifest's own size, then every smaller copy). */
+  function levelsOf() {
+    const out = [man.scale];
+    if (man.mips) for (const k of Object.keys(man.mips)) if (Number(k) < man.scale) out.push(Number(k));
+    return out.sort((x, y) => y - x);
+  }
+
+  /** The smallest size that is still at least `ppu` pixels per key (never stretched), or the biggest when none is. */
+  function levelFor(ppu) {
+    const all = levelsOf();
+    if (!(ppu > 0)) return all[0];
+    let best = all[0];
+    for (const L of all) if (L >= ppu - 0.5 && L < best) best = L;
+    return best;
+  }
+
+  const complete = (e) => !!e && loaded(e.base.file) && Object.values(e.caps || {}).every((c) => loaded(c.file));
+
+  function request(e) {
+    load(e.base.file);
+    for (const c of Object.values(e.caps || {})) load(c.file);
+  }
+
+  function build(e, level) {
     return {
-      scale: man.scale,
+      scale: level,
       mc: man.mc || 0.2,
       face: man.face || { l: 0.057, t: 0.03, r: 0.057, b: 0.265 },
       base: { img: files.get(e.base.file).img, w: e.base.w, h: e.base.h, ox: e.base.ox, oy: e.base.oy },
@@ -80,12 +103,42 @@
     };
   }
 
+  /**
+   * The pictures of a skin, or null until every one of them has loaded (so a board is never half photo, half drawing), and
+   * for a skin that has none.
+   * { scale, mc, face, base: { img, w, h, ox, oy }, cap(w, accentName) -> { img, w, h, file } | null }
+   * `scale` is pixels per key unit in the files; `mc` the margin kept round each cap sprite (key units); `face` where the
+   * flat top of a cap is (key units from the cap's corner: l, t, r from the sides and top, b up from the bottom).
+   *
+   * `ppu` (optional) is how many device pixels one key will take on screen. The copy that fits it best is used, so the
+   * browser only has to shrink it a little instead of squeezing the biggest picture down by 3 to 6 times, which smears
+   * every cap. Until that copy has loaded, a copy that has loaded already stands in (the board is redrawn when the better
+   * one arrives). Without `ppu` (or without smaller copies) it is the one big picture, as before.
+   */
+  function skin(id, ppu) {
+    if (!man || !man.skins || !man.skins[id]) return null;
+    const top = man.skins[id];
+    if (!top.base) return null;
+    const want = levelFor(ppu);
+    const wanted = entryAt(id, want);
+    if (wanted) request(wanted);
+    if (complete(wanted)) return build(wanted, want);
+    // The copy that fits is still on its way: show the nearest one that is already here rather than the plain drawing.
+    const rest = levelsOf().sort((x, y) => Math.abs(x - want) - Math.abs(y - want));
+    for (const L of rest) {
+      const e = entryAt(id, L);
+      if (e && e !== wanted && complete(e)) return build(e, L);
+    }
+    if (!wanted) request(top);
+    return null;
+  }
+
   /** Ask for every picture a skin needs (so they are on their way before the first frame wants them). */
-  function preload(id) {
+  function preload(id, ppu) {
     const e = man && man.skins && man.skins[id];
-    if (!e) return;
-    if (e.base) load(e.base.file);
-    for (const c of Object.values(e.caps || {})) load(c.file);
+    if (!e || !e.base) return;
+    const at = entryAt(id, levelFor(ppu)) || e;
+    request(at);
   }
 
   function subscribe(fn) {

@@ -108,6 +108,15 @@
       this.retryGapMs = opts.retryGapMs ?? 350; // pause before a retry round (grows with each round)
       this.tickMs = opts.tickMs ?? 2000; // health-check interval while a link is up
       this.syncMs = opts.syncMs ?? 8000; // how often the lighting block is re-read to notice changes made on the keyboard itself
+      // The keyboard's own sleep timer ("Lights turn off after") counts from the last thing that happened to it, and the app's
+      // regular questions (battery, lighting block) are things that happen to it. So while nobody has touched the computer for
+      // quietAfterSec seconds the app stops asking, apart from one slow look every quietPollMs so the battery stays current.
+      // idleSeconds is an optional function (sync or async) that returns the seconds since the last keyboard or mouse input.
+      this.idleSeconds = opts.idleSeconds ?? null;
+      this.quietAfterSec = opts.quietAfterSec ?? 20;
+      this.quietPollMs = opts.quietPollMs ?? 5 * 60 * 1000;
+      this._quietSince = 0;
+      this._lastQuietPoll = 0;
       // After a write the block is read back to check it stuck. A keyboard (the 2.4G dongle especially) can take a moment to
       // show a new config, so a read that still shows the old one is asked again after each of these pauses (ms) before the
       // write is called a failure. A read that already matches ends the wait at once.
@@ -1338,6 +1347,8 @@
       if (this.status !== 'ready') return;
       await this._lookForCable(); // a plug event that was missed must not leave the charging bolt out
       if (this.status !== 'ready') return;
+      if (await this._quiet()) return; // nobody is at the computer: let the keyboard's sleep timer run
+      if (this.status !== 'ready') return;
       if (this.mode !== 'demo' && !this._syncOff && Date.now() - this._lastSync >= this.syncMs && !this.dirtyKeys().length) {
         await this._syncFromKeyboard();
         if (this.status !== 'ready') return;
@@ -1360,6 +1371,36 @@
       } catch (_) {
         await this.checkOnline();
       }
+    }
+
+    /**
+     * True while the computer has been left alone, so the keyboard can reach its own sleep timeout instead of being
+     * kept awake by the app's regular reads. Never true for the demo keyboard, with unsaved edits, or when the page
+     * cannot tell how long the computer has been idle. One look every quietPollMs still goes through.
+     */
+    async _quiet() {
+      if (!this.idleSeconds || this.mode === 'demo' || this.dirtyKeys().length) return false;
+      let idle = 0;
+      try {
+        idle = Number(await this.idleSeconds());
+      } catch (_) {
+        return false;
+      }
+      if (!(idle >= this.quietAfterSec)) {
+        this._quietSince = 0;
+        return false;
+      }
+      const now = Date.now();
+      if (!this._quietSince) {
+        this._quietSince = now;
+        this._lastQuietPoll = now;
+        this._note(`computer idle for ${Math.round(idle)} s: not asking the keyboard anything so its own sleep timer can run`);
+      }
+      if (now - this._lastQuietPoll >= this.quietPollMs) {
+        this._lastQuietPoll = now;
+        return false;
+      }
+      return true;
     }
 
     // ----------------------------------------------------------- editing

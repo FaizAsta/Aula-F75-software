@@ -490,8 +490,9 @@
     /** The case layer (shadow, case, plate, slots, knob). Drawn once per size and model, then reused every frame. */
     _layer(skin, geo) {
       // `photo`: the rendered picture of this skin, once it has loaded (boardphoto.js); until then the drawing stands in.
-      const photo = BP ? BP.skin(skin.id) : null;
-      const key = [L.id, skin.id, geo.u.toFixed(2), geo.w, geo.h, geo.dpr, geo.ox.toFixed(1), geo.oy.toFixed(1), photo ? 'p' : 'd'].join('|');
+      // Asked for at the size it will be shown (device pixels per key), so the copy of the picture that fits is the one used.
+      const photo = BP ? BP.skin(skin.id, geo.u * geo.dpr) : null;
+      const key = [L.id, skin.id, geo.u.toFixed(2), geo.w, geo.h, geo.dpr, geo.ox.toFixed(1), geo.oy.toFixed(1), photo ? 'p' + photo.scale : 'd'].join('|');
       if (this._sl && this._sl.key === key) return this._sl;
       const lay = A.offscreen(Math.ceil(geo.w * geo.dpr), Math.ceil(geo.h * geo.dpr));
       if (lay) {
@@ -505,7 +506,7 @@
 
     /** One keycap as a small sprite, per skin, accent colour and size. `m` is the margin kept round it for its shadow. */
     _cap(skin, acc, kw, kh, u, dpr, units, photo) {
-      const key = `${skin.id}|${acc ? acc.body[0] : ''}|${kw.toFixed(2)}|${kh.toFixed(2)}|${u.toFixed(2)}|${dpr}|${photo ? 'p' : 'd'}`;
+      const key = `${skin.id}|${acc ? acc.body[0] : ''}|${kw.toFixed(2)}|${kh.toFixed(2)}|${u.toFixed(2)}|${dpr}|${photo ? 'p' + photo.scale : 'd'}`;
       let sp = this._caps.get(key);
       if (sp) return sp;
       const pic = photo ? photo.cap(units, acc ? acc.name : '-') : null;
@@ -904,21 +905,25 @@
               ink = rgbStr(mixc(acc && acc.legend ? S.rgb(acc.legend) : baseInk, hc, 0.06 * Math.min(1, bright * 1.5)), 1);
             }
             ctx.fillStyle = ink;
+            // While the key is at rest the legend is put on whole device pixels, so its strokes are sharp instead of straddling two.
+            const snap = lift < 0.02;
+            const sp1 = (v) => (snap ? Math.round(v * dpr) / dpr : v);
+            const ft = (t, x, y) => ctx.fillText(t, sp1(x), sp1(y));
             if (style) {
               const grow = 1 + lift * 0.08;
               const lx = fcx + u * 0.08;
               ctx.textAlign = 'left';
               if (style.kind === 'letter') {
                 setFont(u * 0.4 * grow);
-                ctx.fillText(text, fcx + fcw * 0.2, fcy + fch * 0.46);
+                ft(text, fcx + fcw * 0.2, fcy + fch * 0.46);
               } else if (style.kind === 'stack') {
                 // Spaced so that tall glyphs such as ( and @ keep clear of the symbol under them; the tilde is drawn big, as
                 // on the real cap, and the marks that sit high in their line (` ' _) are nudged to where the eye expects them.
                 const [hi, lo] = printed.stack;
                 setFont(Math.max(8, u * (hi === '~' ? 0.42 : 0.27) * grow));
-                ctx.fillText(hi, lx, fcy + fch * (hi === '~' ? 0.26 : 0.2) + (hi === '_' ? -u * 0.06 : 0));
+                ft(hi, lx, fcy + fch * (hi === '~' ? 0.26 : 0.2) + (hi === '_' ? -u * 0.06 : 0));
                 setFont(Math.max(8.5, u * 0.31 * grow));
-                ctx.fillText(lo, lx, fcy + fch * 0.78 + (lo === '`' || lo === "'" ? u * 0.07 : 0));
+                ft(lo, lx, fcy + fch * 0.78 + (lo === '`' || lo === "'" ? u * 0.07 : 0));
               } else if (style.kind === 'arrow') {
                 A.drawLegendIcon(ctx, style.dir, fcx + fcw / 2, fcy + fch * 0.5, u * 0.4 * grow, ink);
               } else if (style.kind !== 'none') {
@@ -938,7 +943,7 @@
                   ctx.transform(1, 0, -0.2, 1, 0, 0);
                   ctx.fillText(text, 0, 0);
                   ctx.restore();
-                } else ctx.fillText(text, wx, wy);
+                } else ft(text, wx, wy);
               }
             } else {
               const centre = custom || printed.align === 'center';
@@ -948,7 +953,7 @@
               if (tw > room) px = Math.max(8, (px * room) / tw);
               setFont(px);
               ctx.textAlign = centre ? 'center' : 'left';
-              ctx.fillText(text, centre ? fcx + fcw / 2 : fcx + u * 0.05, fcy + fch * 0.5 - u * 0.01);
+              ft(text, centre ? fcx + fcw / 2 : fcx + u * 0.05, fcy + fch * 0.5 - u * 0.01);
             }
           }
         }
