@@ -240,3 +240,16 @@ test('the desktop app accepts only the three valid theme values', () => {
   assert.match(main, /pref === 'dark' \|\| pref === 'light' \|\| pref === 'system'/);
   assert.match(main, /nativeTheme\.themeSource = pref/);
 });
+
+test('sliders, switches, the Apply button and the effect chip keep a fixed colour, not the live keyboard colour', () => {
+  assert.match(appCss, /--ctl:\s*\d+ \d+ \d+;/);
+  assert.match(appCss, /--ctl-ink:\s*\d+ \d+ \d+;/);
+  const range = appCss.slice(appCss.indexOf('.range::-webkit-slider-runnable-track'), appCss.indexOf('.range-ends'));
+  assert.doesNotMatch(range, /--glow/, 'slider track, thumb and focus ring use --ctl');
+  assert.match(appCss, /\.switch\[aria-checked="true"\]\s*\{\s*background:\s*rgb\(var\(--ctl-ink\)\)/);
+  const glassCss = fs.readFileSync(path.join(__dirname, '..', 'src', 'css', 'glass.css'), 'utf8');
+  const glassCtl = glassCss.slice(glassCss.indexOf('/* ---- 5. Switch'), glassCss.indexOf('/* ---- 7. Pills'));
+  assert.doesNotMatch(glassCtl, /--glow|--accent/, 'glass switch, slider track and lens use --ctl');
+  assert.match(glassCss, /\.btn\.primary\.ag \{[^}]*--ctl-ink/);
+  assert.match(glassCss, /\.sb-fx\.ag \{[^}]*--ctl/);
+});

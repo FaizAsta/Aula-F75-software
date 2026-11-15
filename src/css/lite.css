@@ -33,6 +33,128 @@
 .home[data-screen="app"] { filter: none; }
 .rl-glow { display: none; }
 
+/* ---- 4b. Frosted floating surfaces (Classic only) ----------------------------------------------------------------
+   The three things that float above the page (the "Unsaved changes" bar, the Support menu and the toasts) are frosted
+   instead of solid: a see-through tint over a blurred copy of whatever is behind them. It is three small, static
+   surfaces, so the one blur each costs nothing while idle, which is why they are the exception to rule 4. The tint is
+   deliberately not too thin: text underneath stays unreadable (it is blurred) and the label on top stays crisp.
+   Liquid glass paints these itself (glass.css), so everything here is scoped to Classic. */
+:root:not(.glass) {
+  --frost: 0.58;      /* tint strength: how much of the floating surface's own colour covers the blur */
+  --frost-blur: 16px;
+}
+:root[data-theme="light"]:not(.glass) { --frost: 0.7; }
+:root:not(.glass) .applybar { background: rgb(var(--pop) / var(--frost)); }
+:root:not(.glass) .toast    { background: rgb(var(--pop-2) / var(--frost)); }
+:root:not(.glass) .sup-pop  { background: rgb(var(--pop) / var(--frost)); }
+:root:not(.glass) :is(.applybar, .toast, .sup-pop) {
+  -webkit-backdrop-filter: blur(var(--frost-blur)) saturate(1.45) !important;
+          backdrop-filter: blur(var(--frost-blur)) saturate(1.45) !important;
+}
+/* "Reduce transparency" in the OS: back to solid surfaces, no blur. */
+@media (prefers-reduced-transparency: reduce) {
+  :root:not(.glass) { --frost: 0.985; }
+  :root:not(.glass) :is(.applybar, .toast, .sup-pop) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  :root:not(.glass) :is(.tabs, .set-nav, .group, .effect, .eff-top) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+}
+
+/* ---- 4c. Frosted boxes (Classic only) ----------------------------------------------------------------------------
+   The same frost as the Support menu, on the boxes you look at all day: the tab bar, the cards that hold the controls
+   (.group: Brightness / Speed / Colour and every other page) and the effect tiles. A blur only sees what is painted inside
+   the nearest "backdrop root" above it (an ancestor with a mask, an opacity below 1, a filter ...), so a box inside the
+   scrolling area saw an empty backdrop and stayed flat. Two things were in the way and are switched off in Classic (Liquid
+   glass already does the same, glass.css 1b): the fade mask on the top edge of the scrolling area (.panels), so the page
+   is cut off at its edge instead of fading, and the opacity half of the entrance animations of whatever holds a box, which
+   now only move (the timing and delays are untouched). Where a picture is chosen the boxes were already see-through (app.css),
+   so there they only gain the blur; without one they get the same tint as the Support menu. Not with Windows' own frosted
+   window (.frost): the desktop behind is blurred by Windows there, and the page has nothing of its own to blur. */
+@keyframes frostPanel { from { transform: translateX(var(--dx, 0px)); } }
+@keyframes frostRise  { from { transform: translateY(14px); } }
+@keyframes frostDrop  { from { transform: translateY(-10px); } }
+:root:not(.glass):not(.frost) .panels { -webkit-mask-image: none; mask-image: none; }
+:root:not(.glass):not(.frost) .panel:not([hidden]) { animation-name: frostPanel; }
+:root:not(.glass):not(.frost) :is(.split > *, .settings > *, .entering .main) { animation-name: frostRise; }
+:root:not(.glass):not(.frost) .entering .top { animation-name: frostDrop; }
+:root:not(.glass):not(.frost) :is(.tabs, .set-nav, .group, .effect, .eff-top) {
+  -webkit-backdrop-filter: blur(var(--frost-blur)) saturate(1.45) !important;
+          backdrop-filter: blur(var(--frost-blur)) saturate(1.45) !important;
+}
+/* the tint, only where the box was solid. The resting colour has zero specificity, so any other rule still wins; a hovered or selected tile keeps its lighter colour, now see-through too. */
+:where(:root:not(.glass):not(.has-picture):not(.frost)) :is(.effect, .eff-top) { background: color-mix(in srgb, var(--surface) calc(var(--frost) * 100%), transparent); }
+:where(:root:not(.glass):not(.has-picture):not(.frost)) .group { background: linear-gradient(180deg, var(--lift), transparent 140px), color-mix(in srgb, var(--surface) calc(var(--frost) * 100%), transparent); } /* keeps the soft highlight along the top edge (detail.css) */
+:where(:root:not(.glass):not(.has-picture):not(.frost)) .effect:hover:not(:disabled),
+:where(:root:not(.glass):not(.has-picture):not(.frost)) .effect[aria-checked="true"] { background: color-mix(in srgb, var(--surface-2) calc(var(--frost) * 100%), transparent); }
+
+/* Blur off (Settings > Theme > Blur, Classic only: app.js puts class "no-blur" on <html>). Every frosted surface above loses its blur, and the
+   three floating ones (the Unsaved changes bar, the Support menu, the toasts) turn nearly solid, as they do for the OS's "Reduce
+   transparency": without the blur, the tint alone would let the page behind show through their text. The cards, tiles and tabs keep
+   their own colour, so with a picture they are see-through as they were before the blur was added. */
+:root.no-blur:not(.glass) { --frost: 0.985; }
+:root.no-blur:not(.glass) :is(.applybar, .toast, .sup-pop, .tabs, .set-nav, .group, .effect, .eff-top) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+
+/* ---- 4d. Keyboard picture card (Classic only) --------------------------------------------------------------------
+   The keyboard picture used to sit straight on the page with only a thin edge, while every card around it had a fill. It now
+   has the same card behind it, in the same three states as .group: solid (with the frosted tint of 4c), over a picture
+   (see-through, app.css) and on Windows' own frosted window (the plain card colour of home.css). Settings > Theme > Keyboard
+   background turns it off: app.js puts class "no-stage-bg" on <html> and the picture is as it was before (the thin edge and
+   the light on the desk, nothing else). Liquid glass paints its own glass on the stage (glass.css, its ::after) and hides it
+   with the same class; this card is not shown there.
+   The card is its own layer behind the picture (.stage-card, z-index -1 inside the stage, as in the glass panels). That way the
+   blur never has to look through the animated keyboard drawing, and the fill does not paint over the edge line, which is on
+   that layer too. */
+.stage-card { display: none; }
+:root:not(.glass):not(.no-stage-bg) .stage {
+  z-index: 0; /* makes the stage its own stacking context, so the layer below stays inside it */
+  box-shadow: 0 14px 30px -22px rgb(var(--shade) / 0.7); /* the edge line is on the layer */
+}
+:root:not(.glass):not(.no-stage-bg) .stage-card {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--lift), transparent 140px), color-mix(in srgb, var(--surface) calc(var(--frost) * 100%), transparent);
+  box-shadow: inset 0 0 0 1px var(--line), inset 0 1px 0 var(--hl);
+}
+:root.has-picture:not(.glass):not(.no-stage-bg) .stage-card { background: color-mix(in srgb, var(--surface) var(--glass), transparent); }
+:root.frost:not(.glass):not(.no-stage-bg) .stage-card { background: rgb(var(--card) / 0.84); }
+:root:not(.glass):not(.frost):not(.no-blur):not(.no-stage-bg) .stage-card {
+  -webkit-backdrop-filter: blur(var(--frost-blur)) saturate(1.45) !important;
+          backdrop-filter: blur(var(--frost-blur)) saturate(1.45) !important;
+}
+/* "Reduce transparency" in the OS: no blur, as for the other cards (--frost is already near solid there, see 4b) */
+@media (prefers-reduced-transparency: reduce) {
+  :root:not(.glass):not(.frost):not(.no-blur):not(.no-stage-bg) .stage-card { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+}
+
+/* The heading of the Effect page (its title, the line under it and the chips) sat straight on the page, so over a bright picture it
+   washed out while the cards beside it stayed dark. It is a card of its own now (.eff-top, one wrapper in index.html): same colour,
+   edge and blur as the others. Liquid glass keeps the plain heading, so this is Classic only. */
+:root:not(.glass) .eff-top { padding: 14px 16px 2px; margin-bottom: 12px; border-radius: var(--r-group); box-shadow: inset 0 0 0 1px var(--line); }
+:root.frost:not(.glass) .eff-top { background: var(--surface); } /* Windows' own frost: the same see-through colour as the cards */
+:root.has-picture:not(.glass) .eff-top { background: color-mix(in srgb, var(--surface) var(--glass), transparent); }
+:root.has-picture:not(.glass) .set-nav { background: color-mix(in srgb, var(--surface) var(--glass), transparent); } /* the Settings page switcher (Keyboard, App, Theme, Debugging) sits straight on the picture, so it is a frosted box like the tabs */
+:root.has-picture:not(.glass):not([data-theme="light"]) .eff-top { --muted: #bcc2d1; --faint: #8d94a6; } /* the grey text stays readable on a bright picture, as in the other cards */
+/* The header has no strip behind it (the picture shows through it, edge to edge), so over a picture its controls (the tabs, the
+   battery, Support, the update badge and the window buttons) sit in boxes of their own, in the same see-through card colour as the
+   cards below, instead of a faint white veil that washed out on a bright picture and ignored the theme: dark in the dark theme,
+   white in the light theme. Classic only, and only while a picture is chosen. Each window button is its own small rounded square
+   (a 1 px gap each side, so the three together are still as wide as before), not one pill. */
+:root.has-picture:not(.glass) :is(.tabs, .top-right > :is(.pill-btn, .icon-btn), .win-btn) {
+  background: color-mix(in srgb, var(--surface) var(--glass), transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+:root.has-picture:not(.glass) :is(.top-right > :is(.pill-btn, .icon-btn), .win-btn):is(:hover, :active, :focus-visible),
+:root.has-picture:not(.glass) .pill-btn[aria-current="page"] {
+  background: color-mix(in srgb, var(--surface-2) var(--glass-hi), transparent);
+}
+:root.has-picture:not(.glass) .pill-btn[aria-current="page"] { box-shadow: inset 0 0 0 1px var(--line-2); }
+:root.has-picture:not(.glass) .win-btn { width: calc(var(--win-w) - 2px); margin: 0 1px; }
+:root.has-picture:not(.glass) .win-btns .win-close:hover { background: rgb(229 72 77 / 0.92); }
+:root.has-picture:not(.glass) .win-btns .win-close:active { background: rgb(201 59 64 / 0.96); }
+:root.has-picture:not(.glass):not([data-theme="light"]) :is(.tabs, .top-right > :is(.pill-btn, .icon-btn)) { --muted: #bcc2d1; --faint: #8d94a6; } /* the grey icons stay readable on a bright picture, as in the cards */
+
 /* ---- 5. Connecting loader: keep the rainbow ring, drop the filter-based hue cycling -------------------------- */
 .rl-pulse { animation: rgbPulse 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; }
 .rl-pulse2 { animation-delay: 1.2s; }
@@ -51,7 +173,7 @@
   -webkit-mask-image: radial-gradient(60% 55% at 50% 45%, #000, transparent 100%);
   mask-image: radial-gradient(60% 55% at 50% 45%, #000, transparent 100%);
 }
-.lite :is(.effect, .tab-btn, .seg-btn, .swatch, .hm-dev, .start-btn, .pill-btn, .icon-btn, .btn, .brand, .hm-back, .switch):not(:disabled) { cursor: pointer; }
+.lite :is(.effect, .tab-btn, .seg-btn, .swatch, .hm-dev, .sp-card, .start-btn, .pill-btn, .icon-btn, .btn, .brand, .hm-back, .switch):not(:disabled) { cursor: pointer; }
 
 /* ---- 7. Tabs: a soft fill behind the label on hover (the selected tab keeps its sliding pill) ----------------------- */
 .tab-btn { transition: color 0.15s, background 0.15s, transform 0.15s var(--spring); }

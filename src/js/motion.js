@@ -16,7 +16,7 @@
   // ------------------------------------------------------------------ ripples
 
   // Round swatches and the brand are left out on purpose: they already pop / scale, and a ripple would only add noise.
-  const RIPPLE = '.btn, .pill-btn, .icon-btn, .tab-btn, .seg-btn, .effect, .hm-dev, .start-btn, .win-btn';
+  const RIPPLE = '.btn, .pill-btn, .icon-btn, .tab-btn, .seg-btn, .effect, .hm-dev, .sp-card, .start-btn, .win-btn';
 
   function ripple(host, x, y) {
     if (reduced()) return;

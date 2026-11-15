@@ -1,0 +1,95 @@
+/* ==========================================================================
+   The dropdown menu (js/select.js): the list that opens from every .select (Lights turn off after, Keyboard model, ...).
+   Classic look, the same family as the Support menu: a frosted floating surface, soft rows, the current choice marked with
+   the accent colour and a tick. Colours come from the same variables as everything else, so the light theme and the
+   keyboard tint apply. Liquid glass restyles it in css/glass.css (section 10); every rule there starts with html.glass.
+   ========================================================================== */
+
+/* the select while its menu is open: the same ring as when it has the focus */
+.select[aria-expanded="true"] { box-shadow: inset 0 0 0 1px var(--accent), 0 0 0 3px rgb(var(--glow) / 0.16); }
+
+/* The menu floats above the page (and above the Support menu, z-index 50) but below the window buttons (z-index 60). */
+.sel-pop {
+  position: absolute;
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 120px;
+  max-width: min(360px, calc(100% - 20px));
+  padding: 5px;
+  background: rgb(var(--pop) / 0.98);
+  border-radius: var(--r-tile);
+  box-shadow: inset 0 0 0 1px var(--line-2), 0 18px 40px rgb(var(--shade) / 0.5);
+  transform-origin: top left;
+  animation: selIn 0.16s var(--ease) both;
+  -webkit-app-region: no-drag;
+}
+.sel-pop[hidden] { display: none; }
+.sel-pop[data-align="right"] { transform-origin: top right; }
+.sel-pop[data-side="up"] { transform-origin: bottom left; animation-name: selInUp; }
+.sel-pop[data-side="up"][data-align="right"] { transform-origin: bottom right; }
+
+.sel-list {
+  position: relative; /* the rows measure their position from here (js/select.js) */
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--ink) / 0.3) transparent;
+}
+
+.sel-item {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 32px;
+  padding: 0 10px 0 12px;
+  border-radius: calc(var(--r-tile) - 5px);
+  color: var(--text);
+  font: 13px var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.sel-item.is-active { background: rgb(var(--ink) / 0.09); }
+.sel-item[aria-selected="true"] { font-weight: 600; }
+.sel-item[aria-selected="true"].is-active { background: rgb(var(--glow) / 0.16); }
+.sel-item[aria-disabled="true"] { color: var(--faint); cursor: default; }
+.sel-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sel-tick { display: grid; width: 15px; height: 15px; color: var(--accent); opacity: 0; }
+.sel-tick .ico { width: 15px; height: 15px; stroke-width: 2.1; }
+.sel-item[aria-selected="true"] .sel-tick { opacity: 1; }
+
+/* Frosted, like the Support menu (lite.css 4b): a see-through tint over a blurred copy of what is behind. A menu is all text,
+   so the tint never gets thinner than 0.7. Classic only: Liquid glass paints the menu itself. */
+:root:not(.glass) .sel-pop {
+  background: rgb(var(--pop) / max(var(--frost, 0.58), 0.7));
+  -webkit-backdrop-filter: blur(var(--frost-blur, 16px)) saturate(1.45) !important;
+          backdrop-filter: blur(var(--frost-blur, 16px)) saturate(1.45) !important;
+}
+:root.no-blur:not(.glass) .sel-pop { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+@media (prefers-reduced-transparency: reduce) {
+  :root:not(.glass) .sel-pop { background: rgb(var(--pop) / 0.985); -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+}
+
+@keyframes selIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes selInUp {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.lite .sel-pop { animation: none; }
+.lite .sel-item { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .sel-pop { animation: none; }
+  .sel-item { transition: none; }
+}

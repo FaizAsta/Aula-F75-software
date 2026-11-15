@@ -7,6 +7,7 @@
   if (!A || !home) return;
   const { session, prefs } = A;
   const W = window.AulaWebHID;
+  const SP = window.AulaStylePick || null; // stylepick.js: which UI is owed, and the arrow-key order of the choices
   const $ = (s) => home.querySelector(s);
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const shell = document.querySelector('.shell');
@@ -285,6 +286,7 @@
     }
     setHeavy(false);
     kick();
+    if (name === 'style') openStyle();
     if (name === 'devices') openDevices();
   }
 
@@ -298,9 +300,53 @@
     fire();
     setTimeout(() => {
       starting = false;
-      go('devices');
+      // Everybody who has not chosen a UI yet (a first install, or an update from a build without the question) is asked once,
+      // between Start and the device list. After that Start goes straight to the devices.
+      go(A.styleOwed && A.styleOwed() ? 'style' : 'devices');
     }, reduce ? 0 : 420);
   }
+
+  // ------------------------------------------------------------------- UI choice (once, after Start)
+
+  const spCards = Array.from(home.querySelectorAll('#spCards .sp-card'));
+  let spPick = 'classic'; // the card that is selected; nothing is applied or saved until Continue
+  let spDone = false;
+
+  // Selects a card (a radio group with one tab stop, like the other segmented choices in the app).
+  function markStyle(style, focus) {
+    spPick = style;
+    for (const c of spCards) {
+      const on = c.dataset.styleChoice === style;
+      c.setAttribute('aria-checked', on ? 'true' : 'false');
+      c.tabIndex = on ? 0 : -1;
+      if (on && focus) c.focus({ preventScroll: true });
+    }
+  }
+  function openStyle() {
+    spDone = false;
+    markStyle(A.styleStart ? A.styleStart() : 'classic', false);
+    const on = spCards.find((c) => c.dataset.styleChoice === spPick);
+    if (on) on.focus({ preventScroll: true }); // for the keyboard: arrows pick, Enter continues (a mouse click shows no focus ring)
+  }
+  // Applies the choice, remembers that the question was answered, and carries on to the devices.
+  function confirmStyle() {
+    if (screen !== 'style' || spDone) return;
+    spDone = true;
+    try {
+      A.chooseStyle(spPick);
+    } catch (_) {
+      /* the style could not be applied; the devices still open and Settings, Theme, UI still has the choice */
+    }
+    go('devices');
+  }
+  for (const c of spCards) {
+    c.addEventListener('click', () => markStyle(c.dataset.styleChoice, false));
+    c.addEventListener('dblclick', () => {
+      markStyle(c.dataset.styleChoice, false);
+      confirmStyle();
+    });
+  }
+  $('#spGo').addEventListener('click', confirmStyle);
 
   // ------------------------------------------------------------------- devices
 
@@ -475,6 +521,20 @@
       start();
     } else if (screen === 'devices' && e.key === 'Escape') {
       go(entered ? 'app' : 'home');
+    } else if (screen === 'style' && !document.querySelector('.upd:not([hidden])')) {
+      // Left / Up and Right / Down move the choice, Enter continues, Escape goes back to Start. Enter only counts from the
+      // question itself (or from nowhere in particular), never from the Back, Support or Update buttons.
+      const t = e.target;
+      const here = t === document.body || t === document.documentElement || !!(t.closest && t.closest('.scr-style'));
+      if (e.key === 'Escape') {
+        go('home');
+      } else if (here && SP && /^Arrow(Left|Up|Right|Down)$/.test(e.key)) {
+        e.preventDefault();
+        markStyle(SP.step(spPick, /Left|Up/.test(e.key) ? -1 : 1), true);
+      } else if (here && e.key === 'Enter') {
+        e.preventDefault();
+        confirmStyle();
+      }
     }
   });
 

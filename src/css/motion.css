@@ -34,6 +34,7 @@
 }
 /* the ripple takes the keyboard's colour on the controls that are about the keyboard */
 .btn.primary, .seg-btn, .tab-btn, .effect, .start-btn { --rip: var(--glow); }
+.btn.primary { --rip: var(--ctl); } /* the Apply button keeps its own colour */
 .win-close { --rip: 229 72 77; }
 
 /* A button that is waiting for the keyboard (see motion.js, task()): a spinner and a moving sheen, then a tick or a shake. */
@@ -60,12 +61,12 @@
 .tab-btn:active { transform: translateY(0) scale(0.94); }
 
 /* The primary button asks for a press while there is something to apply: a soft ring, every few seconds, not on hover. */
-@keyframes askRing { 0% { box-shadow: 0 0 0 0 rgb(var(--glow) / 0.5); } 70%, 100% { box-shadow: 0 0 0 11px rgb(var(--glow) / 0); } }
+@keyframes askRing { 0% { box-shadow: 0 0 0 0 rgb(var(--ctl) / 0.5); } 70%, 100% { box-shadow: 0 0 0 11px rgb(var(--ctl) / 0); } }
 #btnApply:not(:disabled):not(:hover) { animation: askRing 2.8s ease-out 0.9s infinite; }
 #btnApply { min-width: 156px; }
 
 /* Switches: the track flashes a ring when it is flipped. */
-@keyframes swRing { from { box-shadow: 0 0 0 0 rgb(var(--glow) / 0.55); } to { box-shadow: 0 0 0 9px rgb(var(--glow) / 0); } }
+@keyframes swRing { from { box-shadow: inset 0 0 0 1.5px var(--sw-ring), 0 0 0 0 rgb(var(--ctl) / 0.55); } to { box-shadow: inset 0 0 0 1.5px var(--sw-ring), 0 0 0 9px rgb(var(--ctl) / 0); } }
 .switch.flip { animation: swRing 0.55s ease-out; }
 
 /* Segmented controls: the label that was just chosen pops. */

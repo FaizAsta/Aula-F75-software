@@ -344,7 +344,10 @@
    */
   function prepareLedForWrite(led, effect, opts = {}) {
     const out = led.slice();
-    out[OFF.APPLY] = 0;
+    // Byte 9 is the firmware's "applied" latch on the 2.4G dongle, so it is sent as 0 there. On the USB-C cable the same byte is
+    // the custom (per-key) flag: the official driver's capture writes 1 with the per-key effect and 0 with every other effect,
+    // and a per-key effect with the flag at 0 shows nothing (a dark keyboard). `opts.wired` says the block goes over the cable.
+    out[OFF.APPLY] = opts.wired && out[OFF.MODE] === MODE_CUSTOM ? 1 : 0;
     // The colour-mode byte and the colour slot are only touched when the edit is about colour or the effect. A change of
     // brightness, speed or sleep time leaves them exactly as the keyboard has them.
     if (opts.colour !== false) {

@@ -236,7 +236,8 @@ async function open(scenario = 'demo', { theme = 'dark', model = 'f75', demo, ex
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e.stack || e)));
   page.on('console', (m) => m.type() === 'error' && errors.push('console.error: ' + m.text()));
-  const prefs = { demo: demo !== undefined ? demo : scenario === 'demo', model, modelSet: true, theme, ...extra };
+  // styleAsked: the "Which UI do you want to use?" question after Start has been answered, so Start goes straight to the devices (the style-picker scene turns that off)
+  const prefs = { demo: demo !== undefined ? demo : scenario === 'demo', model, modelSet: true, theme, styleAsked: true, ...extra };
   await page.addInitScript({ content: initScript({ prefs, scenario, version: PKG.version, backgrounds: BACKGROUNDS, memory }) });
   await page.goto(state.base);
   await page.waitForFunction(() => window.aulaApp && document.querySelector('#hmStart'));

@@ -46,13 +46,15 @@
   transition: opacity 0.45s var(--ease), transform 0.55s var(--ease);
 }
 .home:not([data-screen="home"]) .scr-start,
+.home:not([data-screen="style"]) .scr-style,
 .home:not([data-screen="devices"]) .scr-devices,
-.home:not([data-screen="devices"]) .hm-back {
+.home:not([data-screen="devices"]):not([data-screen="style"]) .hm-back {
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.4s var(--ease), transform 0.5s var(--ease), visibility 0s linear 0.5s;
 }
 .home:not([data-screen="home"]) .scr-start { transform: translateY(-26px) scale(0.97); }
+.home:not([data-screen="style"]) .scr-style { transform: translateY(26px); }
 .home:not([data-screen="devices"]) .scr-devices { transform: translateY(26px); }
 
 .hm-in { animation: hmIn 0.8s var(--ease) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
@@ -239,4 +241,5 @@
 
 /* Whatever is not on screen does not animate. */
 .home:not([data-screen="home"]) .scr-start, .home:not([data-screen="home"]) .scr-start *, .home:not([data-screen="home"]) .scr-start *::before, .home:not([data-screen="home"]) .scr-start *::after,
+.home:not([data-screen="style"]) .scr-style *, .home:not([data-screen="style"]) .scr-style *::before, .home:not([data-screen="style"]) .scr-style *::after,
 .home:not([data-screen="devices"]) .scr-devices *, .home:not([data-screen="devices"]) .scr-devices *::before, .home:not([data-screen="devices"]) .scr-devices *::after { animation-play-state: paused; }

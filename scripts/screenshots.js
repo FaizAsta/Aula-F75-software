@@ -236,7 +236,8 @@ async function open(scenario = 'demo', { theme = 'dark', model = 'f75', demo, ex
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e.stack || e)));
   page.on('console', (m) => m.type() === 'error' && errors.push('console.error: ' + m.text()));
-  const prefs = { demo: demo !== undefined ? demo : scenario === 'demo', model, modelSet: true, theme, ...extra };
+  // styleAsked: the "Which UI do you want to use?" question after Start has been answered, so Start goes straight to the devices (the style-picker scene turns that off)
+  const prefs = { demo: demo !== undefined ? demo : scenario === 'demo', model, modelSet: true, theme, styleAsked: true, ...extra };
   await page.addInitScript({ content: initScript({ prefs, scenario, version: PKG.version, backgrounds: BACKGROUNDS, memory }) });
   await page.goto(state.base);
   await page.waitForFunction(() => window.aulaApp && document.querySelector('#hmStart'));
@@ -332,6 +333,39 @@ const SHOTS = {
     await snap(page, 'devices');
     check(page, 'devices');
     await page.ctx.close();
+  },
+
+  // "Which UI do you want to use?": the question shown once after Start (a first install, or an update from a build without it).
+  async 'style-picker'() {
+    const page = await open('demo', { extra: { styleAsked: false } });
+    await page.click('#hmStart');
+    await page.waitForFunction(() => document.getElementById('home').dataset.screen === 'style');
+    await wait(1100); // the screen's entrance and the pictures
+    await snap(page, 'style-picker');
+    check(page, 'style-picker');
+    await page.ctx.close();
+  },
+
+  // The two pictures on the cards of that question (src/img/ui/classic.webp and glass.webp): the Lighting tab of the real app in
+  // each UI, over the same background picture so only the UI differs. They ship inside the app, so re-make them when the UI changes.
+  async 'ui-previews'() {
+    if (!sharp) throw new Error('sharp is needed to make the UI previews: npm install --no-save sharp');
+    const dir = path.join(ROOT, 'src', 'img', 'ui');
+    fs.mkdirSync(dir, { recursive: true });
+    const preset = BACKGROUNDS[0];
+    for (const style of ['classic', 'glass']) {
+      const page = await open('demo', { extra: { style }, memory: preset ? { 'aula.bgPreset': preset, 'aula.bgOpacity': '0.5' } : {} });
+      await enter(page);
+      await tab(page, 'lighting', 1200);
+      await wait(800);
+      await page.mouse.move(W - 3, H - 3); // park the pointer where it hovers nothing
+      await wait(250);
+      const file = path.join(dir, style + '.webp');
+      await sharp(await page.screenshot({ omitBackground: true })).resize(960, 640).webp({ quality: 82, effort: 6 }).toFile(file);
+      console.log('  wrote', path.relative(ROOT, file));
+      check(page, 'ui-previews', /status of 404/); // the very first run: the card pictures this scene makes are not there yet
+      await page.ctx.close();
+    }
   },
 
   async lighting() {

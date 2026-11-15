@@ -33,7 +33,7 @@
 **An unofficial Windows and Linux app for AULA F75 keyboards.**<br>
 Battery, lighting effects, per-key RGB and a live preview.
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.5.1-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20%7C%20Linux-0078d4)](#download)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20server-5865F2?logo=discord&logoColor=white)](https://discord.gg/BdeQygyRwN)
 
@@ -45,9 +45,12 @@ Battery, lighting effects, per-key RGB and a live preview.
 
 ## New: Liquid glass UI (experimental)
 
-Aula Control now has a second look: **Liquid glass**. Panels, buttons, switches and sliders become glass that bends and
-blurs the picture behind them, a bit like iOS. Turn it on in **Settings, Theme, UI**. **Classic** is still the default, so
-nothing changes unless you pick Liquid glass.
+Aula Control now has a second look: **Liquid glass**. Panels, buttons, switches, sliders, scroll bars and the update
+progress bar become glass that bends and blurs the picture behind them, a bit like iOS. **Classic** is still the default.
+
+The first time you press **Start** (a new install, or an update from a version that did not ask), the app asks **"Which UI do you want to use?"**
+and shows both looks side by side. Pick one and press **Continue**. It is asked only once, and you can change your mind
+any time in **Settings, Theme, UI**.
 
 <div align="center">
 
@@ -109,7 +112,8 @@ In the app, press **Support** (on the start screen and in the top bar) for the D
 - Live preview of the keyboard as a rendered picture, a different one for each model (F75, F75 Pro, F87, F75 Max); a Live / Picture switch on it: Live follows the keyboard and goes dark when it is off or asleep, Picture is only a still image of the board in its current light colours, with no animation, no pointer effects and nothing laid over it
 - Key assignment (experimental)
 - Dark and light themes, tray icon, start with Windows
-- Liquid glass UI (experimental, not stable, can be laggy): an optional second look in Settings > Theme > UI; Classic stays the default
+- Liquid glass UI (experimental, not stable, can be laggy): an optional second look, offered once after Start ("Which UI do you want to use?") and in Settings > Theme > UI; Classic stays the default
+- Blur switch (Classic UI only): Settings > Theme > Blur turns the frosted blur behind the tabs, cards, tiles and pop-ups on or off
 
 <img src="docs/screenshots/keyboards.png" alt="The picture for each model: F75, F75 Pro, F87 and F75 Max" width="560">
 
@@ -123,7 +127,11 @@ Click a picture to see it full size.
 <table>
 <tr>
 <td align="center" width="50%"><a href="docs/screenshots/start.png"><img src="docs/screenshots/start.png" alt="The start screen" width="430"></a><br><sub>Start screen</sub></td>
+<td align="center" width="50%"><a href="docs/screenshots/style-picker.png"><img src="docs/screenshots/style-picker.png" alt="The question Which UI do you want to use, with Classic and Liquid glass" width="430"></a><br><sub>After Start, once: Which UI do you want to use? (Classic or Liquid glass)</sub></td>
+</tr>
+<tr>
 <td align="center" width="50%"><a href="docs/screenshots/devices.png"><img src="docs/screenshots/devices.png" alt="The list of connected devices" width="430"></a><br><sub>Connected devices: dongle, USB-C cable and the demo keyboard</sub></td>
+<td></td>
 </tr>
 </table>
 

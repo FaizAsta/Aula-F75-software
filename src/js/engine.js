@@ -115,6 +115,14 @@
       this.idleSeconds = opts.idleSeconds ?? null;
       this.quietAfterSec = opts.quietAfterSec ?? 20;
       this.quietPollMs = opts.quietPollMs ?? 5 * 60 * 1000;
+      // While the app is not the window being used (a game is in front, or the window is hidden in the tray) it sends the
+      // keyboard nothing, so its questions can never delay a key press. One look every awayPollMs keeps the battery roughly
+      // current; the first tick after the window is focused again reads everything at once.
+      // isAway is an optional function (sync) that returns true while the app does not have focus.
+      this.isAway = opts.isAway ?? null;
+      this.awayPollMs = opts.awayPollMs ?? 10 * 60 * 1000;
+      this._awaySince = 0;
+      this._lastAwayPoll = 0;
       this._quietSince = 0;
       this._lastQuietPoll = 0;
       // After a write the block is read back to check it stuck. A keyboard (the 2.4G dongle especially) can take a moment to
@@ -1313,8 +1321,43 @@
       this._timer = null;
     }
 
+    /**
+     * While the app is out of focus (and nothing is waiting to be written): 0 = not away, 1 = away, ask nothing, 2 = away
+     * and the slow look is due, which asks the battery and nothing else (see isAway).
+     */
+    _away() {
+      let away = false;
+      try {
+        away = !!this.isAway && this.mode !== 'demo' && !!this.isAway() && !this.dirtyKeys().length;
+      } catch (_) {
+        away = false;
+      }
+      if (!away) {
+        this._awaySince = 0;
+        return 0;
+      }
+      const now = Date.now();
+      if (!this._awaySince) {
+        this._awaySince = now;
+        this._lastAwayPoll = now;
+        this._note('app is not in focus: not asking the keyboard anything until it is, apart from the battery every few minutes');
+        return 1;
+      }
+      if (now - this._lastAwayPoll >= this.awayPollMs) {
+        this._lastAwayPoll = now;
+        return 2;
+      }
+      return 1;
+    }
+
     async _tick() {
       if (!this.transport || this._applying || this._connecting) return;
+      const away = this._away();
+      if (away) {
+        // Out of focus: no questions to the keyboard. The slow look reads the battery only, and a failed read is left alone.
+        if (away === 2 && this.status === 'ready' && !this.transport.noBattery) await this.pollBattery().catch(() => {});
+        return;
+      }
       if (this.status === 'error') {
         // The link is up but will not hand over settings. A second look at the same handle rarely helps, so every
         // other round closes it and starts over, which is what unplugging and replugging would do.
@@ -1505,8 +1548,13 @@
         // The OEM driver sends the palette with every config change, even for effects that ignore it. That is done over the
         // dongle only: over the USB-C cable the palette is its own command, and a block that is not being changed is not
         // sent (least written, least that can go wrong on a link no real keyboard has confirmed yet). Never a stand-in.
-        const withLed = this.transport.kind !== 'feature' && this.readable.rgb;
-        const keys = ORDER.filter((k) => dirty.includes(k) || (k === 'rgb' && dirty.includes('led') && withLed));
+        const wired = this.transport.kind === 'feature';
+        const withLed = !wired && this.readable.rgb;
+        let keys = ORDER.filter((k) => dirty.includes(k) || (k === 'rgb' && dirty.includes('led') && withLed));
+        // Over the USB-C cable the official driver sends the colour blocks first and the lighting block last (colours, a read of
+        // the config, then the config write that switches the effect on). The keyboard shows the per-key colours it holds when
+        // that config arrives, so a config sent before the colours leaves the per-key effect with nothing to show.
+        if (wired) keys = [...keys.filter((k) => k !== 'led'), ...keys.filter((k) => k === 'led')];
         if (keys.includes('led') && !P.isValidLed(this.cur.led)) {
           throw new CommError('Refusing to write a lighting block that fails its integrity check.');
         }
@@ -1536,7 +1584,7 @@
           // exactLed: the block is written as it is (apart from the apply flag). The low-battery light uses it to put the person's
           // own lighting back byte for byte, including a colour-mode byte the red light had to change.
           const colour = !opts.exactLed && (!!opts.restore || dirty.includes('rgb') || dirty.includes('colors') || P.editsColour(this.dev0.led, this.cur.led));
-          out.led = P.prepareLedForWrite(out.led, P.effectOf(P.getMode(out.led)) || this.effect(), { colour });
+          out.led = P.prepareLedForWrite(out.led, P.effectOf(P.getMode(out.led)) || this.effect(), { colour, wired });
         }
 
         // Only the bytes this write changes have to come back as sent. The firmware rewrites some bytes of its own (a counter,
@@ -1546,7 +1594,10 @@
 
         const totalPackets = keys.reduce((n, k) => n + Math.ceil(out[k].length / P.CHUNK), 0);
         let done = 0;
+        let wroteBefore = false;
         for (const k of keys) {
+          // The official driver asks the keyboard for its config between the colours and the config write (over the cable).
+          if (wired && k === 'led' && wroteBefore) await t.readBlock(BLOCKS.led.get, 0, 1).catch(() => {});
           try {
             await t.writeBlock(BLOCKS[k].set, out[k], 0, () => {
               done++;
@@ -1559,6 +1610,7 @@
             this._note(`${k} block: no acknowledgement, but the keyboard holds what was sent`);
             if (onProgress) onProgress(Math.min(1, ++done / totalPackets));
           }
+          wroteBefore = true;
           await sleep(40);
         }
 

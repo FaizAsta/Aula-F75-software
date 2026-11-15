@@ -258,7 +258,8 @@ test('painting keys over a cable that cannot report them sends the whole block, 
     s.paintKeys([0, 1, 2], [255, 0, 0]);
     const r = await s.apply();
     assert.equal(r.ok, true);
-    assert.deepEqual(r.written, ['led', 'colors']);
+    // The official driver's order over the cable: the colours first, the lighting block last.
+    assert.deepEqual(r.written, ['colors', 'led']);
     assert.deepEqual(r.unverified, ['colors']);
     assert.equal(P.getMode(kb.led), P.MODE_CUSTOM);
     const w = kb.writes.find((x) => x.block === 'colors');
@@ -268,6 +269,61 @@ test('painting keys over a cable that cannot report them sends the whole block, 
     assert.equal(kb.colors[126], 0);
     assert.equal(s.dirtyKeys().length, 0);
   });
+});
+
+test('per-key colours over the cable: colours go first, the config is read, then the per-key config is written with the custom flag set, so the keys light', async () => {
+  await withHid(async (hid, session) => {
+    const kb = new CableKeyboard({ serves: ['led'] });
+    hid.add(CABLE, kb);
+    const s = session();
+    await s.connectAuto();
+    s.paintKeys([0, 1, 2], [255, 0, 0]);
+    await s.apply();
+    assert.deepEqual(kb.writes.map((w) => w.block), ['colors', 'led']);
+    // A read of the lighting block (0x84) sits between the colour write and the config write, as in the driver's capture.
+    const [wc, wl] = kb.writes;
+    const between = kb.sets.slice(wc.at, wl.at - 1).filter((b) => b[0] === P.WIRE.led.read);
+    assert.equal(between.length, 1);
+    assert.equal(kb.led[P.OFF.MODE], P.MODE_CUSTOM);
+    assert.equal(kb.led[P.OFF.APPLY], 1, 'the custom flag is set for the per-key effect');
+    assert.equal(kb.perKeyLit, true);
+  });
+});
+
+test('over the cable the custom flag follows the effect: kept while in per-key mode, cleared for any other effect', async () => {
+  await withHid(async (hid, session) => {
+    const kb = new CableKeyboard({ serves: ['led'] });
+    hid.add(CABLE, kb);
+    const s = session();
+    await s.connectAuto();
+    s.paintKeys([0], [0, 255, 0]);
+    await s.apply();
+    assert.equal(kb.led[P.OFF.APPLY], 1);
+    // Changing only the brightness while in per-key mode must not clear the flag (that would turn the keyboard dark).
+    assert.ok(s.setBrightness(2));
+    const r = await s.apply();
+    assert.equal(r.ok, true);
+    assert.equal(P.getMode(kb.led), P.MODE_CUSTOM);
+    assert.equal(kb.led[P.OFF.APPLY], 1);
+    assert.equal(kb.perKeyLit, true);
+    // Back to a built-in effect: the flag goes back to 0.
+    assert.ok(s.setEffect(1));
+    await s.apply();
+    assert.equal(P.getMode(kb.led), 1);
+    const last = kb.sets.filter((b) => b[0] === P.WIRE.led.write).pop();
+    assert.equal(last[7 + P.OFF.APPLY], 0, 'the app sent the flag as 0 for a built-in effect');
+  });
+});
+
+test('the dongle keeps sending the apply flag as 0, even with the per-key effect', () => {
+  const led = new Uint8Array(P.LED_SIZE);
+  led[0x7e] = 0x5a;
+  led[0x7f] = 0xa5;
+  P.setMode(led, P.MODE_CUSTOM);
+  assert.equal(P.prepareLedForWrite(led, P.effectOf(P.MODE_CUSTOM))[P.OFF.APPLY], 0);
+  assert.equal(P.prepareLedForWrite(led, P.effectOf(P.MODE_CUSTOM), { wired: true })[P.OFF.APPLY], 1);
+  P.setMode(led, 1);
+  assert.equal(P.prepareLedForWrite(led, P.effectOf(1), { wired: true })[P.OFF.APPLY], 0);
 });
 
 test('a write the keyboard ignores is reported as not kept', async () => {

@@ -46,7 +46,10 @@
 
   function bar(fraction) {
     $('#updBar').hidden = fraction === null;
-    if (fraction !== null) $('#updFill').style.transform = `scaleX(${Math.max(0, Math.min(1, fraction))})`;
+    if (fraction === null) return;
+    const f = Math.max(0, Math.min(1, fraction));
+    $('#updFill').style.transform = `scaleX(${f})`; // Classic
+    $('#updBar').style.setProperty('--pf', String(f)); // Liquid glass: the filled width and the lens follow this (css/glass.css)
   }
 
   function close(dismiss) {

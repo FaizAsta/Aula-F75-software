@@ -10,9 +10,11 @@
   const T = window.AulaTheme || null; // theme.js, loaded in <head>
   const BG = window.AulaBg; // background.js: the custom background picture
   const G = window.AulaGlass || null; // glass.js, loaded in <head>: the Liquid glass style
+  const SP = window.AulaStylePick || null; // stylepick.js: the "Which UI do you want to use?" question after Start
   const host = window.aulaHost || null;
   const B = window.AulaBattery; // battery.js: estimates, hourly bars, stretch since the last charge
   const MO = window.AulaMotion || null; // motion.js: ripples, button tasks and the data-link animation (optional)
+  const DS = window.AulaDragSeg || null; // dragseg.js: hold and drag on the tab bar and the level selectors (optional)
 
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -101,6 +103,11 @@
   prefs.lowLight = prefs.lowLight !== false; // red breathing light on the keyboard while the battery is low: on unless the person turned it off
   prefs.frost = prefs.frost !== false; // frosted window (Settings > Theme): on unless the person turned it off
   prefs.style = prefs.style === 'glass' ? 'glass' : 'classic'; // Settings > Theme > Style: the original look until Liquid glass is picked
+  prefs.styleAsked = prefs.styleAsked === true; // has the person answered "Which UI do you want to use?" yet (asked after Start, once; see stylepick.js)
+  prefs.blur = prefs.blur !== false; // Settings > Theme > Blur (Classic only): the frosted blur is on unless the person turned it off
+  document.documentElement.classList.toggle('no-blur', !prefs.blur); // lite.css does the rest
+  prefs.stageBg = prefs.stageBg !== false; // Settings > Theme > Keyboard background: the card behind the keyboard picture is on unless the person turned it off
+  document.documentElement.classList.toggle('no-stage-bg', !prefs.stageBg); // lite.css (Classic) and glass.css (Liquid glass) do the rest
   if (G) prefs.glass = G.clean(prefs.glass); // the four Liquid glass sliders
   // Keyboard model: decides the preview layout and which LED each key is. Unknown or missing falls back to the F75.
   // What the keyboard picture shows: 'live' (follows the keyboard, the original behaviour) or 'picture' (just the board).
@@ -128,7 +135,7 @@
     }
     return W.discover();
   };
-  const session = new E.Session({ discover, storage: store, idleSeconds: host && host.idleSeconds ? () => host.idleSeconds() : null });
+  const session = new E.Session({ discover, storage: store, idleSeconds: host && host.idleSeconds ? () => host.idleSeconds() : null, isAway: () => !prefs.demo && !document.hasFocus() });
 
   // Key assignment (the Keys tab) lives in keys-ui.js; it gets the session, the layout and a few callbacks.
   const KUI = window.AulaKeysUI
@@ -151,6 +158,7 @@
         storage: store,
         toast: (m, kind, ms) => toast(m, kind, ms),
         busyElsewhere: () => !!prefs.demo || !!session.connected,
+        isAway: () => !prefs.demo && !document.hasFocus(),
         getView: () => prefs.view, // the Live / Picture switch on the keyboard picture
         // the F75 preview has nothing to draw while a Max is connected (the Max's own picture is in the stage), so it rests
         idlePreview: (on) => {
@@ -532,6 +540,9 @@
     ['1', '2', '3', '4', '5'].forEach((label, v) =>
       speed.append(el('button', { class: 'seg-btn', role: 'radio', 'aria-checked': 'false', type: 'button', 'data-v': v, 'aria-label': `Speed level ${v + 1}`, text: label, onclick: () => session.setSpeed(v) })),
     );
+    // Hold and drag: the speed highlight follows the pointer and the level changes as it crosses each step (an in-memory edit,
+    // like the brightness slider; nothing is written to the keyboard until Apply).
+    if (DS) DS.attach(speed, { live: true, pick: (v) => session.setSpeed(v) });
   }
 
   const QUICK = ['#ff2d2d', '#ff7a00', '#ffd400', '#00d26a', '#00c8ff', '#2f5bff', '#8a2be2', '#ff2fa0', '#ffffff', '#000000'];
@@ -1354,6 +1365,8 @@
     for (const b of $$('.seg-btn', seg)) b.setAttribute('aria-checked', b.dataset.stylePref === prefs.style ? 'true' : 'false');
     seg.style.setProperty('--i', glass ? 1 : 0);
     $('#glassSection').hidden = !glass;
+    $('#blurRow').hidden = glass; // the Blur switch is a Classic setting; Liquid glass has its own Blur slider
+    $('#swBlur').setAttribute('aria-checked', prefs.blur ? 'true' : 'false');
     $('#styleTag').hidden = !glass; // the experimental tag and caution only while Liquid glass is on
     $('#styleCaution').hidden = !glass;
     $('#styleHint').textContent = glass
@@ -1367,6 +1380,10 @@
       $(`#${rng.id}Val`).textContent = `${v}${GLASS_UNITS[k]}`;
     }
   }
+  // Keyboard background (Settings > Theme): the card behind the keyboard picture. The class on <html> is what the CSS reads.
+  function renderStageBg() {
+    $('#swStageBg').setAttribute('aria-checked', prefs.stageBg ? 'true' : 'false');
+  }
   function setStyle(style) {
     if (!G || (style !== 'classic' && style !== 'glass')) return;
     prefs.style = style;
@@ -1375,6 +1392,17 @@
     G.set(style === 'glass');
     renderStyle();
     renderBackground(); // the frosted window steps aside while the glass paints its own backdrop
+  }
+
+  // The question after Start (home.js draws it): owed until the person has answered, and only when there is a choice to make
+  // (glass.js did not load: Classic is all there is). Answering applies the style, saves it and remembers that it was asked.
+  const styleOwed = () => !!(G && SP && SP.owed(prefs));
+  const styleStart = () => (SP ? SP.initial(prefs) : 'classic'); // what is highlighted when the question opens
+  function chooseStyle(style) {
+    const a = SP ? SP.answer(G ? style : 'classic') : { style: 'classic', styleAsked: true };
+    if (G && a.style !== prefs.style) setStyle(a.style);
+    prefs.styleAsked = a.styleAsked;
+    savePrefs();
   }
 
   function renderTheme() {
@@ -1863,6 +1891,22 @@
       next.focus();
       e.preventDefault();
     });
+    // Hold and drag on the tab bar: the lens follows the pointer and the screen changes when the button is let go.
+    if (DS) {
+      DS.attach($('.tabs'), {
+        items: () => $$('.tab-btn').filter((b) => !b.hidden && b.offsetWidth > 0),
+        paint: (f, box) => {
+          const ind = $('#tabInd');
+          ind.style.opacity = ''; // it is hidden on the Battery screen, where no tab is selected
+          ind.style.setProperty('--x', `${box.left}px`);
+          ind.style.setProperty('--w', `${box.width}px`);
+        },
+        pick: (i, list) => {
+          if (list[i].dataset.tab !== tab) setTab(list[i].dataset.tab);
+        },
+        end: placeTabInd,
+      });
+    }
     $('#batChip').addEventListener('click', () => setTab('battery'));
 
     // settings pages
@@ -1937,6 +1981,18 @@
       session.clearHistory();
       chartSig = '';
       render();
+    });
+    $('#swBlur').addEventListener('click', () => {
+      prefs.blur = !prefs.blur;
+      document.documentElement.classList.toggle('no-blur', !prefs.blur);
+      savePrefs();
+      renderStyle();
+    });
+    $('#swStageBg').addEventListener('click', () => {
+      prefs.stageBg = !prefs.stageBg;
+      document.documentElement.classList.toggle('no-stage-bg', !prefs.stageBg);
+      savePrefs();
+      renderStageBg();
     });
     $('#swFrost').addEventListener('click', () => {
       prefs.frost = !prefs.frost;
@@ -2078,6 +2134,7 @@
       G.set(prefs.style === 'glass'); // glass.js already read the saved choice before the first paint; this keeps the two in step
     }
     renderStyle();
+    renderStageBg();
     const modelSel = $('#modelSel');
     for (const m of L.MODELS) modelSel.append(el('option', { value: m.id, text: m.name }));
     modelSel.value = prefs.model;
@@ -2322,22 +2379,32 @@
 
     // Hidden in the tray or minimized: stop drawing. Back on screen: draw again and look for the keyboard at once.
     if (host && host.onShown) {
-      let viewWas = false;
+      // Whether the keyboard picture should be running right now, whatever stopped it (this used to be remembered as
+      // "was it running when the window was hidden", which went wrong whenever that memory and the real state differed
+      // and left the picture without a loop for good).
+      const wantLoop = () => prefs.animate && !pictureOnly() && !(MXU && MXU.active());
       const setShown = (shown) => {
         if (shown === windowShown) return;
         windowShown = shown;
         if (!shown) {
-          viewWas = !!view.running;
           view.stop();
           return;
         }
-        if (viewWas && prefs.animate && !pictureOnly()) view.start();
+        if (wantLoop()) view.start();
         kickThumb();
         scheduleRender();
         if (!prefs.demo) session.nudge();
       };
       host.onShown(setShown);
       if (host.shown) host.shown().then(setShown).catch(() => {});
+      // The main process reports the window state once per window event. Windows can report a half finished restore as
+      // still hidden, and nothing says otherwise afterwards. The pointer or keys moving over the window prove it is on
+      // screen, so take that as "shown again", and make sure the picture is running.
+      const proof = () => {
+        if (!windowShown) setShown(true);
+        else if (!view.running && wantLoop()) view.start();
+      };
+      for (const ev of ['pointerdown', 'pointermove', 'keydown']) window.addEventListener(ev, proof, { capture: true, passive: true });
     }
 
     // Back from sleep, or the screen unlocked. The dongle has just come back and the keyboard may still be waking, and a
@@ -2378,6 +2445,6 @@
     if (MXU) MXU.watch();
   }
 
-  window.aulaApp = { session, view, prefs, setTab, setDemo, toast, keys: KUI, max: MXU };
+  window.aulaApp = { session, view, prefs, setTab, setDemo, toast, keys: KUI, max: MXU, styleOwed, styleStart, chooseStyle };
   boot();
 })();

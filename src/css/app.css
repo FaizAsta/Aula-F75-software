@@ -34,6 +34,12 @@
   --glow-ink: var(--glow);
   --accent: rgb(var(--glow-ink));
 
+  /* Fixed colours for the controls that must NOT follow the keyboard light: sliders, switches, the Apply button and the
+     effect chip in the status bar. "r g b" triplets like --glow. --ctl-ink is the one for thin lines and flat fills; the
+     light theme darkens it so it stays visible on white. Change them here to recolour all of those controls at once. */
+  --ctl: 124 214 255;
+  --ctl-ink: 124 214 255;
+
   --ok: #5fd99a;
   --warn: #f2bb4f;
   --bad: #ff7a7a;
@@ -56,8 +62,8 @@
   --btn-hover: #fff;
   --btn-off-bg: #5d6475;
   --btn-off-fg: #1a1d25;
-  --knob: #c4c9d6;             /* switch knob, off and on */
-  --knob-on: #10131a;
+  --knob: #fff;                /* switch knob, off and on: a plain white disc with a soft shadow */
+  --knob-on: #fff;
   --start-bg: #0f1115;         /* inside the rainbow-bordered Start button */
   --start-hover: #1a1e27;
   --lift: rgb(255 255 255 / 0.028);
@@ -123,6 +129,8 @@
   --rgb-text: linear-gradient(90deg, #e0245e, #d97706, #16a34a, #0891b2, #4f46e5, #9333ea, #e0245e);
 
   --glow-ink: 36 98 130; /* until app.js derives it from the live colour */
+  --ctl: 124 214 255;
+  --ctl-ink: 36 98 130;
 }
 
 * { box-sizing: border-box; }
@@ -544,7 +552,7 @@ html.frost, html.frost body { background: transparent; }
 .range::-webkit-slider-runnable-track {
   height: 8px;
   border-radius: 99px;
-  background: linear-gradient(to right, rgb(var(--glow)) calc(var(--th) / 2 + (100% - var(--th)) * var(--pf)), var(--raise) 0);
+  background: linear-gradient(to right, rgb(var(--ctl)) calc(var(--th) / 2 + (100% - var(--th)) * var(--pf)), var(--raise) 0);
   box-shadow: inset 0 0 0 1px var(--line);
 }
 .range::-webkit-slider-thumb {
@@ -553,7 +561,7 @@ html.frost, html.frost body { background: transparent; }
   height: var(--th);
   margin-top: calc((8px - var(--th)) / 2);
   border-radius: 50%;
-  border: 2px solid rgb(var(--glow-ink));
+  border: 2px solid rgb(var(--ctl-ink));
   background: #fff;
   box-shadow: 0 2px 8px rgb(var(--shade) / 0.45);
   transition: transform 0.15s var(--spring);
@@ -561,7 +569,7 @@ html.frost, html.frost body { background: transparent; }
 .range:hover:not(:disabled)::-webkit-slider-thumb { transform: scale(1.1); }
 .range:active:not(:disabled)::-webkit-slider-thumb { transform: scale(0.95); }
 .range:focus-visible { outline: none; }
-.range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgb(var(--glow) / 0.35), 0 2px 8px rgb(var(--shade) / 0.45); }
+.range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgb(var(--ctl) / 0.35), 0 2px 8px rgb(var(--shade) / 0.45); }
 .range:disabled { opacity: 0.45; cursor: not-allowed; }
 .range-ends { display: flex; justify-content: space-between; margin-top: 2px; font-size: 11px; color: var(--muted); }
 .seg::before {
@@ -682,7 +690,10 @@ html.frost, html.frost body { background: transparent; }
 .btn.primary:hover:not(:disabled) { background: var(--btn-hover); }
 .btn.primary:disabled { background: var(--btn-off-bg); color: var(--btn-off-fg); opacity: 1; }
 
+/* Switch: an outlined pill with a big white disc and a soft shadow. Off, the track is empty and only its outline shows;
+   on, the track fills with the fixed control colour (--ctl-ink, not the keyboard light) and the disc sits on the right. */
 .switch {
+  --sw-ring: rgb(var(--ink) / 0.4);
   width: 40px;
   height: 22px;
   padding: 0;
@@ -690,21 +701,23 @@ html.frost, html.frost body { background: transparent; }
   flex: none;
   border: 0;
   border-radius: 999px;
-  background: var(--raise);
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--sw-ring);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.25s, box-shadow 0.25s;
 }
 .switch i {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 16px;
-  height: 16px;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: var(--knob);
+  box-shadow: 1px 2px 5px rgb(0 0 0 / 0.4), 0 0 0 0.5px rgb(0 0 0 / 0.08);
   transition: transform 0.25s var(--spring), background 0.2s;
 }
-.switch[aria-checked="true"] { background: var(--accent); }
+.switch[aria-checked="true"] { background: rgb(var(--ctl-ink)); --sw-ring: rgb(var(--ctl-ink)); }
 .switch[aria-checked="true"] i { transform: translateX(18px); background: var(--knob-on); }
 
 /* ------------------------------------------------------------------ apply */
@@ -959,8 +972,8 @@ html.frost, html.frost body { background: transparent; }
 .color-pick:hover { transform: scale(1.06); box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.3); }
 .text-in, .select { transition: box-shadow 0.2s; }
 .switch i { transition: transform 0.25s var(--spring), background 0.2s, width 0.15s; }
-.switch:active i { width: 21px; }
-.switch[aria-checked="true"]:active i { transform: translateX(13px); }
+.switch:active i { width: 22px; }
+.switch[aria-checked="true"]:active i { transform: translateX(14px); }
 
 /* buttons */
 .btn { transition: background 0.15s, color 0.15s, transform 0.18s var(--spring), box-shadow 0.2s; }
@@ -1067,7 +1080,9 @@ html.frost, html.frost body { background: transparent; }
 /* ---- light theme: the few things that need more than a colour swap ---------------------------------------------- */
 
 [data-theme="light"] .tab-ind { background: #fff; }
-[data-theme="light"] .switch i { box-shadow: 0 1px 3px rgb(var(--shade) / 0.55); }
+[data-theme="light"] .switch { --sw-ring: rgb(var(--ink) / 0.3); }
+[data-theme="light"] .switch[aria-checked="true"] { --sw-ring: rgb(var(--ctl-ink)); }
+[data-theme="light"] .switch i { box-shadow: 1px 2px 5px rgb(var(--shade) / 0.32), 0 0 0 0.5px rgb(var(--shade) / 0.1); }
 
 /* The window buttons in the light theme: dark icons. */
 [data-theme="light"] .win-btn { color: rgb(19 24 36 / 0.72); }
@@ -1081,6 +1096,22 @@ html.frost, html.frost body { background: transparent; }
 [data-theme="light"] .hm-radar i { border-color: hsl(var(--hue) 80% 45% / 0.7); }
 [data-theme="light"] .hm-radar::after { background: hsl(var(--hue) 80% 48%); box-shadow: 0 0 14px hsl(var(--hue) 80% 48% / 0.55); }
 [data-theme="light"] .hs-logo { filter: none; }
+
+/* ---- hold and drag (v1.5.1): the tab bar and the 1-5 selectors ------------------------------------------------------ */
+
+.seg, .tabs { touch-action: none; }
+.seg.is-dragging, .tabs.is-dragging, .seg.is-dragging .seg-btn, .tabs.is-dragging .tab-btn { cursor: grabbing; -webkit-user-select: none; user-select: none; }
+/* While dragged the highlight sits under the pointer, so it must not glide behind it (the selector reads --di, set by dragseg.js). */
+.seg.is-dragging::before { transform: translateX(calc(var(--di, var(--i)) * (100% + 4px))); transition: none; }
+.tabs.is-dragging .tab-ind { transition: none; }
+/* ...except for a moment at the start, so it glides from where it was to the pointer instead of jumping. */
+.seg.is-dragging.is-grab::before { transition: transform 0.12s var(--ease); }
+.tabs.is-dragging.is-grab .tab-ind { transition: transform 0.12s var(--ease), width 0.12s var(--ease); }
+/* The item under the highlight takes the selected colour while it is dragged, and the one it left gives it up. */
+.tab-btn.is-hot, .seg-btn.is-hot { color: var(--hi); }
+.tab-btn.is-hot .ico { transform: scale(1.08); }
+.tabs.is-dragging .tab-btn[aria-selected="true"]:not(.is-hot), .seg.is-dragging .seg-btn[aria-checked="true"]:not(.is-hot) { color: var(--muted); }
+.tabs.is-dragging .tab-btn[aria-selected="true"]:not(.is-hot) .ico { transform: none; }
 
 /* ---- reduced motion: must stay last ------------------------------------ */
 

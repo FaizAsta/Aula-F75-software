@@ -75,6 +75,8 @@
     function seg(id, count, labels, aria, onPick) {
       const box = el('div', { class: 'seg', id, role: 'radiogroup', 'aria-label': aria, style: `--n:${count};grid-template-columns:repeat(${count},1fr)` });
       labels.forEach((label, v) => box.append(el('button', { class: 'seg-btn', role: 'radio', 'aria-checked': 'false', type: 'button', 'data-v': v, text: label, onclick: () => onPick(v) })));
+      // Hold and drag, like the F75's selectors; here the keyboard is written to, so the level is set once, when the button is let go.
+      if (window.AulaDragSeg) window.AulaDragSeg.attach(box, { pick: (v) => onPick(v) });
       return box;
     }
 
@@ -495,7 +497,42 @@
     /** Looks for the keyboard now and then (the page has no plug events for interfaces it has not opened). */
     let timer = 0;
     let batteryTimer = 0;
+    // Out of focus (a game in front, or hidden in the tray): nothing is sent to the keyboard, apart from a battery read
+    // every AWAY_MS. Coming back to the window looks again within a tick.
+    const AWAY_MS = 10 * 60 * 1000;
+    let awaySince = 0;
+    let lastAway = 0;
+    const offFocus = () => {
+      try {
+        return !!ctx.isAway && !!ctx.isAway();
+      } catch (_) {
+        return false;
+      }
+    };
+    /** 0 = not away, 1 = away, ask nothing, 2 = away and the slow battery read is due. */
+    function away() {
+      if (!offFocus()) {
+        awaySince = 0;
+        return 0;
+      }
+      const now = Date.now();
+      if (!awaySince) {
+        awaySince = now;
+        lastAway = now;
+        return 1;
+      }
+      if (now - lastAway >= AWAY_MS) {
+        lastAway = now;
+        return 2;
+      }
+      return 1;
+    }
     async function tick() {
+      const a = away();
+      if (a) {
+        if (a === 2 && active && max.dongle) max.pollBattery().then(render).catch(() => {});
+        return;
+      }
       const had = max.present;
       const found = await max.scan();
       if (active) {
@@ -512,7 +549,7 @@
     function watch(ms = 2500) {
       if (timer) return;
       timer = setInterval(() => tick().catch(() => {}), ms);
-      batteryTimer = setInterval(() => active && max.dongle && max.pollBattery().then(render), 15000);
+      batteryTimer = setInterval(() => active && max.dongle && !offFocus() && max.pollBattery().then(render), 15000);
       tick().catch(() => {});
     }
 

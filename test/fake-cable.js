@@ -48,6 +48,7 @@ class CableKeyboard {
     this.sets = []; // every SET_FEATURE body received
     this.writes = []; // { block, size } for every write command
     this.gets = 0;
+    this.colorsBeforeConfig = false;
   }
 
   _block(name) {
@@ -77,18 +78,32 @@ class CableKeyboard {
       return;
     }
     if (!byWrite) return;
-    this.writes.push({ block: byWrite, size, cmd, layer: byWrite === 'matrix' ? body[1] : undefined });
+    this.writes.push({ block: byWrite, size, cmd, layer: byWrite === 'matrix' ? body[1] : undefined, at: this.sets.length });
+    if (byWrite === 'colors') this.colorsBeforeConfig = true; // colours are in place for the next config
+    if (byWrite === 'led' && body[7 + P.OFF.MODE] !== P.MODE_CUSTOM) this.colorsBeforeConfig = false;
     const data = body.slice(7, 7 + size);
     if (byWrite === 'matrix') {
       if (!this.dropMatrixWrites && this.layers[body[1]]) this.layers[body[1]] = data;
       return;
     }
     if (byWrite === 'led') {
-      if (data[P.OFF.APPLY] === 1) return; // a config that still carries the apply flag is ignored, as on the dongle
-      data[P.OFF.APPLY] = 1;
+      // The per-key effect is the one case where byte 9 is the custom flag and must stay as sent (the official driver's capture
+      // writes 1 with it). Any other effect keeps the old model: a config that still carries the apply flag is ignored.
+      const custom = data[P.OFF.MODE] === P.MODE_CUSTOM;
+      if (!custom && data[P.OFF.APPLY] === 1) return;
+      if (!custom) data[P.OFF.APPLY] = 1;
       this.led = data;
     } else if (byWrite === 'rgb') this.rgb = data;
     else this.colors = data;
+  }
+
+  /**
+   * Does the keyboard light the per-key colours it holds? The per-key effect shows them only with the custom flag (byte 9) set
+   * and only if the colour block arrived before the config that switched the effect on; any other effect shows its own light.
+   */
+  get perKeyLit() {
+    if (this.led[P.OFF.MODE] !== P.MODE_CUSTOM) return true;
+    return this.led[P.OFF.APPLY] === 1 && this.colorsBeforeConfig;
   }
 
   get() {

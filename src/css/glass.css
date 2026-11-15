@@ -5,6 +5,10 @@
      .ag-panel  boxes that hold controls (.group, .help-body, .stage): refract on a layer behind their content (::after),
                 so the controls inside still see the picture (see js/glass.js).
    With no background picture the page keeps the same plain background as Classic (no extra colour wash).
+   The bright outline of every surface is NOT painted here: it is the reflection built into each surface's filter (js/glass.js,
+   rimPass): the picture's own colours along the edge, strongest where the edge faces the light, so it differs from edge to
+   edge and from control to control. What this file adds at the edge is only --ag-rim, a hairline that keeps the shape readable
+   where the picture behind is flat, plus the shadow under the surface.
    ========================================================================== */
 
 /* ---- 1b. Nothing above a glass surface may hide the picture from it ----------------------------------------------------
@@ -41,18 +45,14 @@ html.glass :is(.overlay, .upd) { animation-name: glassFade; }
    layer: z-index -1 inside the panel's own stacking context (position + z-index), so it sits above the panel's background
    and below everything in it. Until js/glass.js has measured the panel (:not(.ag-panel)) it wears plain tinted glass. */
 html.glass {
-  --ag-rim: inset 0 0 0 1px rgb(255 255 255 / 0.16), inset 1.5px 2px 1px -1px rgb(255 255 255 / 0.65), inset -1.5px -2px 1px -1px rgb(255 255 255 / 0.28), inset 0 0 14px rgb(255 255 255 / 0.06);
+  --ag-rim: inset 0 0 0 1px rgb(255 255 255 / 0.07); /* only a hairline: the bright, angled outline is the reflection in the filter */
 }
 html.glass[data-theme="light"] {
-  --ag-rim: inset 0 0 0 1px rgb(255 255 255 / 0.7), inset 1.5px 2px 1px -1px #fff, inset -1.5px -2px 1px -1px rgb(255 255 255 / 0.6);
+  --ag-rim: inset 0 0 0 1px rgb(20 28 50 / 0.06);
 }
 html.glass :is(.group, .help-body):not(.ag-panel) {
   background: color-mix(in srgb, var(--surface) 52%, transparent);
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 0.14),
-    inset 0 1px 0 rgb(255 255 255 / 0.3),
-    inset 0 -12px 20px -14px rgb(255 255 255 / 0.14),
-    0 12px 32px -18px rgb(0 0 0 / 0.5);
+  box-shadow: var(--ag-rim), 0 12px 32px -18px rgb(0 0 0 / 0.5);
 }
 html.glass .ag-panel,
 html.glass .ag-panel:hover {
@@ -72,7 +72,7 @@ html.glass .ag-panel::after {
     linear-gradient(135deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0) 34%, rgb(255 255 255 / 0) 72%, rgb(255 255 255 / 0.07)), /* the sheen across the pane */
     color-mix(in srgb, var(--surface) 34%, transparent);
   backdrop-filter: var(--ag-filter) saturate(1.7) brightness(0.94) !important; /* beats lite.css, which switches backdrops off */
-  box-shadow: var(--ag-rim), inset 0 1px 0 rgb(255 255 255 / 0.32), inset 0 -14px 24px -16px rgb(255 255 255 / 0.18);
+  box-shadow: var(--ag-rim);
 }
 html.glass .stage.ag-panel::after {
   background:
@@ -85,7 +85,7 @@ html.glass[data-theme="light"] .ag-panel::after {
     linear-gradient(135deg, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0) 36%, rgb(255 255 255 / 0) 72%, rgb(255 255 255 / 0.2)),
     rgb(255 255 255 / 0.26);
   backdrop-filter: var(--ag-filter) saturate(1.7) brightness(1.05) !important;
-  box-shadow: var(--ag-rim), inset 0 1px 0 #fff;
+  box-shadow: var(--ag-rim);
 }
 html.glass[data-theme="light"] .stage.ag-panel::after {
   background:
@@ -94,20 +94,19 @@ html.glass[data-theme="light"] .stage.ag-panel::after {
     rgb(255 255 255 / 0.22);
 }
 
+/* Settings > Theme > Keyboard background off (app.js puts class "no-stage-bg" on <html>): the keyboard picture sits straight on the page, with no glass behind it. */
+html.glass.no-stage-bg .stage.ag-panel { box-shadow: none; }
+html.glass.no-stage-bg .stage.ag-panel::after { display: none; }
+
 /* ---- 3. Refracting controls ------------------------------------------------------------------------------------- */
 html.glass .ag {
   backdrop-filter: var(--ag-filter) saturate(1.5) brightness(0.9) !important; /* beats lite.css, which switches backdrops off */
   background: rgb(14 18 26 / 0.34); /* a dark tint keeps the labels readable over a bright picture */
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 0.16),
-    inset 1.5px 2px 1px -1px rgb(255 255 255 / 0.65),
-    inset -1.5px -2px 1px -1px rgb(255 255 255 / 0.28),
-    inset 0 0 14px rgb(255 255 255 / 0.06),
-    0 6px 18px -8px rgb(0 0 0 / 0.4);
+  box-shadow: var(--ag-rim), 0 6px 18px -8px rgb(0 0 0 / 0.4);
 }
 html.glass .ag:hover:not(:disabled) { background: rgb(14 18 26 / 0.46); }
-html.glass .btn.primary.ag { background: color-mix(in srgb, var(--accent) 38%, transparent); color: var(--text); }
-html.glass .btn.primary.ag:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 52%, transparent); }
+html.glass .btn.primary.ag { background: color-mix(in srgb, rgb(var(--ctl-ink)) 38%, transparent); color: var(--text); }
+html.glass .btn.primary.ag:hover:not(:disabled) { background: color-mix(in srgb, rgb(var(--ctl-ink)) 52%, transparent); }
 html.glass .btn.primary.ag:disabled { background: rgb(255 255 255 / 0.06); color: var(--muted); }
 html.glass .btn.ghost.ag { color: var(--text); }
 html.glass .btn.ag:active:not(:disabled), html.glass .pill-btn.ag:active { transform: scale(1.05); }
@@ -115,11 +114,7 @@ html.glass .btn.ag:active:not(:disabled), html.glass .pill-btn.ag:active { trans
 html.glass[data-theme="light"] .ag {
   backdrop-filter: var(--ag-filter) saturate(1.5) brightness(1.06) !important;
   background: rgb(255 255 255 / 0.3);
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 0.7),
-    inset 1.5px 2px 1px -1px #fff,
-    inset -1.5px -2px 1px -1px rgb(255 255 255 / 0.6),
-    0 6px 18px -8px rgb(20 28 50 / 0.28);
+  box-shadow: var(--ag-rim), 0 6px 18px -8px rgb(20 28 50 / 0.28);
 }
 html.glass[data-theme="light"] .ag:hover:not(:disabled) { background: rgb(255 255 255 / 0.34); }
 
@@ -129,30 +124,163 @@ html.glass .tab-ind.ag, html.glass .tab-ind.ag:hover {
   backdrop-filter: var(--ag-filter) saturate(1.6) brightness(1.3) !important;
 }
 
-/* ---- 5. Switch: a wide glass knob on a plain track; it swells while pressed ------------------------------------------- */
-html.glass .switch { width: 56px; height: 30px; background: rgb(var(--ink) / 0.16); box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.25); }
-html.glass .switch[aria-checked="true"] { background: var(--accent); }
-html.glass .switch i {
-  top: 2px;
-  left: 2px;
-  width: 38px;
-  height: 26px;
-  background: rgb(255 255 255 / 0.22);
-  transition: transform 0.45s var(--spring), background 0.2s;
+/* ---- 5. Switch: a rimmed glass pill with a big, rounded glass thumb -----------------------------------------------------
+   Drawn entirely in CSS (js/glass.js leaves the switch out of its surfaces: it is too small to bend anything). Two parts:
+     the track  .switch::before is the frosted pill (::after is its rim), with a soft shadow under it;
+     the thumb  the <i>, almost as tall as the track and a bit wider than tall: frosted white glass with a gloss along the top,
+                a deeper shadow, and its own rim (its ::after). ::before is the gloss.
+   The rims are not a uniform white line: each is a ring painted with an angled gradient, so the edge is brightest where it
+   faces the light and falls away on the other side (the track is sunk, so its rim is shaded at the top left and lit at the
+   bottom right; the thumb stands proud, so it is the other way round), like the bevels in the reference picture.
+   While it is held the thumb swells and turns clear, like the slider lens below, and the track colour shows through it.
+   Off, the track is empty glass; on, it fills with the fixed control colour (--ctl-ink, never the keyboard light).
+   Every size comes from the variables on .switch, so the whole control can be rescaled in one place. */
+html.glass {
+  --sw-rim-a: rgb(0 0 0 / 0.45);            /* track rim: the shaded edge (top left) ... */
+  --sw-rim-b: rgb(255 255 255 / 0.1);       /* ... the middle ... */
+  --sw-rim-c: rgb(255 255 255 / 0.42);      /* ... and the lit edge (bottom right) */
+  --sw-deep: rgb(0 0 0 / 0.34);             /* the inner shade at the top left of the empty track */
+  --sw-lip: rgb(255 255 255 / 0.16);        /* the light caught at its lower right */
+  --sw-track-a: rgb(255 255 255 / 0.15);    /* empty track, top */
+  --sw-track-b: rgb(255 255 255 / 0.05);    /* empty track, bottom */
+  --sw-drop: rgb(0 0 0 / 0.5);              /* shadow under the track */
+  --sw-shade: rgb(0 0 0 / 0.55);            /* shadow under the thumb */
 }
-html.glass .switch[aria-checked="true"] i { transform: translateX(14px); background: rgb(255 255 255 / 0.22); }
-html.glass .switch i.ag { backdrop-filter: var(--ag-filter) saturate(1.5) brightness(1.15) !important; }
-html.glass .switch:active i { transform: scale(1.1); }
-html.glass .switch[aria-checked="true"]:active i { transform: translateX(14px) scale(1.1); }
+html.glass[data-theme="light"] {
+  --sw-rim-a: rgb(20 28 50 / 0.34);
+  --sw-rim-b: rgb(255 255 255 / 0.5);
+  --sw-rim-c: rgb(255 255 255 / 0.95);
+  --sw-deep: rgb(20 28 50 / 0.22);
+  --sw-lip: rgb(255 255 255 / 0.8);
+  --sw-track-a: rgb(20 28 50 / 0.07);
+  --sw-track-b: rgb(20 28 50 / 0.16);
+  --sw-drop: rgb(20 28 50 / 0.34);
+  --sw-shade: rgb(20 28 50 / 0.42);
+}
+html.glass .switch {
+  --sw-w: 72px;
+  --sw-h: 30px;
+  --kw: 34px;   /* thumb, resting */
+  --kh: 26px;
+  --pad: 2px;   /* gap between the thumb and the rim of the track */
+  --grow: 8px;  /* how much wider the thumb gets while it is held */
+  --run: calc(var(--sw-w) - var(--kw) - 2 * var(--pad)); /* how far the thumb travels */
+  width: var(--sw-w);
+  height: var(--sw-h);
+  background: transparent;
+  box-shadow: none; /* the track is ::before; this element only carries the ring that flashes when it is flipped */
+}
+html.glass .switch[aria-checked="true"] { background: transparent; }
 
-/* ---- 6. Slider: a thin track and a glass lens for a thumb. Resting it is a small frosted pill; while it is held it swells ---
+/* the track: the frosted pill, then its rim on top */
+html.glass .switch::before,
+html.glass .switch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+html.glass .switch::before {
+  background: linear-gradient(180deg, var(--sw-track-a), var(--sw-track-b));
+  backdrop-filter: blur(5px) saturate(1.6) !important; /* beats lite.css, which switches backdrops off */
+  box-shadow:
+    inset 1px 2px 3px var(--sw-deep),
+    inset -1px -2px 3px var(--sw-lip),
+    0 8px 14px -8px var(--sw-drop);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+html.glass .switch::after {
+  padding: 1.75px;
+  background: linear-gradient(150deg, var(--sw-rim-a), var(--sw-rim-b) 50%, var(--sw-rim-c));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+html.glass .switch[aria-checked="true"]::before {
+  background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--ctl-ink)) 78%, white), rgb(var(--ctl-ink)));
+  box-shadow:
+    inset 1px 2px 3px rgb(0 0 0 / 0.28),
+    inset -1px -2px 3px rgb(255 255 255 / 0.3),
+    0 8px 14px -8px color-mix(in srgb, rgb(var(--ctl-ink)) 70%, black);
+}
+html.glass .switch[aria-checked="true"] {
+  --sw-rim-a: rgb(0 0 0 / 0.32);
+  --sw-rim-b: rgb(255 255 255 / 0.16);
+  --sw-rim-c: rgb(255 255 255 / 0.55);
+}
+
+/* the thumb */
+html.glass .switch i {
+  top: var(--pad);
+  left: var(--pad);
+  width: var(--kw);
+  height: var(--kh);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.94), rgb(255 255 255 / 0.78));
+  backdrop-filter: blur(3px) saturate(1.6) brightness(1.1) !important;
+  box-shadow:
+    0 0 0 0.5px rgb(0 0 0 / 0.14),                 /* a hairline that keeps it readable on a light page */
+    inset 0 -3px 5px rgb(120 130 150 / 0.16),      /* the face falls away towards the bottom */
+    0 6px 11px -3px var(--sw-shade),
+    0 1px 2px rgb(0 0 0 / 0.22);
+  transition: transform 0.45s var(--spring), width 0.3s var(--spring), background 0.25s, box-shadow 0.25s;
+}
+/* gloss along the top and a little bounce light along the bottom edge (::before), and the angled rim (::after) */
+html.glass .switch i::before,
+html.glass .switch i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+html.glass .switch i::before {
+  inset: 1.5px;
+  background:
+    radial-gradient(ellipse 58% 62% at 50% 0%, rgb(255 255 255 / 0.95), rgb(255 255 255 / 0) 100%),
+    radial-gradient(ellipse 50% 46% at 50% 100%, rgb(255 255 255 / 0.6), rgb(255 255 255 / 0) 100%);
+  opacity: 0.8;
+  transition: opacity 0.25s;
+}
+html.glass .switch i::after {
+  padding: 1.5px;
+  background: linear-gradient(145deg, rgb(255 255 255 / 1), rgb(255 255 255 / 0.5) 38%, rgb(100 112 140 / 0.22) 68%, rgb(255 255 255 / 0.8));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+html.glass .switch[aria-checked="true"] i { transform: translateX(var(--run)); }
+
+/* held: the thumb swells and turns clear glass (the track colour glows through it), as the slider lens does */
+html.glass .switch:active i {
+  width: calc(var(--kw) + var(--grow));
+  background: rgb(255 255 255 / 0.12);
+  backdrop-filter: blur(1px) saturate(1.35) brightness(1.06) !important;
+  box-shadow:
+    0 0 0 0.5px rgb(0 0 0 / 0.1),
+    inset 0 0 10px rgb(var(--ctl) / 0.28),
+    0 0 12px rgb(var(--ctl) / 0.2),
+    0 10px 16px -4px var(--sw-shade);
+}
+html.glass .switch:active i::before { opacity: 0.35; }
+html.glass .switch[aria-checked="true"]:active i { transform: translateX(calc(var(--run) - var(--grow))); }
+
+/* the ring that flashes when the switch is flipped (motion.css) goes round the pill, not inside it */
+@keyframes glassSwRing {
+  from { box-shadow: 0 0 0 0 rgb(var(--ctl) / 0.55); }
+  to   { box-shadow: 0 0 0 9px rgb(var(--ctl) / 0); }
+}
+html.glass .switch.flip { animation-name: glassSwRing; }
+
+/* ---- 6. Slider: a thick rounded track and a glass lens for a thumb. Resting it is a small frosted pill; while it is held it swells ---
    into a clear lens that bends the track under it (js/glass.js adds the .range-lens next to each slider and toggles .held).
    The native thumb stays (invisible, same size as the resting pill) so dragging, keys and screen readers keep working. */
 html.glass :is(.range-wrap, .bg-opacity) { position: relative; } /* the lens is placed against this */
 html.glass .range { --th: 42px; height: 44px; }
 html.glass .range::-webkit-slider-runnable-track {
-  height: 8px;
-  background: linear-gradient(to right, rgb(var(--glow)) calc(var(--th) / 2 + (100% - var(--th)) * var(--pf)), rgb(var(--ink) / 0.2) 0);
+  height: 10px;
+  background: linear-gradient(to right, rgb(var(--ctl)) calc(var(--th) / 2 + (100% - var(--th)) * var(--pf)), rgb(var(--ink) / 0.2) 0);
   box-shadow: none;
 }
 html.glass .range::-webkit-slider-thumb,
@@ -161,7 +289,7 @@ html.glass .range:active:not(:disabled)::-webkit-slider-thumb,
 html.glass .range:focus-visible::-webkit-slider-thumb {
   width: 42px;
   height: 28px;
-  margin-top: -10px;
+  margin-top: -9px;
   border: 0;
   border-radius: 14px;
   background: transparent;
@@ -187,61 +315,142 @@ html.glass .range-lens {
   pointer-events: none;
   transition: translate 0.12s ease-out, scale 0.5s var(--spring), background 0.3s, box-shadow 0.3s;
 }
-/* the magnified bar you see through the lens: the filled part, a little thicker and leading the thumb */
-html.glass .range-lens i {
-  position: absolute;
-  left: -8px;
-  top: 50%;
-  width: calc(50% + 8px + 12% * (1 - var(--lp, 0)));
-  height: 13px;
-  margin-top: -6.5px;
-  border-radius: 99px;
-  background: rgb(var(--glow));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
-  opacity: 0;
-  transition: opacity 0.25s;
+/* held: full size, and a drop of liquid: the faster the thumb is dragged (--lv, from js/glass.js) the wider and flatter it stretches,
+   then it settles back. Only a scale: a rotation or skew makes the backdrop filter clip and jump. */
+html.glass .range-lens.held {
+  scale: 1;
+  transform: scale(calc(1 + abs(var(--lv, 0)) * 0.16), calc(1 - abs(var(--lv, 0)) * 0.12));
 }
-html.glass .range-lens.held { scale: 1; }
-html.glass .range-lens.held i { opacity: 0.95; }
+@media (prefers-reduced-motion: reduce) {
+  html.glass .range-lens.held { transform: none !important; }
+}
 
 /* at rest: frosted, almost solid, white rim */
 html.glass .range-lens.ag {
   background: rgb(255 255 255 / 0.9);
   backdrop-filter: var(--ag-filter) saturate(1.4) brightness(1.15) !important;
-  box-shadow:
-    inset 0 0 0 2px rgb(255 255 255 / 0.85),
-    inset 0 -6px 10px -6px rgb(255 255 255 / 0.5),
-    0 10px 22px -8px rgb(0 0 0 / 0.5);
+  box-shadow: var(--ag-rim), 0 10px 22px -8px rgb(0 0 0 / 0.5);
 }
-/* held: clear glass with a bright thin rim, a glow of the track colour and a deeper shadow */
+/* held: a clear drop. Nothing is painted over the track: what you see inside is the real bar and track, sharp in the middle and
+   bent round the edge by the filter (js/glass.js, SLIDER). Only a thin soft reflection on the rim and a light shadow. */
 html.glass .range-lens.ag.held {
-  background: rgb(255 255 255 / 0.06);
-  backdrop-filter: var(--ag-filter) saturate(1.7) brightness(1.08) !important;
-  box-shadow:
-    inset 0 0 0 1.5px rgb(255 255 255 / 0.9),
-    inset 3px 4px 4px -3px #fff,
-    inset -3px -4px 4px -3px rgb(255 255 255 / 0.55),
-    inset 0 0 16px rgb(var(--glow) / 0.35),
-    0 0 18px rgb(var(--glow) / 0.28),
-    0 16px 28px -10px rgb(0 0 0 / 0.55);
+  background: rgb(255 255 255 / 0.03);
+  backdrop-filter: var(--ag-filter) saturate(1.2) !important;
+  box-shadow: var(--ag-rim), 0 14px 26px -12px rgb(0 0 0 / 0.42);
 }
-html.glass .range:focus-visible + .range-lens.ag:not(.held) { box-shadow: inset 0 0 0 2px #fff, 0 0 0 4px rgb(var(--glow) / 0.45), 0 10px 22px -8px rgb(0 0 0 / 0.5); }
+html.glass .range:focus-visible + .range-lens.ag:not(.held) { box-shadow: var(--ag-rim), 0 0 0 4px rgb(var(--ctl) / 0.45), 0 10px 22px -8px rgb(0 0 0 / 0.5); }
 
 html.glass[data-theme="light"] .range-lens.ag {
   background: rgb(255 255 255 / 0.95);
-  box-shadow:
-    inset 0 0 0 2px #fff,
-    0 8px 18px -8px rgb(20 28 50 / 0.4);
+  box-shadow: var(--ag-rim), 0 8px 18px -8px rgb(20 28 50 / 0.4);
 }
 html.glass[data-theme="light"] .range-lens.ag.held {
-  background: rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.04);
+  box-shadow: var(--ag-rim), 0 12px 24px -12px rgb(20 28 50 / 0.32);
+}
+
+/* ---- 6b. Scroll bars: the thumb is a glass capsule you see the page slide behind -----------------------------------------
+   js/glass.js hides the native bar of every scrolling area (data-ag-scroll) and lays this strip beside it: .ag-scroll is the
+   18 px strip you can grab (wheel and clicks on it work), .ag-scroll-thumb the 12 px glass thumb in it. It rests a little faded,
+   and lights up while you hover it, drag it or the page is scrolling (.busy). One width only, so its refraction filter is built once:
+   the thumb is not resized while you hover it, only its brightness and glow change. */
+html.glass [data-ag-scroll] { scrollbar-width: none; }
+html.glass .ag-scroll {
+  position: absolute;
+  z-index: 4; /* above the page area, below the apply bar (5) */
+  left: var(--sl, 0px);
+  top: var(--st, 0px);
+  width: 18px;
+  height: var(--sh, 0px);
+  touch-action: none;
+}
+html.glass .ag-scroll[hidden] { display: none; }
+html.glass .ag-scroll-thumb {
+  position: absolute;
+  left: 3px;
+  top: 0;
+  display: block;
+  width: 12px;
+  height: var(--th, 40px);
+  translate: 0 var(--ty, 0px); /* a scroll only changes this, so it costs no layout */
+  border-radius: 999px;
+  opacity: 0.7;
+  background: rgb(255 255 255 / 0.14);
+  box-shadow: var(--ag-rim), 0 4px 12px -4px rgb(0 0 0 / 0.5);
+  transition: opacity 0.25s, background 0.25s, box-shadow 0.25s;
+}
+html.glass .ag-scroll-thumb.ag {
+  background: rgb(255 255 255 / 0.12);
+  backdrop-filter: var(--ag-filter) saturate(1.7) brightness(1.25) !important; /* beats lite.css, which switches backdrops off */
+  box-shadow: var(--ag-rim), 0 4px 12px -4px rgb(0 0 0 / 0.5);
+}
+html.glass :is(.ag-scroll:hover, .ag-scroll.busy, .ag-scroll.held) .ag-scroll-thumb { opacity: 1; }
+html.glass :is(.ag-scroll:hover, .ag-scroll.held) .ag-scroll-thumb.ag {
+  background: rgb(255 255 255 / 0.2);
   box-shadow:
-    inset 0 0 0 1.5px #fff,
-    inset 3px 4px 4px -3px #fff,
-    inset -3px -4px 4px -3px rgb(255 255 255 / 0.9),
-    inset 0 0 16px rgb(var(--glow) / 0.3),
-    0 0 18px rgb(var(--glow) / 0.25),
-    0 14px 26px -10px rgb(20 28 50 / 0.45);
+    var(--ag-rim),
+    inset 0 0 8px rgb(var(--ctl) / 0.3),
+    0 0 12px rgb(var(--ctl) / 0.28),
+    0 6px 14px -4px rgb(0 0 0 / 0.55);
+}
+html.glass[data-theme="light"] .ag-scroll-thumb.ag {
+  background: rgb(255 255 255 / 0.4);
+  backdrop-filter: var(--ag-filter) saturate(1.6) brightness(1.06) !important;
+  box-shadow: var(--ag-rim), 0 4px 12px -4px rgb(20 28 50 / 0.4);
+}
+html.glass[data-theme="light"] :is(.ag-scroll:hover, .ag-scroll.held) .ag-scroll-thumb.ag {
+  background: rgb(255 255 255 / 0.55);
+  box-shadow:
+    var(--ag-rim),
+    inset 0 0 8px rgb(var(--ctl) / 0.25),
+    0 0 12px rgb(var(--ctl) / 0.22),
+    0 6px 14px -4px rgb(20 28 50 / 0.45);
+}
+
+/* ---- 6c. Update progress bar: a glass tube filled with glass "liquid" -----------------------------------------------------
+   No knob: it is a progress bar, not a slider. The tube is the glass surface (rim, depth, the picture behind it); the fill is a
+   glossy coloured gel inside it with a bright streak along the top and a lit leading end. js/update.js puts the progress (0 to 1)
+   in --pf on the bar and the fill's width follows it here, so no scaled element ever squashes the rounded end (Classic keeps its
+   scaleX). The colour is the controls' (--ctl, the same as the slider's, a fixed colour that does not follow the keyboard's
+   lighting); the light theme deepens it (--ctl-ink) so it stays visible on a light card. */
+html.glass .upd-bar { height: 12px; }
+html.glass .upd-bar.ag {
+  background: rgb(var(--ink) / 0.14);
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.4), var(--ag-rim);
+}
+html.glass .upd-bar i {
+  position: relative;
+  transform: none !important; /* update.js sets a scaleX for Classic; here the width follows --pf */
+  width: calc(100% * var(--pf, 0));
+  background: linear-gradient(to bottom, rgb(var(--ctl) / 0.95), rgb(var(--ctl) / 0.68));
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.28),
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    inset -4px 0 5px -3px rgb(255 255 255 / 0.65), /* the leading end catches the light */
+    0 0 14px rgb(var(--ctl) / 0.4);
+  transition: width 0.25s linear;
+}
+html.glass .upd-bar i::after { /* the streak of light along the top of the glass */
+  content: "";
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 2px;
+  height: 3px;
+  border-radius: 99px;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0));
+}
+html.glass[data-theme="light"] .upd-bar.ag {
+  background: rgb(var(--ink) / 0.1);
+  box-shadow: inset 0 1px 2px rgb(20 28 50 / 0.18), var(--ag-rim);
+}
+html.glass[data-theme="light"] .upd-bar i {
+  background: linear-gradient(to bottom, rgb(var(--ctl-ink) / 0.95), rgb(var(--ctl-ink) / 0.72));
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.3),
+    inset 0 1px 0 rgb(255 255 255 / 0.4),
+    inset -4px 0 5px -3px rgb(255 255 255 / 0.6),
+    0 0 14px rgb(var(--ctl-ink) / 0.3);
 }
 
 /* ---- 7. Pills: every control is a capsule, like the tab bar at the top -------------------------------------------------
@@ -264,10 +473,16 @@ html.glass .effect.ag:hover:not(:disabled) {
 html.glass .effect.ag[aria-checked="true"],
 html.glass .effect.ag[aria-checked="true"]:hover:not(:disabled) {
   background: color-mix(in srgb, var(--surface-2) 52%, transparent);
-  box-shadow: inset 0 0 0 1.5px var(--accent), inset 1.5px 2px 1px -1px rgb(255 255 255 / 0.5), 0 10px 26px -16px rgb(var(--glow) / 0.8);
+  box-shadow: inset 0 0 0 1.5px var(--accent), 0 10px 26px -16px rgb(var(--glow) / 0.8);
 }
-/* device tiles, messages */
+/* device tiles, the two cards of the UI question, messages */
 html.glass .hm-dev.ag { background: color-mix(in srgb, rgb(var(--tile)) 40%, transparent); }
+html.glass .sp-card.ag { background: color-mix(in srgb, rgb(var(--tile)) 40%, transparent); }
+html.glass .sp-card.ag[aria-checked="true"],
+html.glass .sp-card.ag[aria-checked="true"]:hover:not(:disabled) {
+  background: color-mix(in srgb, rgb(var(--tile)) 40%, transparent);
+  box-shadow: inset 0 0 0 2px var(--accent), 0 16px 34px -18px rgb(var(--glow) / 0.8);
+}
 html.glass .toast.ag { background: rgb(14 18 26 / 0.42); }
 html.glass[data-theme="light"] .toast.ag { background: rgb(255 255 255 / 0.5); }
 html.glass .toast.ag { box-shadow: inset 3px 0 0 var(--accent), var(--ag-rim), 0 14px 32px rgb(var(--shade) / 0.35); }
@@ -280,7 +495,8 @@ html.glass .upd-bar.ag { background: rgb(var(--ink) / 0.16); }
 /* the message over the keyboard picture (no keyboard, connecting, asleep): a light scrim over the glass stage, not a dark slab */
 html.glass .overlay { background: rgb(var(--scrim) / 0.5); }
 /* chips: a touch of the glow colour on the accented ones */
-html.glass :is(.chip.accent, .sb-fx).ag { background: color-mix(in srgb, rgb(var(--glow)) 22%, transparent); }
+html.glass .chip.accent.ag { background: color-mix(in srgb, rgb(var(--glow)) 22%, transparent); }
+html.glass .sb-fx.ag { background: color-mix(in srgb, rgb(var(--ctl)) 22%, transparent); }
 /* small buttons that show "selected" with a fill or a ring */
 html.glass .day.ag[aria-pressed="true"] { background: rgb(var(--ink) / 0.2); }
 html.glass .ka-chip.ag:is([aria-selected="true"], [aria-pressed="true"]) {
@@ -298,4 +514,37 @@ html.glass[data-theme="light"] .bat-bar.ag { background: rgb(255 255 255 / 0.3);
 /* ---- 9. Accessibility: no see-through glass when the system asks for it ------------------------------------------------ */
 @media (prefers-reduced-transparency: reduce) {
   html.glass .ag, html.glass .range-lens.ag, html.glass .range-lens.ag.held, html.glass .ag-panel::after { backdrop-filter: none !important; background: var(--surface); }
+  html.glass .ag, html.glass .ag-panel::after { box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.22); } /* no see-through glass, so no reflection: a plain edge instead */
+  html.glass .ag-scroll-thumb.ag, html.glass :is(.ag-scroll:hover, .ag-scroll.held) .ag-scroll-thumb.ag { backdrop-filter: none !important; background: rgb(var(--ink) / 0.5); }
+  /* the switch: a plain track and a solid thumb, same shape and rim */
+  html.glass .switch::before, html.glass .switch i, html.glass .switch:active i { backdrop-filter: none !important; }
+  html.glass .switch i, html.glass .switch:active i, html.glass .switch[aria-checked="true"] i, html.glass .switch[aria-checked="true"]:active i { background: var(--knob); }
+}
+
+/* ---- 10. Dropdown menu (js/select.js): the list that opens from every dropdown ---------------------------------------------
+   Floating glass like the Support menu, with the rows as capsules to match the dropdown it opens from. The menu is a refracting
+   surface (TARGETS in js/glass.js). Until glass.js has measured it (a frame or two the first time it opens) it stays invisible, so
+   the Classic look never flashes. Its entrance only moves (see 1b): a fade would make it a backdrop root while it plays. */
+html.glass .sel-pop { padding: 6px; border-radius: 22px; animation-name: glassSelIn; }
+html.glass .sel-pop[data-side="up"] { animation-name: glassSelInUp; }
+html.glass .sel-pop:not(.ag) { visibility: hidden; }
+html.glass .sel-pop.ag { background: color-mix(in srgb, rgb(var(--pop)) 60%, transparent); box-shadow: var(--ag-rim), 0 18px 40px -12px rgb(0 0 0 / 0.5); }
+html.glass[data-theme="light"] .sel-pop.ag { box-shadow: var(--ag-rim), 0 18px 40px -12px rgb(20 28 50 / 0.3); }
+html.glass .sel-list { gap: 2px; scrollbar-color: rgb(255 255 255 / 0.35) transparent; }
+html.glass[data-theme="light"] .sel-list { scrollbar-color: rgb(20 28 50 / 0.3) transparent; }
+html.glass .sel-item { min-height: 34px; padding: 0 14px 0 16px; border-radius: 999px; transition: background 0.14s, box-shadow 0.14s; }
+html.glass .sel-item.is-active { background: rgb(255 255 255 / 0.16); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12); }
+html.glass[data-theme="light"] .sel-item.is-active { background: rgb(255 255 255 / 0.62); box-shadow: inset 0 0 0 1px rgb(20 28 50 / 0.08); }
+html.glass .sel-item[aria-selected="true"] { background: color-mix(in srgb, rgb(var(--glow)) 24%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent); }
+html.glass .sel-item[aria-selected="true"].is-active { background: color-mix(in srgb, rgb(var(--glow)) 34%, transparent); }
+/* the dropdown while its menu is open keeps the focus ring */
+html.glass .select.ag[aria-expanded="true"] { box-shadow: inset 0 0 0 1px var(--accent), 0 0 0 3px rgb(var(--glow) / 0.2), 0 6px 18px -8px rgb(0 0 0 / 0.4); }
+@keyframes glassSelIn { from { transform: translateY(-6px) scale(0.97); } }
+@keyframes glassSelInUp { from { transform: translateY(6px) scale(0.97); } }
+@media (prefers-reduced-transparency: reduce) {
+  html.glass .sel-pop.ag { background: var(--surface); box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.22); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.glass .sel-pop { animation: none; }
+  html.glass .sel-item { transition: none; }
 }

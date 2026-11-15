@@ -21,6 +21,17 @@
 //    therefore keeps its refraction on a pseudo-element layer behind its content (css/glass.css), which is a sibling of the
 //    controls, not their ancestor. The pseudo-element inherits the panel's --ag-filter.
 //
+// The rim is a real reflection, not a painted line. Every filter ends with a thin band along the edge of the surface that shows
+// the picture itself: the colours that lie just inside the rim (bent by the rim, or pulled in from inside on a small surface),
+// brightened and made richer, and shown only where the edge faces the light. How much of it shows depends on the angle of the
+// edge at that very spot (rimMapUrl below): the strongest where the edge faces the light (top left), a softer bounce on the
+// opposite side (bottom right), a faint thread elsewhere, and it turns smoothly round every corner. The old look was a few
+// fixed white lines painted with box-shadow, the same on every control whatever was behind it.
+//
+// Sliders and scroll bars are glass too: the slider thumb and the scroll bar thumb are lenses laid over the native control (see
+// "sliders" and "scroll bars" below). The update dialog's progress bar is a glass tube like the rest (.upd-bar, in TARGETS); its
+// fill is plain CSS (css/glass.css), with no lens: a lens at the head would make it look like a slider.
+//
 // app.js owns the saved choice (prefs.style, prefs.glass) and calls set() / setParams(). Classic: nothing here runs.
 (() => {
   'use strict';
@@ -30,18 +41,73 @@
   const DEFAULTS = { blur: 2.5, bezel: 14, amount: 30, chroma: 30 }; // px, px, px, percent
   const LIMITS = { blur: [0, 12], bezel: [4, 28], amount: [0, 60], chroma: [0, 100] };
   const TARGETS = [
-    '.tabs, .tab-ind, .seg, .switch i, .btn, .pill-btn', // controls
+    '.tabs, .tab-ind, .seg, .btn, .pill-btn', // controls
     '.select, .text-in, .color-pick, .win-btn, .day, .ka-chip, .ka-key', // dropdowns, inputs, window buttons, small buttons
     '.chip, .sb-chip, .stage-view, .exp-badge, .bat-bar', // pills, status chips, the battery bar
-    '.effect, .hm-dev, .toast, .sup-pop, .upd-card, .upd-bar', // cards, device tiles, messages, the Support menu, dialogs
+    '.effect, .hm-dev, .sp-card, .toast, .sup-pop, .sel-pop, .upd-card, .upd-bar', // cards, device tiles, the UI choice, messages, the Support menu, the dropdown menu, dialogs, the update progress bar
   ].join(', ');
   const PANELS = '.group, .help-body, .stage'; // boxes that hold other glass controls (see the note above)
   // A box is big next to its rim, so the same numbers that look right on a pill read as a thin outline on it. Panels get a
   // wider, stronger bending rim and a little more frost (they carry paragraphs of text) on top of the person's settings.
   const PANEL = { bezel: 2, amount: 1.25, blur: 2.5 };
+  // The extra frost of a panel follows the Blur slider down: it is the full PANEL.blur from the default setting up, and fades to
+  // nothing at 0, so that 0 really is clear glass (before, a panel kept 2.5 px of blur however low the slider went).
+  const panelFrost = (panel) => (panel ? PANEL.blur * Math.min(1, params.blur / DEFAULTS.blur) : 0);
+  // The pull of the rim is in pixels, so on a small control it can reach past the control itself: a 28 px pill pulled the picture
+  // from 30 px away, and everything the pull fetched from outside the pill came back empty. Red is pulled further than blue, so
+  // red and green came back empty first and the rim kept only a blue line (the odd blue edge on pills, chips and the scroll
+  // thumb). So how far the rim may pull is held to a share of the control's shorter side, and so is the gap between the colours.
+  // Cards and panels are big next to both limits, so they look exactly as the settings say.
+  const REACH = 0.3; // the strongest pull, as a share of the shorter side (a pill 44 px high: 13.2 px)
+  const FRINGE = 0.1; // the widest gap between the red and the blue shift, as a share of the shorter side (80 px: 8 px)
+  // Holding the pull inside the control was not enough: on a small control even a short pull bends everything in it (a 26 px chip
+  // had its whole face squeezed towards the middle), and splitting red from blue on top of that put a blue line round the edge of
+  // every chip, pill, switch knob and scroll thumb. So the smallest surfaces are plain frosted glass (no bending, no colour split),
+  // and the colour split is kept for surfaces big enough to show it as a soft glow on the rim, not as a line.
+  const FLAT_BELOW = 36; // px, shorter side: under this a surface is only frosted (chips, the Live/Picture switch, switch knobs, scroll thumbs)
+  const FRINGE_FROM = 64; // px, shorter side: the red/blue split is only for surfaces at least this size (cards, panels, the stage)
+  // The rim reflection (see the header). Light comes from the top left; `d` below is how squarely an edge faces it (-1 to 1).
+  const RIM = {
+    light: [-0.62, -0.78], // direction towards the light (x right, y down): top left
+    floor: 0.2, // a faint thread of reflection all the way round, so no edge ever vanishes
+    hi: 1, // the share that faces the light (d > 0)
+    bounce: 0.7, // the share that faces away (d < 0): the light that comes back from the far side of the glass
+    power: 1.3, // how quickly the reflection falls off as the edge turns away from the light
+    sat: 1.5, // the reflected colours are richer than the picture ...
+    gain: 2.2, // ... brighter ...
+    lift: 0.12, // ... and never fully dark, so even a dark picture leaves a visible edge
+    width: [2, 3], // px, how deep the reflection reaches in from the edge (smallest and largest) ...
+    widthShare: 0.05, // ... as a share of the shorter side
+    // The slider thumb and the sliding tab highlight are clear lenses, held and dragged by hand: they get a brighter, deeper reflection.
+    lens: { gain: 2.8, lift: 0.3, floor: 0.4, width: 0.9 }, // gain and lift replace the ones above, floor too, width is added
+    pull: [3, 9], // px, on a surface too small to bend: how far in the reflected colours are fetched from (smallest and largest) ...
+    pullShare: 0.32, // ... as a share of the shorter side
+  };
+
+  const LENSES = '.range-lens, .tab-ind'; // clear lenses that are held and dragged: their rim reflects more (see RIM.lens)
+  // The slider lens is different from the other lens: it is a clear drop you look through at the track, and the track runs through
+  // its middle. To show the bar bending round the edge the rim has to pull from as far in as the middle (so the reach is the whole
+  // half-height, not 30%), with a wide bezel, and the frost is nearly off so the bar inside stays sharp. Its reflection is a thin,
+  // soft line: the lens is clear, the edge only has to be seen.
+  const SLIDER_LENS = '.range-lens';
+  const SLIDER = {
+    amount: 1.7, // times the person's Refraction setting
+    reach: 0.36, // the strongest pull, as a share of the shorter side (a lens 44 px high: 22 px, the middle of it)
+    bezel: 1.1, // times the person's Edge width setting
+    blur: 0.25, // times the person's Blur setting
+    rim: { gain: 1.15, lift: 0.04, floor: 0.16, width: 0.45 }, // like RIM.lens, softer
+  };
+  // `lens` is false (a plain surface), true (the tab highlight and other lenses) or 'slider' (the slider lens). Its reflection settings:
+  const lensRim = (lens) => (lens === 'slider' ? SLIDER.rim : lens ? RIM.lens : null);
   const RANGES = 'input.range'; // sliders: the native thumb is hidden and a glass lens is drawn over it (see "sliders" below)
   const THUMB = 42; // px, width of the native (invisible) thumb: the lens rests on it, so the travel stays the same
   const PEEK_MS = 700; // how long the lens stays swollen after a key press or wheel nudge
+  const JELLY_SPEED = 14; // px per frame of pointer speed at which the held lens stretches the most
+  const SCROLLERS = '.panels, #maxRoot, .upd-body'; // the areas that scroll: their native bar is hidden and a glass one is drawn
+  const SB_GRAB = 18; // px, width of the strip you can grab (the glass thumb in it is 12 px: css/glass.css)
+  const SB_INSET = 8; // px, space above and below the thumb's track
+  const SB_MIN = 40; // px, the shortest the thumb gets, however long the page is
+  const SB_BUSY_MS = 900; // how long the thumb stays bright after the page scrolled
 
   function clean(p) {
     const out = {};
@@ -73,6 +139,18 @@
   // ---- displacement map: for a w x h rounded box, where each pixel at the rim should look from (R = x, G = y; 128 = still).
   // Drawn at CSS pixels, and only where it is not flat (see the header).
   const maps = new Map();
+  // One canvas does for every map: making a canvas and its 2d context for each of them was a big part of what a new size cost.
+  // Setting the size also clears it, so each map starts empty.
+  let scratch = null;
+  function scratchCanvas(w, h) {
+    if (!scratch) {
+      const cv = document.createElement('canvas');
+      scratch = { cv, ctx: cv.getContext('2d') };
+    }
+    scratch.cv.width = w;
+    scratch.cv.height = h;
+    return scratch;
+  }
   const dpr = () => Math.min(3, Math.max(1, window.devicePixelRatio || 1)); // sizes the smoothing blur (see smoothing())
   const FLAT = new Uint32Array(1); // one "still" pixel (128, 128, 128, opaque), written byte by byte so byte order never matters
   new Uint8Array(FLAT.buffer).set([128, 128, 128, 255]);
@@ -84,10 +162,7 @@
     const mh = Math.max(1, h);
     const mr = r;
     const mb = Math.max(1, bezel);
-    const cv = document.createElement('canvas');
-    cv.width = mw;
-    cv.height = mh;
-    const ctx = cv.getContext('2d');
+    const { cv, ctx } = scratchCanvas(mw, mh);
     const img = ctx.createImageData(mw, mh);
     const px = img.data;
     new Uint32Array(px.buffer).fill(FLAT[0]);
@@ -136,10 +211,99 @@
     return url;
   }
 
+  // ---- the rim map: for a w x h rounded box, a thin band along the edge that says, pixel by pixel, how much reflection shows
+  // (B) and which way the edge faces (R, G: 128 = still; the same coding as the displacement map above, so the same pixels can
+  // be fetched from inside). Only the band is drawn; the rest is flat and empty (B = 0). Drawn at CSS pixels like the other map.
+  const RIM_LIGHT = (() => {
+    const len = Math.hypot(RIM.light[0], RIM.light[1]) || 1;
+    return [RIM.light[0] / len, RIM.light[1] / len];
+  })();
+  const FLAT_RIM = new Uint32Array(1);
+  new Uint8Array(FLAT_RIM.buffer).set([128, 128, 0, 255]);
+  // How deep the reflection reaches (width) and, on a surface too small to bend, how far in its colours are fetched from (pull).
+  function rimSpec(w, h, lens) {
+    const side = Math.min(w, h);
+    const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
+    const width = Math.round((clamp(side * RIM.widthShare, RIM.width) + (lens ? lensRim(lens).width : 0)) * 10) / 10;
+    const pull = Math.round(Math.min(clamp(side * RIM.pullShare, RIM.pull), side * 0.45) * 10) / 10; // never from beyond the middle
+    return { width, pull };
+  }
+  // How strongly the reflection shows where the edge's outward normal is (nx, ny): 0 to 1.
+  function rimLight(nx, ny, lens) {
+    const d = nx * RIM_LIGHT[0] + ny * RIM_LIGHT[1];
+    const lit = RIM.hi * Math.pow(Math.max(d, 0), RIM.power);
+    const back = RIM.bounce * Math.pow(Math.max(-d, 0), RIM.power);
+    return Math.min(1, (lens ? lensRim(lens).floor : RIM.floor) + lit + back);
+  }
+  // `strength` true draws only the strength of the reflection, as the picture's alpha (the form a surface that bends uses: it needs no
+  // direction, so the filter can use the picture as its mask straight away, one pass fewer). False is the full map above (strength in B,
+  // direction in R and G), which a surface too small to bend needs to fetch its reflected colours from inside.
+  function rimMapUrl(w, h, r, width, lens, strength = false) {
+    const key = `rim${strength ? 'A' : ''}${w}x${h}r${Math.round(r)}w${width}${lens === 'slider' ? 'S' : lens ? 'L' : ''}`;
+    if (maps.has(key)) return maps.get(key);
+    if (maps.size > 60) maps.clear();
+    const mw = Math.max(1, w);
+    const mh = Math.max(1, h);
+    const { cv, ctx } = scratchCanvas(mw, mh);
+    const img = ctx.createImageData(mw, mh);
+    const px = img.data;
+    if (!strength) new Uint32Array(px.buffer).fill(FLAT_RIM[0]); // (the alpha form starts as the empty, transparent picture)
+    const hw = mw / 2;
+    const hh = mh / 2;
+    const reach = width + 0.5;
+    const side = Math.ceil(reach) + 1; // columns at each side that can hold the band, on rows that are not near the top or bottom
+    const cell = (x, y) => {
+      const cx = x + 0.5 - hw;
+      const cy = y + 0.5 - hh;
+      const qx = Math.abs(cx) - (hw - r);
+      const qy = Math.abs(cy) - (hh - r);
+      const outside = Math.hypot(Math.max(qx, 0), Math.max(qy, 0));
+      const depth = r - outside - Math.min(Math.max(qx, qy), 0); // how far inside the edge this pixel is
+      if (depth >= reach) return;
+      let nx;
+      let ny; // outward normal: the way this bit of edge faces
+      if (qx > 0 && qy > 0) {
+        const len = Math.hypot(qx, qy);
+        nx = (Math.sign(cx) * qx) / len;
+        ny = (Math.sign(cy) * qy) / len;
+      } else if (qx > qy) {
+        nx = Math.sign(cx);
+        ny = 0;
+      } else {
+        nx = 0;
+        ny = Math.sign(cy);
+      }
+      const t = Math.min(1, Math.max(0, 1 - (Math.max(depth, 0) - 0.5) / width)); // 1 on the edge, 0 at the inner end of the band
+      const fade = t * t * (3 - 2 * t); // smooth, so the reflection has no hard inner line
+      const i = (y * mw + x) * 4;
+      if (strength) {
+        px[i + 3] = Math.round(255 * fade * rimLight(nx, ny, lens));
+        return;
+      }
+      px[i] = Math.round(127.5 - nx * 127.5);
+      px[i + 1] = Math.round(127.5 - ny * 127.5);
+      px[i + 2] = Math.round(255 * fade * rimLight(nx, ny, lens));
+    };
+    for (let y = 0; y < mh; y++) {
+      const qy = Math.abs(y + 0.5 - hh) - (hh - r);
+      if (qy >= -reach - 1 || side * 2 >= mw) {
+        for (let x = 0; x < mw; x++) cell(x, y); // near the top or bottom edge: the whole row holds the band
+      } else {
+        for (let x = 0; x < side; x++) cell(x, y);
+        for (let x = mw - side; x < mw; x++) cell(x, y);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const url = cv.toDataURL('image/png');
+    maps.set(key, url);
+    return url;
+  }
+
   // ---- one SVG filter per distinct (size, radius, settings); shared by surfaces that match, and dropped when none uses it
   let defs = null;
   const filters = new Map(); // key -> { id, node, refs }
   let seq = 0;
+  let pending = null; // while a batch is painted, the new filters wait here and go into the page together (see flush)
   function ensureDefs() {
     if (defs && defs.isConnected) return;
     const holder = document.createElement('div');
@@ -155,21 +319,52 @@
   // The size, in CSS pixels, of the small blur after the shift (0: none). About 0.75 screen pixels, which hides the
   // one-pixel stairs of the shift. With a strong frost blur there are no stairs to hide, so it is left out (saves a pass).
   const smoothing = (blur) => (blur >= 4 ? 0 : Math.max(0.3, 0.75 / dpr()));
-  function makeFilter(id, w, h, r, bezel, blur, amount) {
+  // The colour matrix that turns the picture at the rim into its reflection: richer (saturation), brighter (gain), never fully dark (lift).
+  function rimBoost(lens) {
+    const { sat } = RIM;
+    const gain = lens ? lensRim(lens).gain : RIM.gain;
+    const lift = lens ? lensRim(lens).lift : RIM.lift;
+    const lum = [0.2126, 0.7152, 0.0722]; // how much each colour counts towards brightness
+    const rows = lum.map((_, row) => lum.map((l, col) => (l * (1 - sat) + (row === col ? sat : 0)) * gain));
+    const f = (v) => v.toFixed(4);
+    return rows.map((r3) => `${r3.map(f).join(' ')} 0 ${f(lift)}`).join('  ') + '  0 0 0 1 0';
+  }
+  // The reflection: a band along the edge, in the picture's own colours, brighter where the edge faces the light.
+  //  - `from` is the picture the colours come from: the bent picture (`o`) where the surface bends, so the reflection is what the rim
+  //    bends in from inside; on a surface too small to bend it is the frosted picture fetched again from `pull` px further in (the
+  //    direction of each edge is in the map), so even a 12 px thumb reflects what lies inside it, not a fixed white line;
+  //  - the map's blue channel says how much of it shows at each pixel (it becomes the mask's alpha).
+  function rimPass(w, h, r, base, bent, lens) {
+    const { width, pull } = rimSpec(w, h, lens);
+    const map = `<feImage href="${rimMapUrl(w, h, r, width, lens, bent)}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="rm"/>`;
+    const fetch = bent
+      ? ''
+      : `<feDisplacementMap in="b" in2="rm" scale="${(pull * 2).toFixed(2)}" xChannelSelector="R" yChannelSelector="G" result="rr"/>`;
+    return (
+      map +
+      fetch +
+      `<feColorMatrix in="${bent ? 'o' : 'rr'}" type="matrix" values="${rimBoost(lens)}" result="rc"/>` +
+      // bending surface: the map's alpha is the strength already; small surface: it is the map's blue channel, moved into the alpha first
+      (bent ? '' : '<feColorMatrix in="rm" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 1 0 0" result="ra"/>') +
+      `<feComposite in="rc" in2="${bent ? 'rm' : 'ra'}" operator="in" result="rl"/>` +
+      `<feComposite in="rl" in2="${base}" operator="over" result="f"/>`
+    );
+  }
+  function makeFilter(id, w, h, r, bezel, blur, amount, ca, lens) {
     const s = amount * 2; // feDisplacementMap moves a pixel by scale * (value - 0.5)
-    const ca = (params.chroma / 100) * 0.6;
     const frost = `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" edgeMode="duplicate" result="b"/>`;
     const disp = (k, result) =>
       `<feDisplacementMap in="b" in2="m" scale="${(s * k).toFixed(2)}" xChannelSelector="R" yChannelSelector="G" result="${result}"/>`;
     let body;
+    let post = '';
     if (s === 0) {
-      body = frost; // nothing to bend: just the frost, no map at all
+      body = frost; // nothing to bend: just the frost, no bending map at all (the rim below has a map of its own)
     } else {
       const soft = smoothing(blur);
       const map = `<feImage href="${mapUrl(w, h, r, bezel)}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="m"/>`;
-      const post = soft ? `<feGaussianBlur stdDeviation="${soft.toFixed(2)}" edgeMode="duplicate"/>` : '';
+      post = soft ? `<feGaussianBlur in="f" stdDeviation="${soft.toFixed(2)}" edgeMode="duplicate"/>` : '';
       if (ca === 0) {
-        body = frost + map + disp(1, 'o') + post; // no colour fringe: one shift
+        body = frost + map + disp(1, 'o'); // no colour fringe: one shift
       } else {
         // Red is shifted a little more and blue a little less. Green is the mean of both, so two shifts give three colours.
         body =
@@ -179,28 +374,44 @@
           disp(1 - ca, 'dB') +
           `<feColorMatrix in="dA" type="matrix" values="${keep(1, 0.5, 0)}" result="cA"/>` +
           `<feColorMatrix in="dB" type="matrix" values="${keep(0, 0.5, 1)}" result="cB"/>` +
-          `<feComposite in="cA" in2="cB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"${post ? ' result="o"' : ''}/>` +
-          post;
+          '<feComposite in="cA" in2="cB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="o"/>';
       }
     }
+    body += rimPass(w, h, r, s === 0 ? 'b' : 'o', s !== 0, lens) + post; // the reflection goes over the finished glass; the smoothing covers both
     const holder = document.createElement('div');
     holder.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg"><filter id="${id}" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">${body}</filter></svg>`;
     return holder.firstChild.firstChild;
   }
+  // How hard the rim of a w x h surface pulls the picture (amount, px) and how far apart red and blue are pulled (ca, a share of
+  // the amount), from the person's settings, held to what fits the surface (see REACH and FRINGE above).
+  function rim(w, h, panel, slider) {
+    const side = Math.min(w, h);
+    if (side < FLAT_BELOW) return { amount: 0, ca: 0 }; // frost only: nothing to bend, nothing to split
+    const gain = panel ? PANEL.amount : slider ? SLIDER.amount : 1;
+    const amount = Math.round(Math.min(params.amount * gain, side * (slider ? SLIDER.reach : REACH)) * 100) / 100;
+    // The person's fringe, cut down where the gap between the two shifts (2 x fringe x amount) would pass FRINGE of the side.
+    let ca = (params.chroma / 100) * 0.6;
+    if (amount > 0) ca = Math.min(ca, (side * FRINGE) / (2 * amount));
+    if (side < FRINGE_FROM) ca = 0; // pills, buttons, inputs: bent a little, never split into colours
+    ca = ca < 0.01 ? 0 : Math.round(ca * 1000) / 1000; // none worth a second shift: one pass fewer
+    return { amount, ca };
+  }
   // Gives `el` the filter that fits its size (making it if nobody has one like it) and lets go of the one it had.
-  function acquire(el, w, h, radius, panel) {
+  function acquire(el, w, h, radius, panel, lens, slider) {
     const r = Math.min(radius, w / 2, h / 2);
-    const bezel = Math.min(params.bezel * (panel ? PANEL.bezel : 1), Math.min(w, h) / 2);
-    const blur = params.blur + (panel ? PANEL.blur : 0);
-    const amount = params.amount * (panel ? PANEL.amount : 1);
-    const key = `${w}x${h}r${Math.round(r)}b${bezel}|${blur}|${amount}|${params.chroma}|${dpr()}`;
+    const bezel = Math.min(params.bezel * (panel ? PANEL.bezel : 1) * (slider ? SLIDER.bezel : 1), Math.min(w, h) / 2);
+    const blur = slider ? Math.round(params.blur * SLIDER.blur * 100) / 100 : Math.round((params.blur + panelFrost(panel)) * 100) / 100;
+    const { amount, ca } = rim(w, h, panel, slider);
+    const kind = slider ? 'slider' : lens; // which reflection the filter ends with (see lensRim)
+    const key = `${w}x${h}r${Math.round(r)}b${bezel}|${blur}|${amount}|${ca}|${lens ? 'L' : ''}${slider ? 'S' : ''}|${dpr()}`;
     if (el._agKey === key && filters.has(key)) return filters.get(key).id;
     drop(el);
     let f = filters.get(key);
     if (!f) {
       const id = `ag-${++seq}`;
-      const node = makeFilter(id, w, h, r, bezel, blur, amount);
-      defs.append(node);
+      const node = makeFilter(id, w, h, r, bezel, blur, amount, ca, kind);
+      if (pending) pending.push(node);
+      else defs.append(node);
       f = { id, node, refs: 0, key };
       filters.set(key, f);
     }
@@ -234,8 +445,7 @@
     const lens = document.createElement('span');
     lens.className = 'range-lens';
     lens.setAttribute('aria-hidden', 'true');
-    lens.innerHTML = '<i></i>'; // the magnified bar you see through the lens while it is held
-    rng.after(lens);
+    rng.after(lens); // empty: what you see through it while it is held is the real track, bent by its filter
     let peek = 0;
     const hold = (v) => lens.classList.toggle('held', v);
     const place = () => {
@@ -248,17 +458,52 @@
       lens.style.setProperty('--ly', `${rng.offsetTop + rng.offsetHeight / 2}px`);
       lens.style.setProperty('--lp', String(pf));
     };
+    // The held lens is a drop of liquid: dragged fast it stretches (css/glass.css reads --lv, -1 to 1: the smoothed pointer speed,
+    // signed by direction), then settles back. Only a scale is applied, never a change of shape, so the filter built for the lens stays exact. `kick` is the latest move, `vel` follows it with a lag, and a frame loop runs only while either moves.
+    // Speeds are in px per 16.7 ms (one frame at 60 Hz) and the easing is by elapsed time, so a slow machine eases at the same pace.
+    let lastX = 0;
+    let lastT = 0;
+    let kick = 0;
+    let vel = 0;
+    let jelly = 0;
+    let stepT = 0;
+    const jellyStep = (now) => {
+      jelly = 0;
+      const dt = Math.min(100, stepT ? now - stepT : 16.7) / 16.7; // frames since the last step
+      stepT = now;
+      vel += (kick - vel) * (1 - Math.pow(0.7, dt));
+      kick *= Math.pow(0.8, dt);
+      lens.style.setProperty('--lv', Math.max(-1, Math.min(1, vel / JELLY_SPEED)).toFixed(3));
+      if (Math.abs(vel) > 0.02 || Math.abs(kick) > 0.02) jelly = requestAnimationFrame(jellyStep);
+      else {
+        vel = kick = stepT = 0;
+        lens.style.removeProperty('--lv');
+      }
+    };
+    const onMove = (e) => {
+      if (!lens.classList.contains('held')) return;
+      const t = e.timeStamp || 0;
+      const frames = Math.max(0.5, lastT ? (t - lastT) / 16.7 : 1); // a burst of events is fast, not many separate nudges
+      kick = Math.max(-60, Math.min(60, (e.clientX - lastX) / frames));
+      lastX = e.clientX;
+      lastT = t;
+      if (!jelly) jelly = requestAnimationFrame(jellyStep);
+    };
     const letGo = () => {
       hold(false);
       window.removeEventListener('pointerup', letGo, true);
       window.removeEventListener('pointercancel', letGo, true);
+      window.removeEventListener('pointermove', onMove, true);
     };
     const onDown = (e) => {
       if (rng.disabled || (e.button != null && e.button > 0)) return;
       clearTimeout(peek);
       hold(true);
+      lastX = e.clientX || 0;
+      lastT = e.timeStamp || 0;
       window.addEventListener('pointerup', letGo, true);
       window.addEventListener('pointercancel', letGo, true);
+      window.addEventListener('pointermove', onMove, true);
     };
     const onInput = () => {
       place();
@@ -283,6 +528,8 @@
       off() {
         clearTimeout(peek);
         letGo();
+        if (jelly && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(jelly);
+        lens.style.removeProperty('--lv');
         rng.removeEventListener('pointerdown', onDown);
         rng.removeEventListener('input', onInput);
         rng.removeEventListener('change', place);
@@ -300,6 +547,152 @@
   function unmountRanges() {
     for (const rec of lensOf.values()) rec.off();
     lensOf.clear();
+  }
+
+  // ---- scroll bars: the native bar of a scrolling area is hidden (data-ag-scroll) and a glass thumb is drawn beside it. The thumb
+  // is a lens like the slider's: it refracts the page and the picture that pass behind it. It is a sibling of the area, not a child
+  // (a child would scroll away with the content). The area stays in charge of scrolling (wheel, touch, keys, find); the thumb only
+  // follows scrollTop, can be dragged, and a click on the strip beside it pages up or down.
+  // Sizes are read when the area or its content resizes; a scroll event only moves the thumb (a translate), so scrolling does no layout.
+  const barOf = new Map(); // scrolling area -> { bar, thumb, layout, sync, off }
+  const roScroll = new ResizeObserver((entries) => {
+    if (!on) return;
+    for (const e of entries) {
+      const rec = barOf.get(e.target) || barOf.get(e.target._agArea);
+      if (rec) rec.layout();
+    }
+  });
+  function mountScroll(area) {
+    if (barOf.has(area) || !area.parentNode) return;
+    const bar = document.createElement('span');
+    bar.className = 'ag-scroll';
+    bar.setAttribute('aria-hidden', 'true');
+    bar.hidden = true;
+    const thumb = document.createElement('i');
+    thumb.className = 'ag-scroll-thumb';
+    bar.append(thumb);
+    area.after(bar);
+    area.setAttribute('data-ag-scroll', '');
+    let geo = null; // { track, th, max } from the last layout
+    let busy = 0;
+    let drag = null;
+    const move = () => {
+      if (!geo) return;
+      const f = geo.max > 0 ? Math.min(1, Math.max(0, area.scrollTop / geo.max)) : 0;
+      thumb.style.setProperty('--ty', `${((geo.track - geo.th) * f).toFixed(1)}px`);
+    };
+    const layout = () => {
+      const w = area.offsetWidth;
+      const vh = area.clientHeight;
+      const sh = area.scrollHeight;
+      if (!w || vh < 2 * SB_INSET + SB_MIN || sh <= vh + 1) {
+        bar.hidden = true; // hidden for now, or nothing to scroll: the observer fires again when that changes
+        geo = null;
+        return;
+      }
+      const track = vh - 2 * SB_INSET;
+      const th = Math.min(track, Math.round(Math.max(SB_MIN, (track * vh) / sh)));
+      // Beside the area when its parent leaves a gutter there (the page area has the window's 22 px margin), else inside its right edge.
+      const par = area.parentElement;
+      const room = par && par.offsetParent === area.offsetParent ? par.offsetLeft + par.clientWidth - (area.offsetLeft + w) : 0;
+      const x = room >= SB_GRAB - 4 ? w + Math.round((room - SB_GRAB) / 2) : w - SB_GRAB - 2;
+      bar.style.setProperty('--sl', `${area.offsetLeft + x}px`);
+      bar.style.setProperty('--st', `${area.offsetTop + SB_INSET}px`);
+      bar.style.setProperty('--sh', `${track}px`);
+      thumb.style.setProperty('--th', `${th}px`);
+      geo = { track, th, max: sh - vh };
+      bar.hidden = false;
+      move();
+    };
+    const onScroll = () => {
+      move();
+      bar.classList.add('busy');
+      clearTimeout(busy);
+      busy = setTimeout(() => bar.classList.remove('busy'), SB_BUSY_MS);
+    };
+    const endDrag = () => {
+      drag = null;
+      bar.classList.remove('held');
+    };
+    const onDown = (e) => {
+      if (e.button != null && e.button > 0) return;
+      e.preventDefault();
+      if (!geo) return;
+      if (e.target === thumb) {
+        drag = { y: e.clientY, top: area.scrollTop, ratio: geo.track > geo.th ? geo.max / (geo.track - geo.th) : 0 };
+        bar.classList.add('held');
+        try {
+          thumb.setPointerCapture(e.pointerId);
+        } catch (_) {
+          /* the pointer is already gone: the drag simply does nothing */
+        }
+      } else {
+        const up = e.clientY < thumb.getBoundingClientRect().top;
+        area.scrollBy({ top: (up ? -1 : 1) * area.clientHeight * 0.9, behavior: 'smooth' });
+      }
+    };
+    const onMove = (e) => {
+      if (drag) area.scrollTop = drag.top + (e.clientY - drag.y) * drag.ratio;
+    };
+    const onWheel = (e) => {
+      // a wheel turned over the strip scrolls the area, as it would over the area itself
+      const unit = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? area.clientHeight : 1;
+      area.scrollBy({ top: e.deltaY * unit });
+      e.preventDefault();
+    };
+    area.addEventListener('scroll', onScroll, { passive: true });
+    bar.addEventListener('pointerdown', onDown);
+    bar.addEventListener('pointermove', onMove);
+    bar.addEventListener('pointerup', endDrag);
+    bar.addEventListener('pointercancel', endDrag);
+    bar.addEventListener('lostpointercapture', endDrag);
+    bar.addEventListener('wheel', onWheel, { passive: false });
+    // The area's own size, and the size of what is in it (a longer page, a panel that was shown or hidden, a list that grew).
+    const watched = new Set();
+    const sync = () => {
+      for (const c of area.children) {
+        if (watched.has(c)) continue;
+        watched.add(c);
+        c._agArea = area;
+        roScroll.observe(c);
+      }
+      for (const c of watched) {
+        if (c.parentNode === area) continue;
+        watched.delete(c);
+        roScroll.unobserve(c);
+      }
+    };
+    roScroll.observe(area);
+    sync();
+    live.add(thumb);
+    ro.observe(thumb); // reports the size straight away, which gives the thumb its refraction filter
+    barOf.set(area, {
+      bar,
+      thumb,
+      layout,
+      sync() {
+        sync();
+        layout();
+      },
+      off() {
+        clearTimeout(busy);
+        endDrag();
+        area.removeEventListener('scroll', onScroll);
+        area.removeAttribute('data-ag-scroll');
+        roScroll.unobserve(area);
+        for (const c of watched) roScroll.unobserve(c);
+        watched.clear();
+        live.delete(thumb);
+        ro.unobserve(thumb);
+        drop(thumb);
+        bar.remove();
+      },
+    });
+    layout();
+  }
+  function unmountScrolls() {
+    for (const rec of barOf.values()) rec.off();
+    barOf.clear();
   }
 
   // ---- which controls are glass, and keeping each one's filter right as it appears, resizes or is shown
@@ -324,20 +717,32 @@
     dirty.add(el);
     if (!raf) raf = requestAnimationFrame(flush);
   }
+  // Everything is measured first and only then changed. Painting one surface after another meant that each style, class and
+  // filter written for one made the next measurement recalculate the whole page's styles and layout again: with forty surfaces
+  // that was forty recalculations in a row (a first visit to a page, or a change of a glass setting), now it is one.
   function flush() {
     raf = 0;
     if (!on) return dirty.clear();
     ensureDefs();
-    for (const el of dirty) paint(el);
+    const batch = [];
+    for (const el of dirty) {
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      if (!w || !h || !el.isConnected) continue; // hidden for now: the observer fires again when it is shown
+      batch.push([el, w, h, parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0]);
+    }
     dirty.clear();
+    pending = [];
+    try {
+      for (const [el, w, h, radius] of batch) paint(el, w, h, radius);
+    } finally {
+      if (pending.length) defs.append(...pending);
+      pending = null;
+    }
   }
-  function paint(el) {
-    const w = el.offsetWidth;
-    const h = el.offsetHeight;
-    if (!w || !h || !el.isConnected) return; // hidden for now: the observer fires again when it is shown
-    const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+  function paint(el, w, h, radius) {
     const panel = el.matches(PANELS);
-    el.style.setProperty('--ag-filter', `url(#${acquire(el, w, h, radius, panel)})`);
+    el.style.setProperty('--ag-filter', `url(#${acquire(el, w, h, radius, panel, !panel && el.matches(LENSES), !panel && el.matches(SLIDER_LENS))})`);
     el.classList.add(panel ? 'ag-panel' : 'ag');
   }
   function scan() {
@@ -363,9 +768,29 @@
       }
     }
     for (const rng of document.querySelectorAll(RANGES)) mountRange(rng);
+    for (const [area, rec] of barOf) {
+      if (!area.isConnected) {
+        rec.off();
+        barOf.delete(area);
+      }
+    }
+    for (const area of document.querySelectorAll(SCROLLERS)) mountScroll(area);
+    for (const rec of barOf.values()) rec.sync(); // new or removed children, and a size that changed without the area itself resizing
   }
-  const mo = new MutationObserver(() => {
-    if (!scanTimer) scanTimer = setTimeout(scan, 150);
+  // Only elements that come or go can change what is glass or scrolls. A text that changes (a battery age, a latency, a status)
+  // arrives as a node too, but not an element, and used to start a scan of the whole page (with a layout) every time.
+  const hasElement = (nodes) => {
+    for (const n of nodes) if (n.nodeType === 1) return true;
+    return false;
+  };
+  const mo = new MutationObserver((list) => {
+    if (scanTimer) return;
+    for (const m of list) {
+      if (hasElement(m.addedNodes) || hasElement(m.removedNodes)) {
+        scanTimer = setTimeout(scan, 150);
+        return;
+      }
+    }
   });
   // A new pixel density (zoom, or the window moved to another screen) changes the size of the smoothing blur.
   let seenDpr = dpr();
@@ -375,14 +800,12 @@
     seenDpr = now;
     if (on) repaintAll();
   }
+  // The filters are not thrown away first: the key of each one holds the settings and the pixel density, so acquire() gives every
+  // surface the filter that fits the new ones and lets go of its old one (which is removed when nobody else uses it). That is
+  // done in one go, so a setting that is dragged never shows a frame with the glass missing.
   function repaintAll() {
     ensureDefs();
-    defs.replaceChildren();
-    filters.clear();
-    for (const el of live) {
-      el._agKey = null;
-      queueNow(el);
-    }
+    for (const el of live) queueNow(el);
   }
   function release() {
     mo.disconnect();
@@ -391,6 +814,7 @@
     scanTimer = 0;
     dirty.clear();
     unmountRanges();
+    unmountScrolls();
     for (const el of live) {
       ro.unobserve(el);
       clearTimeout(settle.get(el));
@@ -416,6 +840,9 @@
     DEFAULTS,
     LIMITS,
     clean,
+    rim,
+    rimSpec,
+    rimLight,
     isOn: () => on,
     params: () => ({ ...params }),
     set(next) {

@@ -1,0 +1,104 @@
+/* ==========================================================================
+   "Which UI do you want to use?" (js/stylepick.js, js/home.js): the screen between Start and the device list, shown once to
+   everybody who has not chosen yet. Two cards, Classic and Liquid glass, each with a picture of the real app; one is selected
+   (a radio group) and Continue applies it. The pictures are src/img/ui/*.webp, made by `npm run screenshots -- ui-previews`.
+   Colours come from the same variables as everything else, so the light theme and Liquid glass apply. Liquid glass restyles the
+   cards in css/glass.css; every rule there starts with html.glass.
+   ========================================================================== */
+
+/* This screen is taller than the others, so on the smallest window it may scroll (its scroll bar is hidden, like the device list's). */
+.scr-style {
+  justify-content: flex-start;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-top: clamp(14px, 4vh, 40px);
+}
+.scr-style::-webkit-scrollbar { display: none; }
+/* margin:auto on the first and last child centres the block when there is room, and lets it start at the top when there is not */
+.scr-style > :first-child { margin-top: auto; }
+.scr-style > :last-child { margin-bottom: auto; }
+
+.sp-title { font-size: clamp(24px, 3.6vw, 34px); font-weight: 700; }
+.sp-sub { margin: 8px 0 clamp(14px, 3vh, 26px); max-width: 620px; color: var(--muted); font-size: 13.5px; text-wrap: balance; }
+
+.sp-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  width: min(900px, 100%);
+}
+
+.sp-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 10px 14px;
+  border: 0;
+  border-radius: 24px;
+  background: rgb(var(--tile) / 0.78);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  transition: background 0.2s, box-shadow 0.25s, transform 0.25s var(--spring);
+}
+.sp-card:hover { background: rgb(var(--tile-hover) / 0.92); transform: translateY(-2px); box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.26), 0 14px 28px -16px rgb(var(--shade) / 0.75); }
+.sp-card:active { transform: scale(0.99); }
+.sp-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.sp-card[aria-checked="true"],
+.sp-card[aria-checked="true"]:hover {
+  background: rgb(var(--tile-hover) / 0.92);
+  box-shadow: inset 0 0 0 2px var(--accent), 0 16px 34px -18px rgb(var(--glow) / 0.8);
+}
+
+/* The picture of the app. Shown whole at the top (a 3:2 window); on a short window it is cropped from the bottom, never stretched. */
+.sp-shot {
+  display: block;
+  aspect-ratio: 3 / 2;
+  max-height: clamp(150px, 33vh, 300px);
+  width: 100%;
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgb(var(--ink) / 0.05);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.sp-shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; user-select: none; -webkit-user-drag: none; }
+
+.sp-meta { display: flex; flex-direction: column; gap: 6px; padding: 0 8px 0 6px; min-width: 0; }
+.sp-name { display: flex; align-items: center; gap: 10px; }
+.sp-name b { font: 650 17px var(--font-display); }
+.sp-text { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+
+/* The tick in the corner of the selected card. */
+.sp-tick {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: var(--hi);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.2s, transform 0.3s var(--spring);
+  filter: drop-shadow(0 1px 4px rgb(0 0 0 / 0.5));
+}
+.sp-tick circle { fill: rgb(var(--ctl-ink) / 0.9); stroke: none; }
+.sp-tick path { stroke: #fff; }
+.sp-card[aria-checked="true"] .sp-tick { opacity: 1; transform: none; }
+
+.sp-go { height: 46px; margin-top: clamp(14px, 3vh, 26px); padding: 0 46px; font-size: 14px; }
+.sp-note { margin-top: 12px; color: var(--faint); font-size: 12px; }
+
+/* A narrow window: the cards sit one above the other, with the picture beside the words so the page stays short. */
+@media (max-width: 760px) {
+  .sp-cards { grid-template-columns: 1fr; gap: 12px; }
+  .sp-card { flex-direction: row; align-items: center; }
+  .sp-shot { width: 44%; flex: none; max-height: none; }
+  .sp-tick { top: 14px; right: 14px; }
+}

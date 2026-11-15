@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="css/battery.css">
   <link rel="stylesheet" href="css/update.css">
   <link rel="stylesheet" href="css/support.css">
+  <link rel="stylesheet" href="css/select.css">
+  <link rel="stylesheet" href="css/stylepick.css">
   <link rel="stylesheet" href="css/keys.css">
   <link rel="stylesheet" href="css/max.css">
   <link rel="stylesheet" href="css/lite.css">
@@ -63,6 +65,8 @@
 
   <main class="main">
     <section class="stage" aria-label="Keyboard preview">
+      <!-- The card behind the keyboard picture (Settings > Theme > Keyboard background; lite.css 4d). Classic only: Liquid glass paints its own. -->
+      <div class="stage-card" aria-hidden="true"></div>
       <div class="stage-canvas"><canvas id="kb" aria-label="Preview of the keyboard lighting" role="img"></canvas></div>
       <!-- Live follows the real keyboard (and goes dark when it is off or asleep); Picture is only a still image of the keyboard in its current light colours: no animation, no pointer effects, nothing laid over it. -->
       <div class="stage-view" id="stageView" role="group" aria-label="What the keyboard picture shows" data-live="off">
@@ -112,9 +116,11 @@
       <section class="panel" id="panel-lighting" role="tabpanel" aria-labelledby="tab-lighting" hidden>
         <div class="split">
           <div class="block">
-            <div class="block-head"><h2>Effect</h2><span class="val" id="effName"></span></div>
-            <p class="eff-desc" id="effDesc"></p>
-            <div class="eff-chips" id="effChips"></div>
+            <div class="eff-top">
+              <div class="block-head"><h2>Effect</h2><span class="val" id="effName"></span></div>
+              <p class="eff-desc" id="effDesc"></p>
+              <div class="eff-chips" id="effChips"></div>
+            </div>
             <div class="effects" id="effects" role="radiogroup" aria-label="Lighting effect"></div>
             <p class="note" id="effNote"></p>
           </div>
@@ -449,10 +455,20 @@
                     </div>
                   </div>
                 </div>
+                <!-- Classic only (hidden with Liquid glass, which has its own Blur slider below): the frosted blur behind the tabs, cards, tiles and floating bars. -->
+                <div class="srow" id="blurRow">
+                  <div class="srow-text"><b>Blur</b><p class="hint">Frosted blur behind the tabs, cards, tiles and pop-ups. Turn it off for a flatter look that is lighter on the computer.</p></div>
+                  <div class="srow-ctl"><button class="switch" id="swBlur" role="switch" aria-checked="true" aria-label="Blur" type="button"><i></i></button></div>
+                </div>
                 <!-- Only shown where Windows can frost the window (Windows 11 22H2 and later); see js/frost.js. -->
                 <div class="srow" id="frostRow" hidden>
                   <div class="srow-text"><b>Frosted window</b><p class="hint" id="frostHint">Lets the desktop show through the window, blurred. Only with the default background.</p></div>
                   <div class="srow-ctl"><button class="switch" id="swFrost" role="switch" aria-checked="true" aria-label="Frosted window" type="button"><i></i></button></div>
+                </div>
+                <!-- A card behind the keyboard picture, in the same style as the cards below it (Classic: lite.css 4d, Liquid glass: glass.css). Off shows the picture straight on the page, as before. -->
+                <div class="srow" id="stageBgRow">
+                  <div class="srow-text"><b>Keyboard background</b><p class="hint">A panel behind the keyboard picture, in the same style as the cards below it. Turn it off to show the keyboard straight on the page.</p></div>
+                  <div class="srow-ctl"><button class="switch" id="swStageBg" role="switch" aria-checked="true" aria-label="Keyboard background" type="button"><i></i></button></div>
                 </div>
               </div>
             </section>
@@ -629,6 +645,34 @@
       <p class="hs-hint hm-in" style="--d:600">Press Enter or click Start</p>
     </section>
 
+    <!-- Shown once, after Start, to everybody who has not chosen a UI yet (a first install, or an update from a build without
+         this question). See js/stylepick.js for who is asked and js/home.js for the screen. The two pictures are made by
+         `npm run screenshots -- ui-previews` (scripts/screenshots.js) from the real app, so re-make them when the UI changes. -->
+    <section class="scr scr-style" id="spScreen" aria-labelledby="spTitle">
+      <h2 class="sp-title" id="spTitle">Which UI do you want to use?</h2>
+      <p class="sp-sub">Pick the look you like. You can change it any time in Settings, Theme, UI.</p>
+      <div class="sp-cards" id="spCards" role="radiogroup" aria-labelledby="spTitle">
+        <button class="sp-card" type="button" role="radio" aria-checked="true" tabindex="0" data-style-choice="classic" aria-describedby="spClassicText" data-lock>
+          <span class="sp-shot"><img src="img/ui/classic.webp" alt="The Lighting tab in the Classic UI" width="720" height="480" draggable="false"></span>
+          <span class="sp-meta">
+            <span class="sp-name"><b>Classic</b><span class="tag good">Default</span></span>
+            <span class="sp-text" id="spClassicText">The original look. Solid cards and soft shadows. Light on the computer and steady everywhere.</span>
+          </span>
+          <svg class="sp-tick" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.6 12.4l3 3 5.8-6.2"/></svg>
+        </button>
+        <button class="sp-card" type="button" role="radio" aria-checked="false" tabindex="-1" data-style-choice="glass" aria-describedby="spGlassText" data-lock>
+          <span class="sp-shot"><img src="img/ui/glass.webp" alt="The Lighting tab in the Liquid glass UI" width="720" height="480" draggable="false"></span>
+          <span class="sp-meta">
+            <span class="sp-name"><b>Liquid glass</b><span class="tag warn">Experimental</span></span>
+            <span class="sp-text" id="spGlassText">Controls are glass that bends and blurs the picture behind them, like iOS. May look off or run slower on some computers.</span>
+          </span>
+          <svg class="sp-tick" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.6 12.4l3 3 5.8-6.2"/></svg>
+        </button>
+      </div>
+      <button class="btn primary sp-go" id="spGo" type="button" data-lock>Continue</button>
+      <p class="sp-note">Both are shown over a background picture, which is optional (Settings, Theme).</p>
+    </section>
+
     <section class="scr scr-devices" aria-label="Devices">
       <div class="hm-radar" id="hmRadar" aria-hidden="true"><i></i><i></i><i></i></div>
       <h2 class="hd-title">Connected devices</h2>
@@ -697,6 +741,7 @@
 <script src="js/mock.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/keyassign.js"></script>
+<script src="js/dragseg.js"></script>
 <script src="js/keys-ui.js"></script>
 <script src="js/max.js"></script>
 <script src="js/max-ui.js"></script>
@@ -705,10 +750,12 @@
 <script src="js/webhid.js"></script>
 <script src="js/motion.js"></script>
 <script src="js/background.js"></script>
+<script src="js/stylepick.js"></script>
 <script src="js/app.js"></script>
 <script src="js/home.js"></script>
 <script src="js/update.js"></script>
 <script src="js/support.js"></script>
+<script src="js/select.js"></script>
 <script src="js/whatsnew-ui.js"></script>
 </body>
 </html>

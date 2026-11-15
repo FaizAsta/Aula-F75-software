@@ -186,8 +186,23 @@ test('glass.js: panels get a wider, stronger rim and a little more frost than pi
   const m = js.match(/const PANEL = \{ bezel: ([\d.]+), amount: ([\d.]+), blur: ([\d.]+) \}/);
   assert.ok(m, 'PANEL factors not found');
   assert.ok(+m[1] > 1 && +m[2] > 1 && +m[3] > 0, 'a panel must bend more and blur more than a leaf');
-  assert.ok(js.includes('params.bezel * (panel ? PANEL.bezel : 1)') && js.includes('params.blur + (panel ? PANEL.blur : 0)'), 'the factors are not applied');
+  assert.ok(js.includes('params.bezel * (panel ? PANEL.bezel : 1)') && js.includes('params.blur + panelFrost(panel)'), 'the factors are not applied');
   assert.ok(/const key = `[^`]*\$\{blur\}[^`]*\$\{amount\}/.test(js), 'filters with different panel settings must not share a cache key');
+});
+
+test('glass.js: Blur 0 is clear glass, also on panels (their extra frost fades out with the slider)', () => {
+  const { js } = surfaces();
+  const frost = /const panelFrost = \(panel\) => \(panel \? PANEL\.blur \* Math\.min\(1, params\.blur \/ DEFAULTS\.blur\) : 0\);/.exec(js);
+  assert.ok(frost, 'the extra panel frost is scaled by the slider');
+  // the same formula, run: nothing at 0, growing with the slider, and exactly the old amount from the default setting upwards
+  const m = js.match(/const PANEL = \{ bezel: ([\d.]+), amount: ([\d.]+), blur: ([\d.]+) \}/);
+  const d = js.match(/const DEFAULTS = \{ blur: ([\d.]+)/);
+  const extra = (b) => +m[3] * Math.min(1, b / +d[1]);
+  assert.equal(extra(0), 0, 'no extra frost at 0');
+  assert.ok(extra(1) > 0 && extra(1) < extra(+d[1]), 'it grows with the slider');
+  for (const b of [+d[1], 6, 12]) assert.equal(extra(b), +m[3], `unchanged at ${b}: the default look does not move`);
+  // leaves (pills, buttons) never had it, and the slider lens has its own factor
+  assert.ok(js.includes('slider ? Math.round(params.blur * SLIDER.blur * 100) / 100 :'));
 });
 
 test('glass.css: nothing above a glass surface may be a backdrop root (mask, opacity fade), or the surface would see no picture', () => {
@@ -207,4 +222,217 @@ test('glass.css: nothing above a glass surface may be a backdrop root (mask, opa
   assert.ok(/@keyframes riseIn[^}]*opacity/.test(src('css', 'app.css')));
   // and the mask really is what app.css puts on .panels, so this rule is needed
   assert.ok(/\.panels\s*\{[^}]*mask-image/.test(src('css', 'app.css')));
+});
+
+// ---- Liquid glass scroll bars and the update progress bar -----------------------------------------------------------------
+
+test('glass.js: every scrolling area gets a glass thumb beside it, its native bar is hidden, and Classic gets everything back', () => {
+  const { js } = surfaces();
+  const m = js.match(/const SCROLLERS = '([^']+)';/);
+  assert.ok(m, 'SCROLLERS not found');
+  for (const c of ['.panels', '#maxRoot', '.upd-body']) assert.ok(m[1].includes(c), `${c} keeps its flat native scroll bar`);
+  // the thumb is a sibling of the area (a child would scroll away with the content) and is a refracting surface of its own
+  assert.ok(js.includes('area.after(bar)'), 'the bar must sit beside the scrolling area, not inside it');
+  assert.ok(js.includes("area.setAttribute('data-ag-scroll', '')") && js.includes("area.removeAttribute('data-ag-scroll')"), 'the native bar is hidden only while the glass one is there');
+  assert.ok(js.includes('live.add(thumb)') && js.includes('ro.observe(thumb)') && js.includes('drop(thumb)'), 'the thumb gets (and gives back) its refraction filter');
+  // a scroll event only moves the thumb; sizes are read when the area or its content resizes
+  const scroll = js.slice(js.indexOf('const onScroll = () => {'), js.indexOf('const endDrag'));
+  assert.ok(scroll.includes('move()') && !scroll.includes('layout()') && !scroll.includes('scrollHeight'), 'scrolling must not cause layout reads');
+  assert.ok(js.includes('roScroll.observe(area)') && js.includes('roScroll.observe(c)'), 'the area and what is in it must be watched for size changes');
+  // dragging, wheel and track clicks
+  assert.ok(js.includes('setPointerCapture') && js.includes('area.scrollTop = drag.top'), 'the thumb can be dragged');
+  assert.ok(/addEventListener\('wheel', onWheel, \{ passive: false \}\)/.test(js), 'a wheel turned over the strip must scroll the area');
+  assert.ok(js.includes('behavior: \'smooth\''), 'a click beside the thumb pages up or down');
+  // switching back to Classic removes the bars and gives the native bar back
+  assert.ok(js.includes('unmountScrolls()') && js.includes('function unmountScrolls()'), 'switching back to Classic must remove the glass bars');
+  assert.ok(js.includes('for (const area of document.querySelectorAll(SCROLLERS)) mountScroll(area)'), 'areas that appear later are picked up by scan()');
+});
+
+test('glass.css: the scroll bar thumb is glass (with the picture bending behind it), the native bar is switched off only where one is drawn', () => {
+  const css = src('css', 'glass.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(/html\.glass \[data-ag-scroll\]\s*\{\s*scrollbar-width:\s*none/.test(css), 'the native bar stays unless the glass one is mounted');
+  const thumb = css.match(/html\.glass \.ag-scroll-thumb\.ag\s*\{([^}]*)\}/);
+  assert.ok(thumb && /backdrop-filter:\s*var\(--ag-filter\)[^;]*!important/.test(thumb[1]), 'the thumb refracts, and beats lite.css, which switches backdrops off');
+  assert.ok(/\.ag-scroll\s*\{[^}]*z-index:\s*4/.test(css), 'above the page area, below the apply bar (z-index 5)');
+  assert.ok(/\.ag-scroll-thumb\s*\{[^}]*translate:\s*0 var\(--ty/.test(css), 'a scroll only changes a translate');
+  assert.ok(/\.ag-scroll:hover[^{]*\.ag-scroll-thumb/.test(css) && /\.ag-scroll\.held/.test(css) && /\.ag-scroll\.busy/.test(css), 'hover, drag and scrolling light the thumb up');
+  assert.ok(/html\.glass\[data-theme="light"\] \.ag-scroll-thumb\.ag/.test(css), 'the light theme has its own thumb');
+  assert.ok(/prefers-reduced-transparency[\s\S]*\.ag-scroll-thumb\.ag[^}]*backdrop-filter:\s*none/.test(css), 'reduced transparency keeps the thumb visible without the see-through glass');
+  // one width only: a thumb that changed width on hover would rebuild its filter on every frame of the change
+  assert.ok(!/\.ag-scroll-thumb[^{}]*\{[^}]*transition:[^;}]*\bwidth\b/.test(css), 'the thumb is never resized by a transition');
+  // the page area's thin native bar is what this replaces
+  assert.ok(/\.panels\s*\{[^}]*scrollbar-width:\s*thin/.test(src('css', 'app.css')));
+});
+
+test('update progress bar: Classic keeps its flat fill, Liquid glass gets a glass fill that follows --pf, and no knob (it is not a slider)', () => {
+  const html = src('index.html');
+  assert.ok(/<div class="upd-bar" id="updBar"[^>]*><i id="updFill"><\/i><\/div>/.test(html), 'the bar holds only its fill');
+  const upd = src('css', 'update.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(/\.upd-bar i\s*\{[^}]*scaleX\(0\)/.test(upd), 'Classic keeps its scaleX fill');
+  const js = src('js', 'update.js');
+  assert.ok(js.includes("$('#updFill').style.transform = `scaleX(${f})`"), 'Classic is still driven by scaleX');
+  assert.ok(js.includes("$('#updBar').style.setProperty('--pf', String(f))"), 'the glass bar is driven by --pf');
+  const css = src('css', 'glass.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(/html\.glass \.upd-bar i\s*\{[^}]*transform:\s*none\s*!important/.test(css), 'the inline scaleX must not squash the glass fill');
+  assert.ok(/html\.glass \.upd-bar i\s*\{[^}]*width:\s*calc\(100% \* var\(--pf/.test(css), 'the fill width follows --pf');
+  assert.ok(/html\.glass \.upd-bar i\s*\{[^}]*rgb\(var\(--ctl\)/.test(css), 'the fill uses the controls\' fixed colour, like the slider');
+  assert.ok(/html\.glass \.upd-bar i::after\s*\{/.test(css), 'the fill has its streak of light');
+  assert.ok(/html\.glass\[data-theme="light"\] \.upd-bar i\s*\{[^}]*--ctl-ink/.test(css), 'the light theme deepens the fill so it reads on a light card');
+  // a knob at the head of the bar made it look like a slider; the tube stays the glass surface
+  for (const [name, text] of [['index.html', html], ['update.css', upd], ['glass.css', css], ['glass.js', src('js', 'glass.js')]]) {
+    assert.ok(!/upd-lens/.test(text), `${name}: the progress bar has no lens or knob`);
+  }
+  assert.ok(src('js', 'glass.js').match(/const TARGETS = \[[\s\S]*?\.upd-bar/), 'the tube is a glass surface');
+});
+
+// ---- Small surfaces: frost only. No bending and no red/blue split (the blue line on pills, chips, knobs and scroll thumbs) ----
+
+test('glass.js: the smallest surfaces are only frosted, and no control splits colours (no blue edge line)', () => {
+  const { G } = loadGlass({ style: 'glass' }); // the default settings: amount 30, chroma 30
+  // A status chip, the Live/Picture switch, a switch knob and the 12 px scroll thumb: the cases from the bug report.
+  for (const [w, h] of [[120, 28], [96, 26], [80, 22], [12, 318], [38, 26], [42, 28], [60, 35]]) {
+    assert.deepStrictEqual({ ...G.rim(w, h, false) }, { amount: 0, ca: 0 }, `${w}x${h}: frost only`);
+  }
+  // Pills, buttons, inputs and the tab bar (36 to 63 px) bend a little but never split into colours, even at 100% fringe.
+  const strong = loadGlass({ style: 'glass', glass: { chroma: 100 } }).G;
+  for (const [w, h] of [[200, 36], [160, 44], [300, 52], [66, 44], [90, 63]]) {
+    for (const g of [G, strong]) {
+      const r = g.rim(w, h, false);
+      const side = Math.min(w, h);
+      assert.ok(r.amount > 0, `${w}x${h}: still bends a little`);
+      assert.ok(r.amount <= side * 0.3 + 0.01, `${w}x${h}: the pull stays a small share of the control`);
+      assert.strictEqual(r.ca, 0, `${w}x${h}: no colour split on a control`);
+    }
+  }
+  // Cards and panels are big: they keep exactly what the settings say (a panel gets its 1.25 on top), fringe included.
+  assert.strictEqual(G.rim(300, 110, false).amount, 30);
+  assert.strictEqual(G.rim(1200, 300, true).amount, 37.5);
+  assert.ok(G.rim(300, 110, false).ca > 0 && G.rim(300, 110, false).ca <= 0.18);
+  assert.ok(strong.rim(300, 110, false).ca >= G.rim(300, 110, false).ca);
+  // The settings still rule: no bending, no fringe.
+  const none = loadGlass({ style: 'glass', glass: { amount: 0, chroma: 0 } }).G.rim(120, 28, false);
+  assert.deepStrictEqual({ ...none }, { amount: 0, ca: 0 });
+  const flat = loadGlass({ style: 'glass', glass: { chroma: 0 } }).G.rim(300, 110, false);
+  assert.strictEqual(flat.ca, 0);
+});
+
+// ---- The rim is a real reflection, not a painted white line --------------------------------------------------------------
+
+test('glass.js: how much the rim reflects depends on the angle of the edge, strongest facing the light, never gone, smooth round corners', () => {
+  const { G } = loadGlass({ style: 'glass' });
+  const at = (deg) => G.rimLight(Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180)); // outward normal: 0 = right, 90 = down (y points down)
+  const [topLeft, bottomRight, bottomLeft, topRight] = [at(231), at(51), at(129), at(309)];
+  assert.ok(topLeft > bottomRight, 'the edge that faces the light reflects most');
+  assert.ok(bottomRight > bottomLeft && bottomRight > topRight, 'the far side catches the light bouncing back: more than the sides in between');
+  assert.ok(topLeft > at(270) && at(270) > at(180) && at(180) > bottomLeft, 'it falls off steadily as the edge turns away from the light');
+  for (let d = 0; d < 360; d += 5) {
+    const v = at(d);
+    assert.ok(v > 0.1 && v <= 1, `${d} deg: a thread of reflection always stays (${v})`);
+    assert.ok(Math.abs(at(d + 5) - v) < 0.2, `${d} deg: no jump between neighbouring angles (a corner has to turn smoothly)`);
+  }
+});
+
+test('glass.js: the reflection reaches a few pixels in, and a surface too small to bend fetches its colours from well inside it', () => {
+  const { G } = loadGlass({ style: 'glass' });
+  for (const [w, h] of [[12, 318], [26, 26], [42, 28], [120, 28], [300, 110], [1200, 300]]) {
+    const { width, pull } = G.rimSpec(w, h);
+    const side = Math.min(w, h);
+    assert.ok(width >= 1.5 && width <= 4, `${w}x${h}: the band is a thin edge, not a frame (${width})`);
+    assert.ok(width < side / 2, `${w}x${h}: the band stays inside the surface`);
+    assert.ok(pull >= 1 && pull <= side * 0.45 + 0.05, `${w}x${h}: colours are never fetched from beyond the middle (${pull})`);
+  }
+  assert.ok(G.rimSpec(300, 110).width >= G.rimSpec(26, 26).width, 'a big surface gets the wider band');
+});
+
+test('glass.js: every filter ends with the reflection: the bent picture at the rim, or on a small surface the frosted picture fetched from inside', () => {
+  const js = src('js', 'glass.js');
+  const fn = js.slice(js.indexOf('function makeFilter'), js.indexOf('// Gives `el` the filter'));
+  assert.ok(/body \+= rimPass\(w, h, r, s === 0 \? 'b' : 'o', s !== 0, lens\)/.test(fn), 'the reflection is added to every filter, bent or not');
+  const pass = js.slice(js.indexOf('function rimPass'), js.indexOf('function makeFilter'));
+  assert.ok(/in="\$\{bent \? 'o' : 'rr'\}"/.test(pass), 'a surface that bends reflects the bent picture; a small one the picture fetched again');
+  assert.ok(/in="b" in2="rm"/.test(pass), 'the small surface fetches from inside along the direction of each edge');
+  assert.ok(/operator="in"/.test(pass) && /operator="over"/.test(pass), 'the reflection is cut to the band, then laid over the finished glass');
+  assert.ok(/values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 1 0 0"/.test(pass), 'the blue channel of the rim map is the strength of the reflection');
+  const code = (pass + js.slice(js.indexOf('function rimBoost'), js.indexOf('function rimPass'))).replace(/\/\/.*$/gm, ''); // the code, without its comments
+  assert.ok(!/rgb\(255,? 255,? 255|#fff|white/i.test(code), 'the reflection has no fixed white in it: it is the picture\'s own colours');
+  // the map's blue channel really is written per pixel from the angle of the edge
+  const map = js.slice(js.indexOf('function rimMapUrl'), js.indexOf('// ---- one SVG filter'));
+  assert.ok(/px\[i \+ 2\] = Math\.round\(255 \* fade \* rimLight\(nx, ny, lens\)\)/.test(map), 'strength = how deep in the band x how the edge faces the light');
+  assert.ok(/new Uint32Array\(px\.buffer\)\.fill\(FLAT_RIM\[0\]\)/.test(map), 'the middle of the rim map is flat and empty');
+});
+
+test('glass.css: nothing paints a fixed white outline on a glass surface any more (the reflection in the filter is the outline)', () => {
+  const css = src('css', 'glass.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [...css.matchAll(/([^{}@]+)\{([^{}]*)\}/g)].map((m) => ({ sel: m[1].trim(), body: m[2] }));
+  const rim = rules.find((r) => /^html\.glass$/.test(r.sel) && /--ag-rim/.test(r.body));
+  assert.ok(rim, '--ag-rim is missing');
+  assert.ok(!/inset\s+-?[\d.]+(?:px)?\s+-?[\d.]+(?:px)?\s+[\d.]+(?:px)?\s+-/.test(rim.body), '--ag-rim has no offset highlights: those were the same on every control');
+  assert.ok(/inset 0 0 0 1px rgb\(255 255 255 \/ 0\.(0\d?|10?)\)/.test(rim.body), '--ag-rim is only a faint hairline');
+  // painted highlights: a white inset shadow with a negative spread or an offset, on anything but the progress bar's own gel fill
+  const painted = /inset\s+-?[\d.]+(?:px)?\s+-?[\d.]+(?:px)?\s+[\d.]+(?:px)?\s+-[\d.]+px\s+(?:#fff|rgb\(255 255 255)/;
+  for (const r of rules) {
+    if (/\.upd-bar i\b/.test(r.sel)) continue; // the gel inside the progress tube, not an outline
+    assert.ok(!painted.test(r.body), `${r.sel}: a painted white highlight`);
+    assert.ok(!/inset\s+0\s+0\s+0\s+[12](?:\.5)?px\s+(?:#fff|rgb\(255 255 255 \/ 0\.[3-9])/.test(r.body), `${r.sel}: a painted white ring`);
+  }
+  // the surfaces use the shared hairline and their shadow, so they all stay in step
+  for (const sel of ['html.glass .ag', 'html.glass .ag-panel::after', 'html.glass .range-lens.ag', 'html.glass .ag-scroll-thumb.ag']) {
+    const r = rules.find((x) => x.sel === sel);
+    assert.ok(r && /var\(--ag-rim\)/.test(r.body), `${sel} does not use --ag-rim`);
+  }
+  // without see-through glass there is no reflection, so a plain edge keeps the shape readable
+  assert.ok(/prefers-reduced-transparency[\s\S]*html\.glass \.ag, html\.glass \.ag-panel::after \{ box-shadow: inset 0 0 0 1px/.test(css), 'reduced transparency keeps an edge');
+});
+
+test('glass.js: the slider thumb and the sliding tab highlight, which are held and dragged, reflect more than a plain control', () => {
+  const js = src('js', 'glass.js');
+  const m = js.match(/const LENSES = '([^']+)';/);
+  assert.ok(m && m[1].includes('.range-lens') && m[1].includes('.tab-ind'), 'the two lenses are listed');
+  assert.ok(js.includes('!panel && el.matches(LENSES)'), 'only leaves can be lenses, and the filter is told');
+  assert.ok(/\$\{lens \? 'L' : ''\}/.test(js.slice(js.indexOf('function acquire'), js.indexOf('function drop'))), 'a lens never shares a filter with a plain control of the same size');
+  const { G } = loadGlass({ style: 'glass' });
+  assert.ok(G.rimSpec(66, 44, true).width > G.rimSpec(66, 44, false).width, 'a lens gets a deeper band');
+  assert.ok(G.rimLight(0, 1, true) > G.rimLight(0, 1, false), 'and a stronger one, on every edge');
+  assert.ok(G.rimLight(0.6, 0.8, true) <= 1);
+});
+
+test('the slider lens is a clear drop: it bends harder than a button but never pulls from outside itself, and only ever stretches', () => {
+  const { G } = loadGlass({ style: 'glass' });
+  const plain = G.rim(66, 44, false);
+  const lens = G.rim(66, 44, false, true);
+  assert.ok(lens.amount > plain.amount, 'the track runs through the middle of the lens, so the rim has to pull further than a button does');
+  assert.ok(lens.amount <= 44 * 0.5 + 0.01, 'a pull longer than the half-height would fetch from outside the lens, which comes back empty');
+  assert.equal(G.rim(30, 22, false, true).amount, 0, 'a lens too small to bend anything is only frosted');
+  // the held lens is a scale and nothing else: a rotation or skew makes the backdrop filter clip and jump
+  const css = src('css', 'glass.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const held = css.match(/html\.glass \.range-lens\.held\s*\{([^}]*)\}/);
+  assert.ok(held && /scale:\s*1/.test(held[1]) && !/rotate|skew/.test(held[1]), 'the held lens may only scale');
+  // nothing is painted over the real track inside it any more (the old white magnified bar and the glow)
+  assert.ok(!/range-lens i/.test(css) && !src('js', 'glass.js').includes("innerHTML = '<i></i>'"), 'the lens must show the real track, not a drawn bar');
+});
+
+test('glass.js: a repaint measures every surface before it changes any, so the page is recalculated once and not once per surface', () => {
+  const js = src('js', 'glass.js');
+  const fn = js.slice(js.indexOf('function flush()'), js.indexOf('function paint('));
+  const read = fn.indexOf('batch.push(');
+  const write = fn.indexOf('paint(el, w, h, radius)');
+  assert.ok(read > 0 && write > read, 'every size and radius is read into a batch before the first surface is painted');
+  assert.ok(!/paint\(el\);/.test(js), 'painting a surface must not read its size itself (that is what made each one a new layout)');
+  assert.ok(/pending = \[\]/.test(fn) && /defs\.append\(\.\.\.pending\)/.test(fn), 'the new filters go into the page together, not one by one');
+});
+
+test('glass.js: changing a glass setting swaps the filters in place and never leaves a frame without them', () => {
+  const js = src('js', 'glass.js');
+  const fn = js.slice(js.indexOf('function repaintAll()'), js.indexOf('function release()'));
+  assert.ok(!/replaceChildren|filters\.clear/.test(fn), 'the filters are not thrown away before the new ones exist: acquire() swaps each surface to the one that fits');
+  assert.ok(/queueNow\(el\)/.test(fn));
+});
+
+test('glass.js: one canvas draws every map, and only a new or removed element starts a scan (a changing text does not)', () => {
+  const js = src('js', 'glass.js');
+  assert.ok(js.includes('function scratchCanvas('));
+  const maps = js.slice(js.indexOf('function mapUrl'), js.indexOf('// ---- one SVG filter'));
+  assert.ok(!/createElement\('canvas'\)/.test(maps), 'a canvas and a 2d context for each map was a large part of the cost of a new size');
+  assert.ok((maps.match(/scratchCanvas\(/g) || []).length === 2, 'both maps use the shared canvas');
+  assert.ok(/nodeType === 1/.test(js) && /hasElement\(m\.addedNodes\)/.test(js), 'text nodes arrive as mutations too, and must not start a scan');
 });

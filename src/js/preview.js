@@ -34,7 +34,56 @@
   /** How strongly the pointer affects something `dist` away: 1 right under it, easing to 0 at `radius`. */
   const hoverInfluence = (dist, radius) => (radius > 0 ? smooth(clamp01(1 - dist / radius)) : 0);
   const TILT_DEG = { x: 3.2, y: 4.5 }; // how far the whole board leans toward the pointer
+  const TILT_VIEW = 1000; // px, perspective(...) the lean is seen through
+  const BOB_PX = 1.6; // how far the idle drift lifts and lowers the board
   const RIPPLE_LIFE = 1.5; // seconds
+
+  /**
+   * How far the canvas has to reach past the panel on each side, in whole pixels ({ x, y }).
+   *
+   * Leaning the canvas pulls its far edge inwards (the far side looks smaller), so a canvas that is exactly the size of the
+   * panel shows its own straight edge, a little inside the panel's, wherever it has paint at that edge. The pointer's glow
+   * and the click ripples have: they showed up as a flat strip along the edge you were hovering, like a sheet of paper
+   * lying over the panel. So the canvas is made this much bigger than the panel on every side, and the panel (which clips
+   * it) is always the edge you see.
+   *
+   * Worst case: leaning fully both ways at once, at the top of the bob. The answer is found by mapping the panel's four
+   * corners back onto the canvas through the same transform the lean uses (_hoverStep) and seeing how far outside the
+   * canvas they land.
+   */
+  function tiltBleed(w, h) {
+    const hw = w / 2;
+    const hh = h / 2;
+    let bx = 0;
+    let by = 0;
+    const rad = Math.PI / 180;
+    for (const sy of [-1, 1]) {
+      for (const sx of [-1, 1]) {
+        for (const bob of [-BOB_PX, BOB_PX]) {
+          const a = sx * TILT_DEG.y * rad; // rotateY
+          const b = sy * TILT_DEG.x * rad; // rotateX
+          const c = Math.cos(a);
+          const s = Math.sin(a);
+          const C = Math.cos(b);
+          const S = Math.sin(b);
+          for (const [X, Y] of [[-hw, -hh], [hw, -hh], [-hw, hh], [hw, hh]]) {
+            // Forward: x' = x*c, y' = y*C + x*s*S + bob, z' = y*S - x*s*C, then divide by (1 - z'/TILT_VIEW). Solve for (x, y).
+            const a11 = c - (X * s * C) / TILT_VIEW;
+            const a12 = (X * S) / TILT_VIEW;
+            const a21 = s * S - (Y * s * C) / TILT_VIEW;
+            const a22 = C + (Y * S) / TILT_VIEW;
+            const det = a11 * a22 - a12 * a21;
+            if (!det) continue;
+            const x = (X * a22 - a12 * (Y - bob)) / det;
+            const y = (a11 * (Y - bob) - a21 * X) / det;
+            bx = Math.max(bx, Math.abs(x) - hw);
+            by = Math.max(by, Math.abs(y) - hh);
+          }
+        }
+      }
+    }
+    return { x: Math.ceil(bx) + 2, y: Math.ceil(by) + 2 }; // 2px spare for rounding and the anti-aliased edge
+  }
   const LABEL_REF = 100; // px size the legends are measured at, once; widths at any other size are scaled from it
   // Heavy and rounded, like the legends on the real caps: thin strokes blur on small caps. "Aula Legend" is the bundled
   // font (css/app.css); the system fonts after it only stand in until it has loaded, and for the arrow glyphs it lacks.
@@ -238,7 +287,7 @@
           .catch(() => {});
       }
       this.onFrameColor = null;
-      this.layout = { u: 1, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
+      this.layout = { u: 1, ox: 0, oy: 0, w: 0, h: 0, bx: 0, by: 0, dpr: 1 };
 
       this._resize = () => this.resize();
       if (typeof ResizeObserver !== 'undefined') {
@@ -318,6 +367,38 @@
     stop() {
       this.running = false;
       cancelAnimationFrame(this.raf);
+      if (this._kickRaf) {
+        cancelAnimationFrame(this._kickRaf);
+        this._kickRaf = 0;
+      }
+    }
+
+    /**
+     * Something the pointer started (a click ripple, the spotlight catching up) needs frames, but the main loop is not
+     * running. That should not happen while the board is on screen, but it can: the loop is stopped when the window
+     * is hidden or minimized, or while a Max is shown, and a missed or late "shown again" message leaves it stopped.
+     * Drawing just one frame then leaves the ripple rings frozen on the board, and every click adds another frozen ring.
+     * So run a small loop of our own: one frame per display refresh for as long as anything is moving, then it ends.
+     * It leaves the loop's running state alone, and steps aside the moment the real loop is started again.
+     */
+    _kick() {
+      if (this.opts.animate === false || this.opts.hoverFx === false) {
+        if (!this.running) this.draw();
+        return;
+      }
+      if (this.running || this._kickRaf) return;
+      if (typeof requestAnimationFrame !== 'function') {
+        this.draw();
+        return;
+      }
+      this.draw(); // the first frame at once, so a click answers without waiting for the next refresh
+      const step = () => {
+        this._kickRaf = 0;
+        if (this.running) return; // the real loop is back
+        this.draw(); // also drops ripples that have faded
+        if (this._gliding()) this._kickRaf = requestAnimationFrame(step);
+      };
+      if (this._gliding()) this._kickRaf = requestAnimationFrame(step);
     }
 
     resize() {
@@ -326,10 +407,15 @@
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       const w = Math.max(10, Math.floor(r.width));
       const h = Math.max(10, Math.floor(r.height));
-      this.canvas.width = Math.floor(w * dpr);
-      this.canvas.height = Math.floor(h * dpr);
-      this.canvas.style.width = w + 'px';
-      this.canvas.style.height = h + 'px';
+      // The canvas reaches a little past the panel on every side (see tiltBleed), so a leaning canvas never shows its own
+      // edge. Always, not only while it leans: the lean is switched on and off at run time (Picture view, key editing).
+      // Everything below keeps working in panel pixels: draw() moves the origin by the bleed.
+      const bleed = tiltBleed(w, h);
+      this.canvas.width = Math.floor((w + bleed.x * 2) * dpr);
+      this.canvas.height = Math.floor((h + bleed.y * 2) * dpr);
+      this.canvas.style.width = w + bleed.x * 2 + 'px';
+      this.canvas.style.height = h + bleed.y * 2 + 'px';
+      this.canvas.style.margin = `${-bleed.y}px 0 0 ${-bleed.x}px`;
       // Room kept clear for the status pill above and the hint line below.
       const inset = this.opts.inset || { top: 0, bottom: 0 };
       const availH = Math.max(10, h - inset.top - inset.bottom);
@@ -337,6 +423,7 @@
       const u = Math.min(((w - pad * 2) / (L.WIDTH + 0.6)) * 0.85, (availH - pad * 2) / (L.HEIGHT + 0.6)); // 0.85: keeps the keyboard a little smaller than the full width of the stage
       this.layout = {
         u, dpr, w, h,
+        bx: bleed.x, by: bleed.y, // how far the canvas reaches past the panel (left and right, top and bottom)
         ox: (w - L.WIDTH * u) / 2,
         oy: inset.top + (availH - L.HEIGHT * u) / 2,
       };
@@ -362,8 +449,9 @@
     _bindPointer() {
       const c = this.canvas;
       const pos = (e) => {
+        // In panel pixels: the canvas starts `bx`, `by` before the panel's own top left corner (see tiltBleed).
         const r = c.getBoundingClientRect();
-        return [e.clientX - r.left, e.clientY - r.top];
+        return [e.clientX - r.left - this.layout.bx, e.clientY - r.top - this.layout.by];
       };
       const on = () => !this.opts.enabled || this.opts.enabled();
       c.addEventListener('pointerdown', (e) => {
@@ -428,9 +516,11 @@
           this.hm.x = x;
           this.hm.y = y;
         }
+        if (!this.running) this._kick();
       };
       const leave = () => {
         this.hm.ta = 0;
+        if (!this.running) this._kick();
       };
       const down = (e) => {
         if (!fine(e) || this.opts.animate === false) return;
@@ -438,7 +528,7 @@
         const [x, y] = local(e);
         this.ripples.push({ x, y, at: performance.now() });
         if (this.ripples.length > 6) this.ripples.shift();
-        if (!this.running) this.draw();
+        this._kick();
       };
       host.addEventListener('pointermove', move);
       host.addEventListener('pointerleave', leave);
@@ -472,8 +562,8 @@
       const ny = h ? clamp01(m.y / h) * 2 - 1 : 0;
       const rx = -ny * TILT_DEG.x * lean;
       const ry = nx * TILT_DEG.y * lean;
-      const bob = flat ? 0 : Math.sin(nowMs / 1000 * 0.9) * 1.6 * (1 - 0.7 * m.a);
-      const tf = `perspective(1000px) translateY(${bob.toFixed(2)}px) rotateX(${rx.toFixed(3)}deg) rotateY(${ry.toFixed(3)}deg)`;
+      const bob = flat ? 0 : Math.sin(nowMs / 1000 * 0.9) * BOB_PX * (1 - 0.7 * m.a);
+      const tf = `perspective(${TILT_VIEW}px) translateY(${bob.toFixed(2)}px) rotateX(${rx.toFixed(3)}deg) rotateY(${ry.toFixed(3)}deg)`;
       if (tf !== this._tf) {
         this._tf = tf;
         this.canvas.style.transform = tf;
@@ -539,7 +629,7 @@
 
     draw() {
       const { ctx } = this;
-      const { u, ox, oy, w, h, dpr } = this.layout;
+      const { u, ox, oy, w, h, bx, by, dpr } = this.layout;
       const s = this.state;
       const t = this._t();
       const nowSec = (performance.now() - this.t0) / 1000;
@@ -547,8 +637,9 @@
       const level = levelFor(s.brightness);
       const nowMs = performance.now();
 
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
+      // Drawing is in panel pixels, (0, 0) being the panel's top left corner; the canvas reaches `bx`, `by` past it all round.
+      ctx.setTransform(dpr, 0, 0, dpr, bx * dpr, by * dpr);
+      ctx.clearRect(-bx, -by, w + bx * 2, h + by * 2);
 
       // Pointer effects: smoothed pointer, click ripples (dropped once they have faded)
       const fx = animate && this.opts.hoverFx !== false;
@@ -1006,5 +1097,5 @@
     ctx.closePath();
   }
 
-  return { KeyboardView, keyColor, LEVELS, levelFor, clamp01, stillTime, hoverInfluence };
+  return { KeyboardView, keyColor, LEVELS, levelFor, clamp01, stillTime, hoverInfluence, tiltBleed, TILT_DEG, TILT_VIEW, BOB_PX };
 });

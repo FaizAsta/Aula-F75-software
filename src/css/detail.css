@@ -137,7 +137,7 @@
   white-space: nowrap;
 }
 .sb-chip b { font-weight: 500; }
-.sb-fx { color: rgb(var(--glow-ink)); box-shadow: inset 0 0 0 1px rgb(var(--glow-ink) / 0.35), 0 6px 14px -8px rgb(var(--shade) / 0.8); }
+.sb-fx { color: rgb(var(--ctl-ink)); box-shadow: inset 0 0 0 1px rgb(var(--ctl-ink) / 0.35), 0 6px 14px -8px rgb(var(--shade) / 0.8); }
 .sb-fx b { font-weight: 600; }
 .sb-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: none; }
 .sb-chip[data-s="ok"] .sb-dot { background: var(--ok); }

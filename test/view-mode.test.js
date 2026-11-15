@@ -172,7 +172,9 @@ test('app.js turns Picture into a still image: loop stopped, animation and hover
   assert.match(js, /syncPicture\(\);[^\n]*\n\s*if \(next === 'live' && prefs\.animate/);
   // nothing else may start the loop while Picture is on
   assert.match(js, /if \(prefs\.animate && prefs\.view !== 'picture'\) view\.start\(\)/);
-  assert.match(js, /viewWas && prefs\.animate && !pictureOnly\(\)/);
+  // ... including coming back from hidden / minimized: that asks the same question instead of remembering an old answer
+  assert.match(js, /const wantLoop = \(\) => prefs\.animate && !pictureOnly\(\) && !\(MXU && MXU\.active\(\)\)/);
+  assert.match(js, /if \(wantLoop\(\)\) view\.start\(\)/);
 });
 
 test('Picture hides what lies over the image (status chips, link animation) and takes no pointer; the switch stays', () => {

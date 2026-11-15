@@ -302,7 +302,15 @@ function createWindow() {
 
   // The page stops drawing the keyboard picture while nobody can see it (hidden in the tray, or minimized), and starts again
   // when the window comes back. The window keeps running either way: the battery is still read and the red light still works.
-  for (const ev of ['hide', 'minimize', 'show', 'restore']) win.on(ev, sendShown);
+  // The events fire before Windows has finished hiding / restoring (see refreshFrame), so isMinimized() can still say the old
+  // thing when they do. Say it again once the animation is over, so the page never keeps a stale "hidden".
+  let shownTimer = null;
+  const sendShownSoon = () => {
+    sendShown();
+    clearTimeout(shownTimer);
+    shownTimer = setTimeout(sendShown, 600);
+  };
+  for (const ev of ['hide', 'minimize', 'show', 'restore']) win.on(ev, sendShownSoon);
 
   // The page swaps its maximize / restore icon, so tell it whenever that changes.
   for (const ev of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen']) win.on(ev, sendWinState);
