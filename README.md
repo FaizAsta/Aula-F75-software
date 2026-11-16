@@ -15,11 +15,6 @@
   names, and `npm run screenshots -- lighting battery` redraws only those. The pictures show the real UI with a
   simulated keyboard, so no hardware is needed. `npm test` checks that every picture in the folder is used here
   and every picture used here exists.
-
-  The auto-playing slideshow in the "Screenshots" section is one animated picture, docs/slideshow.gif (GitHub does
-  not run JavaScript in a README, so it cannot have arrows). After the screenshots change, rebuild it with
-  `npm run slideshow` (needs Python, Pillow and ffmpeg; the slide list is at the top of scripts/make-slideshow.py)
-  and commit it. Keep the "All screenshots in full size" list below it in step with docs/screenshots.
 -->
 
 <!--
@@ -119,15 +114,18 @@ In the app, press **Support** (on the start screen and in the top bar) for the D
 
 ## Features
 
-**By keyboard model** (✅ yes, ❌ no)
+✅ yes · ❌ no
+
+**By keyboard model**
 
 | Feature | F75 | F75 Pro | F87 | F75 Max |
 | :-- | :-: | :-: | :-: | :-: |
 | Lighting effects (15; 20 on the F75 Max) | ✅ | ✅ | ✅ | ✅ |
 | Per-key RGB | ✅ | ✅ | ✅ | ✅ |
-| Live preview as a rendered picture of your model | ✅ | ✅ | ✅ | ✅ |
+| Live preview, a rendered picture of your model | ✅ | ✅ | ✅ | ✅ |
 | Battery level | ✅ | ✅ | ✅ | ✅ |
 | Key assignment (experimental) | ✅ | ✅ | ✅ | ❌ |
+| Own Keyboard section, in place of the Keys tab | ❌ | ❌ | ❌ | ✅ |
 | Tested by the author | ✅ | ❌ | ❌ | ❌ |
 
 **By connection**
@@ -135,62 +133,92 @@ In the app, press **Support** (on the start screen and in the top bar) for the D
 | Feature | 2.4G dongle | USB-C cable | Bluetooth |
 | :-- | :-: | :-: | :-: |
 | Lighting effects and per-key RGB | ✅ | ✅ | ❌ |
-| Key assignment (experimental) | ✅ | ✅ | ❌ |
+| Key assignment (experimental; F75, F75 Pro, F87) | ✅ | ✅ | ❌ |
 | Battery level | ✅ | ❌ | ✅ |
+| Charging indicator | ✅ | ✅ | ❌ |
+| Low and fully charged alerts | ✅ | ❌ | ✅ |
+| Red breathing light on the keyboard while the battery is low | ✅ | ❌ | ❌ |
+| Battery history and estimate | ✅ | ❌ | ✅ |
+
+**Live preview** (the Live / Picture switch)
+
+| Feature | Live | Picture |
+| :-- | :-: | :-: |
+| Follows the keyboard | ✅ | ❌ |
+| Goes dark when the keyboard is off or asleep | ✅ | ❌ |
+| Animation | ✅ | ❌ |
+| Pointer effects | ✅ | ❌ |
+| Shows the board's current light colours | ✅ | ✅ |
+
+**Look of the app**
+
+| Feature | Classic | Liquid glass |
+| :-- | :-: | :-: |
+| Default look | ✅ | ❌ |
+| Stable | ✅ | ❌ |
+| Switch any time (Settings > Theme > UI) | ✅ | ✅ |
+| Background picture (Settings > Theme) | ✅ | ✅ |
+| Blur switch (Settings > Theme > Blur) | ✅ | ❌ |
+| Clear, Blur and Frosted glass looks | ❌ | ✅ |
+| Glass sliders: blur, edge width, refraction, colour fringe | ❌ | ✅ |
 
 **The app**
 
-| Feature | Windows | Linux |
-| :-- | :-: | :-: |
-| Dark and light themes | ✅ | ✅ |
-| Tray icon | ✅ | ✅ |
-| Start with Windows | ✅ | ❌ |
-| Updates itself (installed version) | ✅ | ❌ |
-
-- **Battery:** level, charging indicator, and low / fully charged alerts, with a red breathing light on the keyboard while the battery is low. The USB-C cable reports no level (it only shows that it is charging). Over Bluetooth the level comes from Windows, and Windows does not let apps change lighting over Bluetooth.
-- **Live preview:** has a Live / Picture switch. Live follows the keyboard and goes dark when it is off or asleep. Picture is only a still image of the board in its current light colours, with no animation, no pointer effects and nothing laid over it.
-- **Key assignment:** on the F75 Max the same tab is its own Keyboard section instead.
-- **After an update**, a small window lists what is new (only the headers from RELEASE_NOTES.md, not the descriptions). The portable build and Linux do not update themselves: they tell you a new version is out and open the release page.
-- **Liquid glass UI** (experimental, not stable, can be laggy): an optional second look, offered once after Start ("Which UI do you want to use?") and in Settings > Theme > UI. Classic stays the default.
-- **Blur switch** (Classic UI only): Settings > Theme > Blur turns the frosted blur behind the tabs, cards, tiles and pop-ups on or off.
+| Feature | Windows installer | Windows portable | Linux |
+| :-- | :-: | :-: | :-: |
+| Dark and light themes | ✅ | ✅ | ✅ |
+| Tray icon | ✅ | ✅ | ✅ |
+| Demo keyboard, to try it without a keyboard | ✅ | ✅ | ✅ |
+| Start with Windows | ✅ | ✅ | ❌ |
+| Tells you when a new version is out | ✅ | ✅ | ✅ |
+| Downloads and installs updates itself | ✅ | ❌ | ❌ |
+| Opens the release page for a new version | ❌ | ✅ | ✅ |
+| Window listing what is new after an update (headers only) | ✅ | ✅ | ✅ |
 
 <img src="docs/screenshots/keyboards.png" alt="The picture for each model: F75, F75 Pro, F87 and F75 Max" width="560">
 
 ## Screenshots
 
-The picture at the top is the Lighting tab. Here is the rest of the app, one picture every 3 seconds (all of these are the
-real app with a simulated keyboard: the Demo keyboard, or a simulated dongle, cable or F75 Max):
+The top picture is the Lighting tab. All of these are the real app with a simulated keyboard (the Demo keyboard, or a
+simulated dongle, cable or F75 Max). Click a picture to see it full size.
 
-<div align="center">
-
-<img src="docs/slideshow.gif" alt="Slideshow of the Aula Control screens: start, devices, per-key, light theme, keys, battery, settings, support, update and the F75 Max" width="800">
-
-</div>
-
-<details>
-<summary><b>See every screenshot full size</b> (tap to open)</summary>
-
-<br>
-
-**Start and devices:** [Start screen](docs/screenshots/start.png) · [Which UI do you want to use?](docs/screenshots/style-picker.png) · [Connected devices](docs/screenshots/devices.png)
-
-**Lighting and per-key:** [Lighting](docs/screenshots/lighting.png) · [Lighting in Liquid glass](docs/screenshots/lighting-glass.png) · [Apply, the transfer animation](docs/screenshots/sending.png) · [Per-key](docs/screenshots/per-key.png) · [The light theme](docs/screenshots/light-theme.png)
-
-**Keys (experimental):** [Key assignment, Caps Lock changed to F13](docs/screenshots/keys.png)
-
-**Battery:** [Battery level, estimate and history](docs/screenshots/battery.png) · [Charging over the 2.4G dongle](docs/screenshots/charging.png) · [Charging over the USB-C cable](docs/screenshots/charging-cable.png)
-
-**Settings:** [Keyboard](docs/screenshots/settings.png) · [App](docs/screenshots/settings-app.png) · [Theme](docs/screenshots/settings-theme.png) · [Debugging](docs/screenshots/settings-debug.png)
-
-**When the keyboard is not ready:** [Reading the keyboard](docs/screenshots/connecting.png) · [The keyboard is asleep](docs/screenshots/asleep.png)
-
-**Support, updates and window buttons:** [Support menu](docs/screenshots/support.png) · [Software update](docs/screenshots/update.png) · [Window buttons](docs/screenshots/window-controls.png)
-
-**F75 Max (experimental):** [Lighting, 20 effects](docs/screenshots/max.png) · [Per-key colours](docs/screenshots/max-perkey.png)
-
-**Every model:** [The picture for each model](docs/screenshots/keyboards.png)
-
-</details>
+<table>
+<tr>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/start.png"><img src="docs/screenshots/start.png" alt="The start screen" width="260"></a><br><sub>Start screen</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/style-picker.png"><img src="docs/screenshots/style-picker.png" alt="The question Which UI do you want to use, with Classic and Liquid glass" width="260"></a><br><sub>Pick Classic or Liquid glass</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/devices.png"><img src="docs/screenshots/devices.png" alt="The list of connected devices" width="260"></a><br><sub>Connected devices</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/sending.png"><img src="docs/screenshots/sending.png" alt="Sending settings to the keyboard, with the transfer animation" width="260"></a><br><sub>Apply: transfer animation</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/per-key.png"><img src="docs/screenshots/per-key.png" alt="The Per-key tab with every key painted" width="260"></a><br><sub>Per-key</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/light-theme.png"><img src="docs/screenshots/light-theme.png" alt="The Lighting tab in the light theme" width="260"></a><br><sub>Light theme</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/keys.png"><img src="docs/screenshots/keys.png" alt="The Keys tab with Caps Lock changed to F13" width="260"></a><br><sub>Key assignment</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/battery.png"><img src="docs/screenshots/battery.png" alt="The Battery screen with the activity chart" width="260"></a><br><sub>Battery and history</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/charging.png"><img src="docs/screenshots/charging.png" alt="The Battery screen while charging over the cable on the 2.4G dongle" width="260"></a><br><sub>Charging, 2.4G dongle</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/charging-cable.png"><img src="docs/screenshots/charging-cable.png" alt="The Battery screen on the USB-C cable, which reports no level" width="260"></a><br><sub>Charging, USB-C cable</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="Settings, Keyboard page" width="260"></a><br><sub>Settings: Keyboard</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/settings-app.png"><img src="docs/screenshots/settings-app.png" alt="Settings, App page" width="260"></a><br><sub>Settings: App</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/settings-theme.png"><img src="docs/screenshots/settings-theme.png" alt="Settings, Theme page with the background pictures" width="260"></a><br><sub>Settings: Theme</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/settings-debug.png"><img src="docs/screenshots/settings-debug.png" alt="Settings, Debugging page" width="260"></a><br><sub>Settings: Debugging</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/connecting.png"><img src="docs/screenshots/connecting.png" alt="Reading your keyboard, waking it up" width="260"></a><br><sub>Reading the keyboard</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/asleep.png"><img src="docs/screenshots/asleep.png" alt="Keyboard is asleep" width="260"></a><br><sub>Keyboard asleep</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/support.png"><img src="docs/screenshots/support.png" alt="The Support menu with the Discord invite" width="260"></a><br><sub>Support menu</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/update.png"><img src="docs/screenshots/update.png" alt="The Software Update window" width="260"></a><br><sub>Software update</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/window-controls.png"><img src="docs/screenshots/window-controls.png" alt="The flat window buttons in each state" width="260"></a><br><sub>Window buttons</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/max.png"><img src="docs/screenshots/max.png" alt="The F75 Max Lighting screen" width="260"></a><br><sub>F75 Max: Lighting</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/max-perkey.png"><img src="docs/screenshots/max-perkey.png" alt="The F75 Max Per-key screen" width="260"></a><br><sub>F75 Max: Per-key</sub></td>
+</tr>
+</table>
 
 ## Troubleshooting
 
