@@ -39,7 +39,7 @@ Battery, lighting effects, per-key RGB and a live preview.
 
 [**Download**](../../releases) · [Features](#features) · [Screenshots](#screenshots) · [Troubleshooting](#troubleshooting) · [Discord](https://discord.gg/BdeQygyRwN)
 
-![Aula Control, Lighting tab](docs/screenshots/lighting.png)
+![Aula Control, Lighting tab](docs/screenshots/lighting-glass.png)
 
 </div>
 
@@ -52,14 +52,6 @@ them, a bit like iOS. **Classic** is still the default.
   Pick one and press **Continue**. You can change it any time in **Settings > Theme > UI**.
 - **Three looks:** **Clear glass** (no blur), **Blur glass** (soft blur, the default) and **Frosted glass** (heavy blur).
   Press **Customise** for sliders (blur, edge width, refraction, colour fringe). **Reset** goes back to Blur glass.
-
-<div align="center">
-
-<img src="docs/screenshots/lighting-glass.png" alt="The Lighting tab in Liquid glass, over the built-in background picture" width="760">
-
-<sub>The Lighting tab in Liquid glass, over the built-in background picture</sub>
-
-</div>
 
 > [!CAUTION]
 > **Experimental:** it is **not stable** and **can be laggy**, more so on older computers, and it may glitch in places.
@@ -114,8 +106,6 @@ In the app, press **Support** (on the start screen and in the top bar) for the D
 
 ## Features
 
-✅ yes · ❌ no
-
 **By keyboard model**
 
 | Feature | F75 | F75 Pro | F87 | F75 Max |
@@ -153,48 +143,31 @@ In the app, press **Support** (on the start screen and in the top bar) for the D
 | Opens the release page for a new version | ❌ | ✅ | ✅ |
 | Window listing what is new after an update (headers only) | ✅ | ✅ | ✅ |
 
-<img src="docs/screenshots/keyboards.png" alt="The picture for each model: F75, F75 Pro, F87 and F75 Max" width="560">
-
 ## Screenshots
 
 The top picture is the Lighting tab. All of these are the real app with a simulated keyboard (the Demo keyboard, or a
-simulated dongle, cable or F75 Max). Click a picture to see it full size.
+simulated dongle). Click a picture to see it full size.
 
 <table>
 <tr>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/start.png"><img src="docs/screenshots/start.png" alt="The start screen" width="260"></a><br><sub>Start screen</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/style-picker.png"><img src="docs/screenshots/style-picker.png" alt="The question Which UI do you want to use, with Classic and Liquid glass" width="260"></a><br><sub>Pick Classic or Liquid glass</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/devices.png"><img src="docs/screenshots/devices.png" alt="The list of connected devices" width="260"></a><br><sub>Connected devices</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/light-theme.png"><img src="docs/screenshots/light-theme.png" alt="The Lighting tab in the light theme" width="260"></a><br><sub>Light theme</sub></td>
 </tr>
 <tr>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/sending.png"><img src="docs/screenshots/sending.png" alt="Sending settings to the keyboard, with the transfer animation" width="260"></a><br><sub>Apply: transfer animation</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/per-key.png"><img src="docs/screenshots/per-key.png" alt="The Per-key tab with every key painted" width="260"></a><br><sub>Per-key</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/light-theme.png"><img src="docs/screenshots/light-theme.png" alt="The Lighting tab in the light theme" width="260"></a><br><sub>Light theme</sub></td>
-</tr>
-<tr>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/keys.png"><img src="docs/screenshots/keys.png" alt="The Keys tab with Caps Lock changed to F13" width="260"></a><br><sub>Key assignment</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/battery.png"><img src="docs/screenshots/battery.png" alt="The Battery screen with the activity chart" width="260"></a><br><sub>Battery and history</sub></td>
+</tr>
+<tr>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/charging.png"><img src="docs/screenshots/charging.png" alt="The Battery screen while charging over the cable on the 2.4G dongle" width="260"></a><br><sub>Charging, 2.4G dongle</sub></td>
-</tr>
-<tr>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/charging-cable.png"><img src="docs/screenshots/charging-cable.png" alt="The Battery screen on the USB-C cable, which reports no level" width="260"></a><br><sub>Charging, USB-C cable</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="Settings, Keyboard page" width="260"></a><br><sub>Settings: Keyboard</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/settings-app.png"><img src="docs/screenshots/settings-app.png" alt="Settings, App page" width="260"></a><br><sub>Settings: App</sub></td>
-</tr>
-<tr>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/settings-theme.png"><img src="docs/screenshots/settings-theme.png" alt="Settings, Theme page with the background pictures" width="260"></a><br><sub>Settings: Theme</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/settings-debug.png"><img src="docs/screenshots/settings-debug.png" alt="Settings, Debugging page" width="260"></a><br><sub>Settings: Debugging</sub></td>
+</tr>
+<tr>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/connecting.png"><img src="docs/screenshots/connecting.png" alt="Reading your keyboard, waking it up" width="260"></a><br><sub>Reading the keyboard</sub></td>
-</tr>
-<tr>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/asleep.png"><img src="docs/screenshots/asleep.png" alt="Keyboard is asleep" width="260"></a><br><sub>Keyboard asleep</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/support.png"><img src="docs/screenshots/support.png" alt="The Support menu with the Discord invite" width="260"></a><br><sub>Support menu</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/update.png"><img src="docs/screenshots/update.png" alt="The Software Update window" width="260"></a><br><sub>Software update</sub></td>
-</tr>
-<tr>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/window-controls.png"><img src="docs/screenshots/window-controls.png" alt="The flat window buttons in each state" width="260"></a><br><sub>Window buttons</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/max.png"><img src="docs/screenshots/max.png" alt="The F75 Max Lighting screen" width="260"></a><br><sub>F75 Max: Lighting</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/max-perkey.png"><img src="docs/screenshots/max-perkey.png" alt="The F75 Max Per-key screen" width="260"></a><br><sub>F75 Max: Per-key</sub></td>
+<td width="33%"></td>
 </tr>
 </table>
 
