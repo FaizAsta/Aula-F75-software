@@ -36,7 +36,22 @@
   // Everything the app remembers goes through `store`. In the desktop app it lives in a file in the user's data folder
   // (written immediately, so a restart cannot lose it); in a plain browser tab it falls back to localStorage.
   // Data an older version left in localStorage is picked up the first time it is read.
+  // The live picture on the "Which UI do you want to use?" cards (boot.js sets AULA_PREVIEW) is this same app inside an iframe. It starts
+  // from the look it was given, on the demo keyboard, and keeps its settings in memory only: nothing it does reaches the real ones.
+  const PV = window.AULA_PREVIEW || null;
   const store = (() => {
+    if (PV) {
+      const m = E.memoryStorage();
+      m.setItem(
+        'aula.prefs',
+        JSON.stringify({ demo: true, model: 'f75', modelSet: true, styleAsked: true, theme: PV.theme, style: PV.style, blur: PV.blur, stageBgOn: PV.stageBgOn, glass: PV.glass }),
+      );
+      if (PV.bg) {
+        m.setItem('aula.bgPreset', String(PV.bg));
+        m.setItem('aula.bgOpacity', String(PV.bgOpacity != null ? PV.bgOpacity : 0.5));
+      }
+      return m;
+    }
     let ls = null;
     try {
       localStorage.getItem('aula.probe');
@@ -106,8 +121,12 @@
   prefs.styleAsked = prefs.styleAsked === true; // has the person answered "Which UI do you want to use?" yet (asked after Start, once; see stylepick.js)
   prefs.blur = prefs.blur !== false; // Settings > Theme > Blur (Classic only): the frosted blur is on unless the person turned it off
   document.documentElement.classList.toggle('no-blur', !prefs.blur); // lite.css does the rest
-  prefs.stageBg = prefs.stageBg !== false; // Settings > Theme > Keyboard background: the card behind the keyboard picture is on unless the person turned it off
-  document.documentElement.classList.toggle('no-stage-bg', !prefs.stageBg); // lite.css (Classic) and glass.css (Liquid glass) do the rest
+  // Settings > Theme > Keyboard background (Classic only): the card behind the keyboard picture is OFF until the person turns it on.
+  // The first version of this switch was on by default and saved its choice as "stageBg", which cannot tell a choice from the default,
+  // so that old key is ignored (and dropped on the next save) and the choice lives under a new one.
+  delete prefs.stageBg;
+  prefs.stageBgOn = prefs.stageBgOn === true;
+  document.documentElement.classList.toggle('no-stage-bg', !prefs.stageBgOn); // lite.css (Classic) does the rest; Liquid glass ignores it
   if (G) prefs.glass = G.clean(prefs.glass); // the four Liquid glass sliders
   // Keyboard model: decides the preview layout and which LED each key is. Unknown or missing falls back to the F75.
   // What the keyboard picture shows: 'live' (follows the keyboard, the original behaviour) or 'picture' (just the board).
@@ -160,6 +179,8 @@
         busyElsewhere: () => !!prefs.demo || !!session.connected,
         isAway: () => !prefs.demo && !document.hasFocus(),
         getView: () => prefs.view, // the Live / Picture switch on the keyboard picture
+        animate: () => !!prefs.animate && !reduceMotion, // the effect cards' little keyboards play only when animation is on
+        shown: () => windowShown, // false while the window is in the tray or minimised: nothing is drawn then
         // the F75 preview has nothing to draw while a Max is connected (the Max's own picture is in the stage), so it rests
         idlePreview: (on) => {
           if (on) view.stop();
@@ -176,7 +197,6 @@
     ALL_LEDS = L.KEYS.map((k) => k.led);
   };
   rebuildKeyCaches();
-  const keyX = (k) => (k.x + k.w / 2) / L.WIDTH;
 
   let tab = 'lighting';
   let applying = false;
@@ -560,15 +580,135 @@
     }
   }
 
-  function setPkColor(hex) {
-    const rgb = P.hexToRgb(hex);
-    if (!rgb) return;
-    $('#pkInput').value = hexOf(rgb);
-    $('#pkHex').value = hexOf(rgb);
-    $('#pkHex').removeAttribute('aria-invalid');
+  function buildGradientPresets() {
+    const box = $('#pkPresets');
+    for (const g of GRADIENT_PRESETS) {
+      box.append(
+        el('button', {
+          class: 'pk-preset', type: 'button', 'aria-pressed': 'false', 'aria-label': `${g.name} gradient`, title: g.name,
+          'data-a': g.a, 'data-b': g.b,
+          style: `background:linear-gradient(90deg, ${g.a}, ${g.b})`,
+          onclick: () => {
+            pk.a = g.a;
+            pk.b = g.b;
+            pk.stop = 'a';
+            prefs.paint = 'gradient';
+            prefs.pkA = pk.a;
+            prefs.pkB = pk.b;
+            savePrefs();
+            syncPaintUI();
+            render();
+          },
+        }),
+      );
+    }
   }
 
-  const pkRGB = () => P.hexToRgb($('#pkInput').value) || [255, 255, 255];
+  // Per-key paint: what Brush, Paint selected and Fill all keys paint with. One of three:
+  //   solid    the start colour on every key
+  //   gradient the start colour on the left running into the end colour on the right
+  //   rainbow  the colours of the rainbow, left to right
+  // The picker, hex box and quick colours edit the "active" stop (start or end), so there is only one place to choose a colour.
+  const PAINT_MODES = ['solid', 'gradient', 'rainbow'];
+  const HEX6 = /^#[0-9a-f]{6}$/i;
+  const pk = { a: HEX6.test(prefs.pkA) ? prefs.pkA.toLowerCase() : '#7cd6ff', b: HEX6.test(prefs.pkB) ? prefs.pkB.toLowerCase() : '#ff2fa0', stop: 'a' };
+  prefs.paint = PAINT_MODES.includes(prefs.paint) ? prefs.paint : 'solid';
+  const PAINT_DIRS = ['x', 'y', 'xy']; // left to right, top to bottom, diagonal
+  prefs.pkDir = PAINT_DIRS.includes(prefs.pkDir) ? prefs.pkDir : 'x';
+  // One tap sets both ends of the gradient.
+  const GRADIENT_PRESETS = [
+    { name: 'Sunset', a: '#ffb300', b: '#ff2fa0' },
+    { name: 'Fire', a: '#ffd400', b: '#ff2d2d' },
+    { name: 'Ocean', a: '#00e5ff', b: '#2f5bff' },
+    { name: 'Aurora', a: '#00d26a', b: '#8a2be2' },
+    { name: 'Candy', a: '#ff2fa0', b: '#7cd6ff' },
+    { name: 'Ice', a: '#ffffff', b: '#00b4ff' },
+  ];
+
+  const rainbowAt = (t) => P.hsv(t * 0.85, 1, 1);
+  /** The colour for a place t (0 = left edge of the keyboard, 1 = right edge) with the paint that is chosen now. */
+  function pkColorAt(t) {
+    const a = P.hexToRgb(pk.a) || [255, 255, 255];
+    if (prefs.paint === 'rainbow') return rainbowAt(t);
+    if (prefs.paint === 'gradient') return P.mix(a, P.hexToRgb(pk.b) || [255, 255, 255], t);
+    return a;
+  }
+  /** The span (of key centres) a gradient or rainbow runs across: the whole keyboard, or just the given keys. */
+  function pkSpan(leds) {
+    const sp = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+    for (const led of leds) {
+      const k = KEYMAP.get(led);
+      if (!k) continue;
+      const cx = k.x + k.w / 2;
+      const cy = k.y + k.h / 2;
+      sp.x0 = Math.min(sp.x0, cx);
+      sp.x1 = Math.max(sp.x1, cx);
+      sp.y0 = Math.min(sp.y0, cy);
+      sp.y1 = Math.max(sp.y1, cy);
+    }
+    return sp;
+  }
+  /** 0 at the start edge of the span and 1 at the far edge, along the chosen direction. */
+  function pkT(k, sp) {
+    const nx = sp.x1 > sp.x0 ? (k.x + k.w / 2 - sp.x0) / (sp.x1 - sp.x0) : 0;
+    const ny = sp.y1 > sp.y0 ? (k.y + k.h / 2 - sp.y0) / (sp.y1 - sp.y0) : 0;
+    return prefs.pkDir === 'y' ? ny : prefs.pkDir === 'xy' ? (nx + ny) / 2 : nx;
+  }
+  /**
+   * Paints the given keys with the chosen paint. fit = true runs a gradient or rainbow across just these keys (Paint selected: a
+   * row you selected goes from the start colour to the end colour); otherwise it runs across the whole keyboard (Fill all keys,
+   * and Brush, so a stroke matches what Fill all keys would give).
+   */
+  function paintLeds(leds, fit = false) {
+    const sp = pkSpan(fit ? leds : ALL_LEDS);
+    return session.paintKeysWith(leds, (led) => {
+      const k = KEYMAP.get(led);
+      return pkColorAt(k ? pkT(k, sp) : 0);
+    });
+  }
+
+  /** Sets the colour of the stop being edited (the start colour when painting solid). */
+  function setPkColor(hex, { keepHex = false } = {}) {
+    const rgb = P.hexToRgb(hex);
+    if (!rgb) return;
+    pk[prefs.paint === 'gradient' ? pk.stop : 'a'] = hexOf(rgb);
+    prefs.pkA = pk.a;
+    prefs.pkB = pk.b;
+    savePrefs();
+    syncPaintUI({ keepHex });
+  }
+
+  /** Redraws the Colour section from the paint state. keepHex leaves the hex box alone (so typing in it is not rewritten). */
+  function syncPaintUI({ keepHex = false } = {}) {
+    const mode = prefs.paint;
+    if (mode !== 'gradient') pk.stop = 'a';
+    const card = $('#pkCard');
+    card.dataset.paint = mode;
+    for (const b of $$('#segPaint .seg-btn')) b.setAttribute('aria-checked', b.dataset.paint === mode ? 'true' : 'false');
+    $('#segPaint').style.setProperty('--i', PAINT_MODES.indexOf(mode));
+    for (const which of ['a', 'b']) {
+      const b = $(which === 'a' ? '#pkStopA' : '#pkStopB');
+      b.style.setProperty('--pk-c', pk[which]);
+      b.setAttribute('aria-pressed', pk.stop === which ? 'true' : 'false');
+    }
+    const cols = [];
+    if (mode === 'rainbow') for (let i = 0; i <= 10; i++) cols.push(hexOf(rainbowAt(i / 10)));
+    else cols.push(pk.a, pk.b);
+    $('#pkBar').style.background = `linear-gradient(90deg, ${cols.join(', ')})`;
+    for (const b of $$('#segDir .seg-btn')) b.setAttribute('aria-checked', b.dataset.dir === prefs.pkDir ? 'true' : 'false');
+    $('#segDir').style.setProperty('--i', PAINT_DIRS.indexOf(prefs.pkDir));
+    for (const b of $$('#pkPresets .pk-preset')) {
+      const on = mode === 'gradient' && b.dataset.a === pk.a && b.dataset.b === pk.b;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+    $('#pkEditing').textContent = mode === 'gradient' ? `Editing the ${pk.stop === 'a' ? 'start' : 'end'} colour` : '';
+    const cur = pk[pk.stop];
+    $('#pkInput').value = cur;
+    if (!keepHex) {
+      $('#pkHex').value = cur;
+      $('#pkHex').removeAttribute('aria-invalid');
+    }
+  }
 
   // ---------------------------------------------------------------- rendering
 
@@ -1000,14 +1140,16 @@
     $('#selCount').textContent = `${plural(sel.size, 'key')} selected`;
     for (const b of $$('#segTool .seg-btn')) b.setAttribute('aria-checked', b.dataset.tool === prefs.tool ? 'true' : 'false');
     $('#segTool').style.setProperty('--i', prefs.tool === 'brush' ? 1 : 0);
+    const withWhat = prefs.paint === 'gradient' ? 'the gradient below (each key gets the colour for its place, left to right)' : prefs.paint === 'rainbow' ? 'the rainbow below (each key gets the colour for its place, left to right)' : 'the colour below';
     $('#toolHint').textContent =
       (prefs.tool === 'brush'
-        ? 'Click or drag across the keys above to paint them with the colour below.'
-        : 'Click or drag across the keys above to select them, then press Paint selected.') +
+        ? `Click or drag across the keys above to paint them with ${withWhat}.`
+        : `Click or drag across the keys above to select them, then press Paint selected${prefs.paint === 'solid' ? '' : ` (the ${prefs.paint} fits those keys)`}.`) +
       (ready && !session.readable.colors
         ? ' Over the USB-C cable the keyboard cannot report the colours it shows now, so keys you do not paint go dark when you apply, and the result cannot be read back to check it.'
         : '');
-    for (const id of ['pkPaintSel', 'pkSelAll', 'pkSelNone', 'pkRainbow', 'pkGradient', 'pkAll', 'pkBlack', 'pkInput', 'pkHex', 'pkInput2']) $('#' + id).disabled = !ready;
+    for (const id of ['pkPaintSel', 'pkSelAll', 'pkSelNone', 'pkAll', 'pkBlack', 'pkInput', 'pkHex', 'pkSwap', 'pkStopA', 'pkStopB']) $('#' + id).disabled = !ready;
+    for (const b of $$('#segDir .seg-btn, #pkPresets .pk-preset')) b.disabled = !ready;
     $('#pkPaintSel').disabled = !ready || sel.size === 0;
     $('#pkSelNone').disabled = !ready || sel.size === 0;
   }
@@ -1037,7 +1179,7 @@
       }
       if (prefs.tool === 'brush') {
         drag = 'brush';
-        session.paintKeys([k.led], pkRGB());
+        paintLeds([k.led]);
         return;
       }
       drag = sel.has(k.led) ? 'del' : 'add';
@@ -1045,7 +1187,7 @@
       return;
     }
     if (phase === 'move' && k) {
-      if (drag === 'brush') session.paintKeys([k.led], pkRGB());
+      if (drag === 'brush') paintLeds([k.led]);
       else if (drag) toggle(k.led, drag);
     }
   }
@@ -1343,6 +1485,7 @@
     $('#bkImport').disabled = !s.ready;
     $('#bkFirst').disabled = !s.ready || !s.firstBackup();
     renderKeep();
+    renderReset();
   }
 
   function setTheme(pref) {
@@ -1355,6 +1498,29 @@
 
   // Style (Settings > Theme): Classic, or Liquid glass with its four sliders (blur, edge width, refraction, colour fringe).
   const GLASS_UNITS = { blur: ' px', bezel: ' px', amount: ' px', chroma: '%' };
+  // Settings > Theme > Liquid glass: three ready-made looks (clear, blur, frosted), and a Customise button that shows the four
+  // sliders. A look is not saved by name: it is whatever the four numbers are (G.presetOf), so a look picked by hand that lands
+  // on a ready-made one lights that button, and any other mix is "custom" (no button lit). The sliders start hidden every time.
+  const GLASS_PRESET_HINT = {
+    clear: 'Clear glass: no blur, so the picture shows through sharply and the edge bends it.',
+    blur: 'Blur glass: a soft blur and a gentle bend. This is the default look.',
+    frosted: 'Frosted glass: a heavy blur and a soft edge, like frosted glass. No colour fringe.',
+    custom: 'Custom: your own settings. Pick a look above to go back to a ready-made one.',
+  };
+  let glassCustomOpen = false;
+  function renderGlassPreset() {
+    const preset = G.presetOf(prefs.glass);
+    const seg = $('#segGlass');
+    const btns = $$('.seg-btn', seg);
+    for (const b of btns) b.setAttribute('aria-checked', b.dataset.glassPreset === preset ? 'true' : 'false');
+    seg.style.setProperty('--i', Math.max(0, btns.findIndex((b) => b.dataset.glassPreset === preset)));
+    seg.classList.toggle('seg-none', preset === 'custom'); // no look is lit while the sliders hold a mix of their own
+    $('#glassPresetHint').textContent = GLASS_PRESET_HINT[preset];
+    $('#glassCustom').hidden = !glassCustomOpen;
+    const cb = $('#glassCustomBtn');
+    cb.setAttribute('aria-expanded', glassCustomOpen ? 'true' : 'false');
+    cb.textContent = glassCustomOpen ? 'Hide' : 'Customise';
+  }
   function renderStyle() {
     if (!G) {
       for (const b of $$('#segStyle .seg-btn')) b.disabled = true;
@@ -1366,6 +1532,7 @@
     seg.style.setProperty('--i', glass ? 1 : 0);
     $('#glassSection').hidden = !glass;
     $('#blurRow').hidden = glass; // the Blur switch is a Classic setting; Liquid glass has its own Blur slider
+    $('#stageBgRow').hidden = glass; // so is Keyboard background: Liquid glass always shows its glass behind the keyboard picture
     $('#swBlur').setAttribute('aria-checked', prefs.blur ? 'true' : 'false');
     $('#styleTag').hidden = !glass; // the experimental tag and caution only while Liquid glass is on
     $('#styleCaution').hidden = !glass;
@@ -1379,10 +1546,12 @@
       rng.style.setProperty('--pf', (v - +rng.min) / (+rng.max - +rng.min));
       $(`#${rng.id}Val`).textContent = `${v}${GLASS_UNITS[k]}`;
     }
+    renderGlassPreset();
   }
-  // Keyboard background (Settings > Theme): the card behind the keyboard picture. The class on <html> is what the CSS reads.
+  // Keyboard background (Settings > Theme, Classic only): the card behind the keyboard picture. The class on <html> is what lite.css
+  // reads; Liquid glass ignores it (glass.css) and hides the switch, so the choice is kept for when Classic is back.
   function renderStageBg() {
-    $('#swStageBg').setAttribute('aria-checked', prefs.stageBg ? 'true' : 'false');
+    $('#swStageBg').setAttribute('aria-checked', prefs.stageBgOn ? 'true' : 'false');
   }
   function setStyle(style) {
     if (!G || (style !== 'classic' && style !== 'glass')) return;
@@ -1398,11 +1567,38 @@
   // (glass.js did not load: Classic is all there is). Answering applies the style, saves it and remembers that it was asked.
   const styleOwed = () => !!(G && SP && SP.owed(prefs));
   const styleStart = () => (SP ? SP.initial(prefs) : 'classic'); // what is highlighted when the question opens
-  function chooseStyle(style) {
+  // The options that go with a style, as the question shows them under the selected card: Classic has Blur and Keyboard background,
+  // Liquid glass has its four sliders. Painting them does not save them; chooseStyle (and the Settings controls) do that.
+  const styleOptions = () => ({ blur: prefs.blur, stageBgOn: prefs.stageBgOn, glass: { ...prefs.glass } });
+  function applyStyleOptions(o) {
+    if (!o) return;
+    const root = document.documentElement;
+    if (typeof o.blur === 'boolean') {
+      prefs.blur = o.blur;
+      root.classList.toggle('no-blur', !prefs.blur);
+    }
+    if (typeof o.stageBgOn === 'boolean') {
+      prefs.stageBgOn = o.stageBgOn;
+      root.classList.toggle('no-stage-bg', !prefs.stageBgOn);
+    }
+    if (G && o.glass) {
+      prefs.glass = G.clean(o.glass);
+      G.setParams(prefs.glass);
+    }
+  }
+  // The picture the live preview sits over: the preset the person already uses, else the first one that ships with the app.
+  function previewBg() {
+    const cur = store.getItem(BG_PRESET_KEY);
+    return BG && BG.isPresetName(cur) ? cur : bgPresets[0] || null;
+  }
+  function chooseStyle(style, opts) {
     const a = SP ? SP.answer(G ? style : 'classic') : { style: 'classic', styleAsked: true };
+    applyStyleOptions(opts);
     if (G && a.style !== prefs.style) setStyle(a.style);
     prefs.styleAsked = a.styleAsked;
     savePrefs();
+    renderStyle();
+    renderStageBg();
   }
 
   function renderTheme() {
@@ -1514,6 +1710,123 @@
     else info = 'Nothing remembered yet. The app remembers your keyboard the first time it connects.';
     $('#keepInfo').textContent = info;
     $('#keepNow').disabled = !s.ready || prefs.demo || !snap || applying || s.restoring;
+  }
+
+  // Reset keyboard (Settings > Keyboard). The F75 Max has its own session, so the button goes to whichever keyboard is connected.
+  const maxOn = () => !!(MXU && MXU.active());
+  let resetArmed = false;
+  let resetTimer = 0;
+  const RESET_LABEL = 'Reset keyboard';
+  function disarmReset() {
+    clearTimeout(resetTimer);
+    resetArmed = false;
+    const b = $('#kbReset');
+    if (b) {
+      b.textContent = RESET_LABEL;
+      b.classList.add('ghost');
+      b.removeAttribute('data-armed');
+    }
+  }
+
+  function renderReset() {
+    const b = $('#kbReset');
+    if (!b) return;
+    const max = maxOn() ? MXU.max : null;
+    const free = max ? max.present && !max.busy : session.ready && !applying && !session.restoring;
+    b.disabled = !free;
+    if (!free && resetArmed) disarmReset();
+    let info = '';
+    if (max) {
+      if (!max.present) info = 'Connect the keyboard first.';
+      else if (!max.cable) info = 'On the 2.4G dongle the F75 Max resets its lighting, response and sleep. Plug in the USB-C cable to reset the per-key colours and key locks too.';
+    } else if (!session.ready) info = 'Connect the keyboard first.';
+    else {
+      const left = [!session.readable.rgb && 'the palette', !session.readable.colors && 'the per-key colours'].filter(Boolean);
+      if (left.length) info = `Over this connection the keyboard does not hand over ${left.join(' or ')}, so ${left.length > 1 ? 'they are' : 'it is'} left as it is.`;
+    }
+    $('#resetInfo').textContent = info;
+    renderResetHotkey(max);
+  }
+
+  // The note under the button: the keyboard's own hard reset, for the keyboard that is connected. It is a hotkey pressed on the
+  // keyboard, so the app sends nothing for it. With no keyboard connected (or the demo one) it lists the models instead.
+  function renderResetHotkey(max) {
+    const box = $('#resetHotkey');
+    if (!box) return;
+    const real = !prefs.demo && (max ? max.present : session.connected);
+    const hk = L.hardReset(max ? 'f75' : prefs.model); // every model uses the same keys; the Max is not in layout.js
+    const name = max ? 'AULA F75 Max' : L.modelName(prefs.model);
+    const keys = [];
+    hk.keys.forEach((k, i) => keys.push(i ? ' + ' : '', el('kbd', { text: k })));
+    box.replaceChildren(
+      el('b', { text: real ? `${name} hard reset:` : 'Hard reset hotkey:' }),
+      ' hold ',
+      ...keys,
+      ` on the keyboard for ${hk.hold} seconds.`,
+      real ? '' : ' It works on the F75, F75 Pro, F87 and F75 Max. Connect a keyboard to see yours here.',
+    );
+  }
+
+  async function doKeyboardReset() {
+    if (maxOn()) {
+      const max = MXU.max;
+      if (max.busy || !max.present) return;
+      const task = (fn) => (MO ? MO.task($('#kbReset'), fn) : fn());
+      await task(async () => {
+        const r = await max.factoryReset();
+        if (!r.ok) {
+          toast(`Could not reset the keyboard: ${r.error}`, 'bad', 8000);
+          return false;
+        }
+        if (r.skipped && r.skipped.length) toast(`Lighting, response and sleep were reset. The ${r.skipped.join(' and ')} need the USB-C cable.`, 'warn', 8000);
+        else if (!r.confirmed) toast(r.note, 'warn', 8000);
+        else toast('The keyboard is back to its defaults.', 'ok');
+        return r.confirmed && !(r.skipped && r.skipped.length);
+      });
+      MXU.render();
+      render();
+      return;
+    }
+    if (applying || session.restoring || !session.ready) return;
+    applying = true;
+    txPhase = '';
+    clearTimeout(txHoldTimer);
+    txHold = null;
+    setProgress(0);
+    if (MO) MO.link('tx', 'Resetting');
+    renderApply();
+    let kind = 'bad';
+    try {
+      if (KUI) KUI.clearPending(); // key edits that were not applied would no longer match the keyboard
+      const r = await session.factoryReset(setProgress);
+      if (!r.ok && !r.written.length && r.error) {
+        toast(`Could not reset the keyboard: ${r.error}`, 'bad', 8000);
+        return;
+      }
+      let keys = { ok: true, changed: 0, failed: 0, skipped: true };
+      if (KUI && session.ready && r.ok) keys = await KUI.ka.resetToOriginal();
+      const lightingOk = r.ok && r.modeOk !== false;
+      const parts = [];
+      if (r.skipped && r.skipped.length) parts.push(`The ${r.skipped.join(' and ')} cannot be read over this connection, so they were left as they are.`);
+      if (!keys.skipped && keys.changed) parts.push(`${plural(keys.changed, 'key')} put back.`);
+      if (!keys.skipped && keys.failed) parts.push(`${plural(keys.failed, 'key')} could not be put back${keys.error ? `: ${keys.error}` : '.'}`);
+      if (lightingOk && !keys.failed) {
+        kind = 'ok';
+        toast(`The keyboard is back to its defaults. ${parts.join(' ')}`.trim(), 'ok', parts.length ? 7000 : 4600);
+      } else if (!lightingOk) {
+        kind = 'warn';
+        toast(`The keyboard answered but did not keep every default. Close other keyboard software (such as the official AULA driver) and try again. ${parts.join(' ')}`.trim(), 'warn', 9000);
+      } else {
+        kind = 'warn';
+        toast(`Lighting was reset. ${parts.join(' ')}`.trim(), 'warn', 9000);
+      }
+    } catch (err) {
+      toast(`Could not reset the keyboard: ${err.message}`, 'bad', 8000);
+    } finally {
+      applying = false;
+      holdTx(kind);
+      render();
+    }
   }
 
   let ifaceBusy = false;
@@ -1667,7 +1980,10 @@
     try {
       const r = await session.apply(setProgress);
       const live = P.effectOf(r.mode);
-      if (r.ok && r.modeOk && r.unverified && r.unverified.length) {
+      if (r.colorsMissing && r.ok && r.modeOk) {
+        // Per-key is on, but the keyboard does not hand its colours over this link and none were painted in this app: nothing could go out with the change.
+        toast('The change was sent, but the per-key colours could not be sent with it: this link cannot read them from the keyboard and none were painted in this app yet. If the keys went dark, paint any key in the Per-key tab and press Apply to bring them back.', 'warn', 12000);
+      } else if (r.ok && r.modeOk && r.unverified && r.unverified.length) {
         toast(`${r.written.includes('led') && live ? `${live.name} is now running on the keyboard.` : 'Sent to the keyboard.'} The cable cannot report ${r.unverified.includes('colors') ? 'per-key colours' : 'the palette'} back, so that part could not be checked.`, 'ok', 7000);
       } else if (r.ok && r.modeOk) {
         toast(r.written.includes('led') && live ? `${live.name} is now running on the keyboard.` : 'Saved to the keyboard.', 'ok');
@@ -1676,7 +1992,7 @@
       } else {
         toast('The keyboard answered but did not keep every change. Try the other connection mode and close other keyboard software.', 'warn', 8000);
       }
-      holdTx(r.ok && r.modeOk ? 'ok' : 'warn');
+      holdTx(r.ok && r.modeOk && !r.colorsMissing ? 'ok' : 'warn');
     } catch (err) {
       toast(`Could not write to the keyboard: ${err.message} Your changes are still here, so you can try again.`, 'bad', 8000);
       holdTx('bad');
@@ -1732,6 +2048,7 @@
   }
 
   async function setDemo(on) {
+    if (on && MXU && MXU.active() && MXU.max.demo) MXU.leave(); // the demo F75 Max gives way to the demo F75
     prefs.demo = !!on;
     savePrefs();
     session.disconnect();
@@ -1950,14 +2267,42 @@
         render();
       });
     }
+    for (const b of $$('#segPaint .seg-btn')) {
+      b.addEventListener('click', () => {
+        prefs.paint = b.dataset.paint;
+        savePrefs();
+        syncPaintUI();
+        render();
+      });
+    }
+    for (const b of $$('#segDir .seg-btn')) {
+      b.addEventListener('click', () => {
+        prefs.pkDir = b.dataset.dir;
+        savePrefs();
+        syncPaintUI();
+      });
+    }
+    for (const b of $$('.pk-stop')) {
+      b.addEventListener('click', () => {
+        pk.stop = b.dataset.stop;
+        syncPaintUI();
+      });
+    }
+    $('#pkSwap').addEventListener('click', () => {
+      [pk.a, pk.b] = [pk.b, pk.a];
+      prefs.pkA = pk.a;
+      prefs.pkB = pk.b;
+      savePrefs();
+      syncPaintUI();
+    });
     $('#pkInput').addEventListener('input', (e) => setPkColor(e.target.value));
     $('#pkHex').addEventListener('input', (e) => {
       const v = e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`;
       const rgb = P.hexToRgb(v);
       e.target.setAttribute('aria-invalid', rgb ? 'false' : 'true');
-      if (rgb) $('#pkInput').value = hexOf(rgb);
+      if (rgb) setPkColor(hexOf(rgb), { keepHex: true });
     });
-    $('#pkPaintSel').addEventListener('click', () => session.paintKeys([...sel], pkRGB()));
+    $('#pkPaintSel').addEventListener('click', () => paintLeds([...sel], true));
     $('#pkSelAll').addEventListener('click', () => {
       for (const l of ALL_LEDS) sel.add(l);
       render();
@@ -1966,14 +2311,8 @@
       sel.clear();
       render();
     });
-    $('#pkAll').addEventListener('click', () => session.paintKeys(ALL_LEDS, pkRGB()));
+    $('#pkAll').addEventListener('click', () => paintLeds(ALL_LEDS));
     $('#pkBlack').addEventListener('click', () => session.paintKeys(ALL_LEDS, [0, 0, 0]));
-    $('#pkRainbow').addEventListener('click', () => session.paintKeysWith(ALL_LEDS, (led) => P.hsv(keyX(KEYMAP.get(led)) * 0.85, 1, 1)));
-    $('#pkGradient').addEventListener('click', () => {
-      const a = pkRGB();
-      const b = P.hexToRgb($('#pkInput2').value) || [255, 255, 255];
-      session.paintKeysWith(ALL_LEDS, (led) => P.mix(a, b, keyX(KEYMAP.get(led))));
-    });
 
     // battery
     $('#batRefresh').addEventListener('click', readBatteryNow);
@@ -1989,8 +2328,8 @@
       renderStyle();
     });
     $('#swStageBg').addEventListener('click', () => {
-      prefs.stageBg = !prefs.stageBg;
-      document.documentElement.classList.toggle('no-stage-bg', !prefs.stageBg);
+      prefs.stageBgOn = !prefs.stageBgOn;
+      document.documentElement.classList.toggle('no-stage-bg', !prefs.stageBgOn);
       savePrefs();
       renderStageBg();
     });
@@ -2056,6 +2395,20 @@
       });
       rng.addEventListener('change', savePrefs);
     }
+    for (const b of $$('#segGlass .seg-btn')) {
+      b.addEventListener('click', () => {
+        const look = G.PRESETS[b.dataset.glassPreset];
+        if (!look) return;
+        prefs.glass = G.clean(look);
+        G.setParams(prefs.glass);
+        savePrefs();
+        renderStyle(); // the sliders below follow the look, so Customise starts from it
+      });
+    }
+    $('#glassCustomBtn').addEventListener('click', () => {
+      glassCustomOpen = !glassCustomOpen;
+      renderGlassPreset();
+    });
     $('#glassReset').addEventListener('click', () => {
       prefs.glass = G.clean(null);
       G.setParams(prefs.glass);
@@ -2176,6 +2529,27 @@
       });
       render();
     });
+
+    // Two clicks: the first arms the button for a few seconds, the second does the reset.
+    $('#kbReset').addEventListener('click', async () => {
+      const b = $('#kbReset');
+      if (b.disabled) return;
+      if (!resetArmed) {
+        resetArmed = true;
+        b.textContent = 'Click again to reset';
+        b.classList.remove('ghost');
+        b.setAttribute('data-armed', '1');
+        resetTimer = setTimeout(disarmReset, 5000);
+        return;
+      }
+      disarmReset();
+      await doKeyboardReset();
+    });
+    $('#kbReset').addEventListener('blur', () => resetArmed && disarmReset());
+    if (MXU) {
+      MXU.max.on('presence', scheduleRender);
+      MXU.max.on('busy', scheduleRender);
+    }
 
     $('#bkExport').addEventListener('click', async () => {
       const b = session.exportBackup();
@@ -2360,6 +2734,8 @@
     buildSegs();
     kickThumb();
     buildQuickSwatches();
+    buildGradientPresets();
+    syncPaintUI();
     wire();
     tab = 'lighting';
     render();
@@ -2445,6 +2821,23 @@
     if (MXU) MXU.watch();
   }
 
-  window.aulaApp = { session, view, prefs, setTab, setDemo, toast, keys: KUI, max: MXU, styleOwed, styleStart, chooseStyle };
+  window.aulaApp = { session, view, prefs, setTab, setDemo, toast, keys: KUI, max: MXU, styleOwed, styleStart, chooseStyle, styleOptions, previewBg, theme: () => (T ? T.resolved() : 'dark') };
+
+  // Preview mode (see PV above): follow the page around this one, and say when the picture is worth showing.
+  if (PV) {
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (e.source !== window.parent || !d || d.aulaPreview !== 'set') return;
+      applyStyleOptions(d);
+      if (G && (d.style === 'classic' || d.style === 'glass') && d.style !== prefs.style) setStyle(d.style);
+      renderStyle();
+    });
+    let tries = 0;
+    const wait = setInterval(() => {
+      if (!session.ready && ++tries < 100) return; // up to ten seconds for the demo keyboard; show whatever there is after that
+      clearInterval(wait);
+      setTimeout(() => window.parent.postMessage({ aulaPreview: 'ready' }, '*'), 1700); // the keyboard's intro and the screen's fade
+    }, 100);
+  }
   boot();
 })();

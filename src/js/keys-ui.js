@@ -315,7 +315,12 @@
       }
     }
 
-    return { ka, legends, selection, pick, render, wire, pendingCount: () => pending[0].size + pending[1].size };
+    const clearPending = () => {
+      pending[0].clear();
+      pending[1].clear();
+    };
+
+    return { ka, legends, selection, pick, render, wire, clearPending, pendingCount: () => pending[0].size + pending[1].size };
   }
 
   root.AulaKeysUI = { create };

@@ -1,4 +1,4 @@
-// Hold and drag for the pill controls (v1.5.1): the top tab bar and the 1-5 level selectors (Speed).
+// Hold and drag for the pill controls (v1.5.2): the top tab bar and the 1-5 level selectors (Speed).
 //
 // Press anywhere on the control, keep the button down and move sideways: the highlight follows the pointer and, when the
 // button is let go, settles on the nearest item. A press that barely moves is left alone, so clicking an item, the

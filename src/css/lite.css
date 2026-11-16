@@ -155,6 +155,18 @@
 :root.has-picture:not(.glass) .win-btns .win-close:active { background: rgb(201 59 64 / 0.96); }
 :root.has-picture:not(.glass):not([data-theme="light"]) :is(.tabs, .top-right > :is(.pill-btn, .icon-btn)) { --muted: #bcc2d1; --faint: #8d94a6; } /* the grey icons stay readable on a bright picture, as in the cards */
 
+/* The same frost as the tab bar on those boxes: the battery / Charging pill, Support, the update badge and the three window buttons. Over a
+   picture they were only a see-through tint, so the picture behind them stayed sharp while the tab bar next to them was blurred. Only
+   where the tint is (a picture is chosen: without one there is nothing behind them to blur), not with Windows' own frosted window, and
+   not with Blur off or "Reduce transparency" (Settings > Theme > Blur, 4c). Classic only: Liquid glass paints these itself. */
+:root.has-picture:not(.glass):not(.frost):not(.no-blur) :is(.top-right > :is(.pill-btn, .icon-btn), .win-btn) {
+  -webkit-backdrop-filter: blur(var(--frost-blur)) saturate(1.45) !important;
+          backdrop-filter: blur(var(--frost-blur)) saturate(1.45) !important;
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root.has-picture:not(.glass):not(.frost):not(.no-blur) :is(.top-right > :is(.pill-btn, .icon-btn), .win-btn) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+}
+
 /* ---- 5. Connecting loader: keep the rainbow ring, drop the filter-based hue cycling -------------------------- */
 .rl-pulse { animation: rgbPulse 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; }
 .rl-pulse2 { animation-delay: 1.2s; }

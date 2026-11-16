@@ -75,3 +75,153 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 40%, transparent);
 }
 .ka-exp .hint { margin: 0; }
+
+/* ------------------------------------------------------------------------------------------------ Per-key: one wide card
+   Three columns in one card, left to right: Tool + Selection | Colour | Direction + Presets + the two actions. The card spans
+   the page (so it reads as one control strip under the keyboard picture) and is short enough to sit on one screen. The pills,
+   chips and round swatches are the same in Classic and Liquid glass; glass only changes what is behind them. */
+
+.split-one { display: block; max-width: 1180px; margin: 0 auto; }
+.pk-card {
+  --pk-pad: 24px;
+  --pk-ctl: 38px; /* height of a pill button inside the card */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr);
+  padding: 0;
+  min-height: 268px; /* the same height in Solid, Gradient and Rainbow, so the page does not jump when the paint changes */
+  border-radius: max(var(--r-group), 26px);
+}
+.pk-card h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 22px; color: var(--hi); }
+.pk-card .field-head { margin-bottom: 12px; align-items: center; }
+.pk-card .field-head .val { font-size: 12.5px; }
+
+/* Columns: a hairline between them, the same padding all round. */
+.pk-card > .pk-col { display: flex; flex-direction: column; min-width: 0; padding: var(--pk-pad); border-top: 0; }
+.pk-card > .pk-col + .pk-col { border-top: 0; border-left: 1px solid var(--line); }
+.pk-editing:empty { display: none; }
+
+/* Pill controls inside the card (round ends, 38 px high), the look of the picture this layout follows. */
+.pk-card .seg { padding: 4px; border-radius: 999px; }
+.pk-card .seg::before { top: 4px; bottom: 4px; border-radius: 999px; }
+.pk-card .seg-btn { height: calc(var(--pk-ctl)); border-radius: 999px; font-size: 14.5px; }
+.pk-card .seg-btn[aria-checked="true"] { font-weight: 600; }
+.pk-card .btn { height: var(--pk-ctl); padding: 0 17px; font-size: 14px; }
+.pk-card .btn.ghost { color: color-mix(in srgb, var(--text) 82%, transparent); background: rgb(var(--ink) / 0.025); }
+.pk-card .btn.ghost:hover:not(:disabled) { color: var(--hi); background: rgb(var(--ink) / 0.07); }
+
+/* 1. Tool + Selection */
+.pk-selection { margin-top: 22px; }
+.pk-selection .btn-row { gap: 8px; }
+
+/* 2. Colour. What is painted decides what is shown: Solid has only the picker rows; Gradient adds the two stops with the strip
+   between them; Rainbow has only the strip (there is nothing to pick). */
+.pk-card[data-paint="solid"] .pk-stops,
+.pk-card[data-paint="rainbow"] .pk-edit,
+.pk-card[data-paint="rainbow"] .pk-col-colour .swatches,
+.pk-card[data-paint="solid"] .pk-swap,
+.pk-card[data-paint="rainbow"] .pk-stop { display: none; }
+
+.pk-stops { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-top: 14px; }
+.pk-card[data-paint="rainbow"] .pk-stops { grid-template-columns: minmax(0, 1fr); }
+
+/* The strip is the colour run the keys get, left to right. In Gradient it sits between the two stops. */
+.pk-bar {
+  height: 11px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.18);
+  background: linear-gradient(90deg, #7cd6ff, #ff2fa0);
+}
+.pk-card[data-paint="rainbow"] .pk-bar { height: 16px; }
+
+/* Start and End: a chip with the colour dot and its name (End has the dot on the right). The chip being edited has a ring round its dot. */
+.pk-stop {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 36px;
+  padding: 0 11px 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.025);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--muted);
+  font: 500 14px var(--font);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.pk-stop[data-stop="b"] { flex-direction: row-reverse; padding: 0 6px 0 13px; }
+.pk-stop .pk-dot {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--pk-c, #fff);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.22);
+  transition: transform 0.2s var(--spring), box-shadow 0.15s;
+}
+.pk-stop:hover:not(:disabled) { color: var(--text); background: rgb(var(--ink) / 0.06); }
+.pk-stop:hover:not(:disabled) .pk-dot { transform: scale(1.08); }
+.pk-stop[aria-pressed="true"] { color: var(--hi); box-shadow: inset 0 0 0 1px var(--line-2); }
+.pk-stop[aria-pressed="true"] .pk-dot { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--hi); }
+.pk-stop:disabled { opacity: 0.5; cursor: not-allowed; }
+.pk-stop:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--line-2), 0 0 0 3px rgb(var(--glow) / 0.3); }
+
+/* Picker square, hex box and Swap on one line; the quick colours under them. */
+.pk-edit { display: flex; align-items: center; gap: 10px; margin-top: 13px; }
+.pk-edit .color-edit.pk-color { margin-top: 0; flex: none; flex-wrap: nowrap; gap: 10px; }
+.pk-card .color-pick { width: var(--pk-ctl); height: var(--pk-ctl); border-radius: 12px; }
+.pk-card .text-in { width: 98px; height: var(--pk-ctl); border-radius: 12px; font-size: 15px; letter-spacing: 0.02em; }
+.pk-swap { margin-left: auto; flex: none; gap: 7px; display: inline-flex; align-items: center; }
+.pk-swap svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.pk-col-colour .swatches.small { margin-top: 13px; gap: 6px; flex-wrap: wrap; }
+.pk-col-colour .swatches.small .swatch { width: 25px; height: 25px; }
+
+/* 3. Direction (Gradient and Rainbow) and one-tap gradient presets (Solid and Gradient: tapping one in Solid switches to
+   Gradient), then the actions pinned to the bottom. Rainbow has no presets; Solid has no direction. */
+.pk-card[data-paint="solid"] .pk-opt-dir,
+.pk-card[data-paint="rainbow"] .pk-opt-presets { display: none; }
+.pk-card[data-paint="solid"] .pk-opt-presets { margin-top: 0; }
+.pk-opt-dir { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pk-opt-presets { margin-top: 14px; }
+.pk-opt-presets h3 { margin-bottom: 8px; }
+.seg-sm { width: 132px; flex: none; }
+.pk-card .seg-sm { border-radius: 16px; }
+.pk-card .seg-sm::before { border-radius: 12px; }
+.pk-card .seg-sm .seg-btn { height: var(--pk-ctl); border-radius: 12px; display: grid; place-items: center; }
+.seg-sm svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+
+.pk-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pk-preset {
+  width: 100%;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.18);
+  cursor: pointer;
+  transition: transform 0.2s var(--spring), box-shadow 0.15s;
+}
+.pk-preset:hover:not(:disabled) { transform: scale(1.05); }
+.pk-preset:active:not(:disabled) { transform: scale(0.96); }
+.pk-preset[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--hi); }
+.pk-preset:disabled { opacity: 0.5; cursor: not-allowed; }
+.pk-preset:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+
+.pk-act { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: auto; padding-top: 14px; }
+.pk-card .pk-act .btn { height: 42px; padding: 0 8px; font-size: 14.5px; font-weight: 600; }
+
+/* The two lines of help under the card. */
+.pk-foot { margin: 10px 6px 0; }
+.pk-foot .hint { margin-top: 4px; }
+
+/* A narrower window: tighter padding first, then the three columns stack (hairlines between them become horizontal). */
+@media (max-width: 1080px) {
+  .pk-card { --pk-pad: 20px; }
+  .pk-card .seg-btn { font-size: 14px; }
+  .pk-card .pk-act .btn { font-size: 14px; }
+}
+@media (max-width: 880px) {
+  .pk-card { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .pk-card > .pk-col + .pk-col { border-left: 0; border-top: 1px solid var(--line); }
+  .pk-act { margin-top: 18px; }
+}

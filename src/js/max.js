@@ -444,6 +444,64 @@
     }
   }
 
+  // ------------------------------------------------------------------ demo keyboard
+
+  /**
+   * The demo F75 Max's USB-C link. It is given the same steps a real F75 Max gets, checks that each one is a whole 64-byte
+   * packet, and acknowledges it. Nothing leaves the app and no HID device is opened.
+   */
+  class DemoCableLink {
+    constructor({ delayMs = 16 } = {}) {
+      this.kind = 'cable';
+      this.demo = true;
+      this.delayMs = delayMs;
+      this.lastSteps = []; // the names of the steps of the last run, for the tests
+    }
+
+    async open() {}
+
+    async close() {}
+
+    async run(steps) {
+      this.lastSteps = [];
+      for (const s of steps) {
+        await sleep(this.delayMs);
+        if (!s.bytes || s.bytes.length !== PACKET) throw new MaxError(`The demo keyboard got a packet that is not ${PACKET} bytes (“${s.name}”).`);
+        this.lastSteps.push(s.name);
+      }
+      return { unconfirmed: [] };
+    }
+  }
+
+  /** The demo F75 Max's 2.4G link: takes 32-byte reports (checksum checked) and answers the battery query. */
+  class DemoDongleLink {
+    constructor({ percent = 78, delayMs = 20 } = {}) {
+      this.kind = 'dongle';
+      this.demo = true;
+      this.percent = percent;
+      this.delayMs = delayMs;
+      this.reports = 0;
+    }
+
+    async open() {}
+
+    async close() {}
+
+    async send(report) {
+      await sleep(this.delayMs);
+      if (!report || report.length !== REPORT) throw new MaxError(`The demo keyboard got a report that is not ${REPORT} bytes.`);
+      let sum = 0;
+      for (let i = 0; i < REPORT - 1; i++) sum = (sum + report[i]) & 0xff;
+      if (sum !== report[REPORT - 1]) throw new MaxError('The demo keyboard got a report with a wrong checksum.');
+      this.reports++;
+    }
+
+    async battery() {
+      await sleep(120);
+      return this.percent;
+    }
+  }
+
   // ------------------------------------------------------------------ session
 
   const STORE_KEY = 'aula.max.v1';
@@ -477,6 +535,8 @@
       this.confirmed = new Set(); // 'vid:pid' the person said are an F75 Max although the name does not say so
       this.pending = [];
       this.refused = [];
+      this.demo = false; // true while the simulated F75 Max is in use (see enterDemo)
+      this._real = null; // what the session held before the demo took over
       this._queue = Promise.resolve();
       this._on = {};
       this._load();
@@ -507,11 +567,13 @@
     }
 
     get label() {
+      if (this.demo) return 'Demo keyboard';
       return this.cable ? IDS.cable.label : this.dongle ? IDS.dongle.label : null;
     }
 
     /** Looks for permitted F75 Max interfaces and keeps one link per kind. */
     async scan() {
+      if (this.demo) return this.present; // the simulated keyboard is always there, and no real device is looked at
       let list = [];
       try {
         list = this.hid ? await this.hid.getDevices() : [];
@@ -548,10 +610,50 @@
     }
 
     async disconnect() {
+      if (this.demo) return this.leaveDemo();
       for (const kind of ['cable', 'dongle']) {
         if (this[kind]) await this[kind].close();
         this[kind] = null;
       }
+      this._emit('presence');
+    }
+
+    /**
+     * Switches to the simulated F75 Max: a USB-C cable and a 2.4G dongle that acknowledge everything, so every page and
+     * control can be tried without hardware. The demo starts from the defaults and keeps its own state in memory only: what
+     * the app remembers about a real F75 Max (on disk) is not read, changed or overwritten, and is back when the demo ends.
+     */
+    async enterDemo() {
+      if (this.demo) return true;
+      for (const kind of ['cable', 'dongle']) {
+        if (this[kind]) await this[kind].close();
+        this[kind] = null;
+      }
+      this._real = { storage: this.storage, lighting: this.lighting, settings: this.settings, keyColors: this.keyColors, battery: this.battery, last: this.last, confirmed: this.confirmed, pending: this.pending, refused: this.refused };
+      this.storage = null; // nothing of the demo is saved
+      this.lighting = { ...DEFAULT_LIGHTING, rgb: DEFAULT_LIGHTING.rgb.slice() };
+      this.settings = { ...DEFAULT_SETTINGS };
+      this.keyColors = new Map();
+      this.battery = { percent: null, at: 0 };
+      this.last = null;
+      this.pending = [];
+      this.refused = [];
+      this.demo = true;
+      this.cable = new DemoCableLink();
+      this.dongle = new DemoDongleLink();
+      this._emit('presence');
+      return true;
+    }
+
+    /** Ends the demo and puts back what the session held before it. */
+    async leaveDemo() {
+      if (!this.demo) return;
+      const real = this._real;
+      this.demo = false;
+      this.cable = null;
+      this.dongle = null;
+      this._real = null;
+      if (real) Object.assign(this, real);
       this._emit('presence');
     }
 
@@ -591,6 +693,17 @@
     /** Paints lights `leds` with `rgb`, or turns them off when rgb is null. */
     paint(leds, rgb) {
       for (const led of leds) {
+        if (rgb) this.keyColors.set(led, [clamp(rgb[0], 0, 255), clamp(rgb[1], 0, 255), clamp(rgb[2], 0, 255)]);
+        else this.keyColors.delete(led);
+      }
+      this._save();
+      this._emit('change');
+    }
+
+    /** Paints lights `leds`, each with the colour `colourOf(led)` gives (null turns it off); saves and notifies once. */
+    paintWith(leds, colourOf) {
+      for (const led of leds) {
+        const rgb = colourOf(led);
         if (rgb) this.keyColors.set(led, [clamp(rgb[0], 0, 255), clamp(rgb[1], 0, 255), clamp(rgb[2], 0, 255)]);
         else this.keyColors.delete(led);
       }
@@ -714,6 +827,60 @@
       });
     }
 
+    /**
+     * Reset keyboard: lighting, response / sleep / key locks and per-key colours back to DEFAULT_LIGHTING and
+     * DEFAULT_SETTINGS with an empty per-key table. No reset command of the F75 Max is known, so this is the same writes as
+     * Apply, in one queued job. Over USB-C the empty per-key table goes first and the lighting after it (the lighting block is
+     * what leaves the user-defined mode again), then the settings. Over the 2.4G dongle, which cannot carry the per-key table,
+     * only lighting and response / sleep are reset and `skipped` says so. What the app remembers changes only when the keyboard
+     * took the reset.
+     */
+    factoryReset() {
+      const before = { lighting: this.lighting, settings: this.settings, keyColors: this.keyColors };
+      const lighting = { ...DEFAULT_LIGHTING, rgb: DEFAULT_LIGHTING.rgb.slice() };
+      const settings = { ...DEFAULT_SETTINGS };
+      const job = this._run('reset', async () => {
+        if (this.cable) {
+          const left = [];
+          for (const steps of [[...userDefinedSteps(lighting.brightness), ...keyColorSteps([])], lightingSteps(lighting), settingsSteps(settings)]) {
+            const r = await this.cable.run(steps);
+            left.push(...((r && r.unconfirmed) || []));
+          }
+          return { ...cableResult({ unconfirmed: left }, 'The keyboard accepted every step.'), skipped: [] };
+        }
+        if (this.dongle) {
+          await this.dongle.send(rgbCommitReport());
+          await sleep(50);
+          await this.dongle.send(rgbReport(lighting));
+          await sleep(50);
+          await this.dongle.send(responseReport(settings));
+          return { via: 'dongle', confirmed: false, note: 'Sent over 2.4G. The dongle does not confirm changes, and it cannot reset the per-key colours or the key locks: plug in the USB-C cable for those.', skipped: ['per-key colours', 'key locks'] };
+        }
+        throw new MaxError('No F75 Max found.');
+      });
+      // The memory follows the keyboard, so it is set before the job runs (the screen shows the defaults while it works) and
+      // put back if the job fails.
+      this.lighting = lighting;
+      this.settings = settings;
+      this.keyColors = new Map();
+      this._save();
+      this._emit('change');
+      return job.then((res) => {
+        if (!res.ok) {
+          Object.assign(this, before);
+          this._save();
+          this._emit('change');
+        } else if (res.skipped && res.skipped.length) {
+          // Over the dongle the per-key table and the key locks were not written, so they are not remembered as reset.
+          this.keyColors = before.keyColors;
+          this.settings = { ...settings, winLock: before.settings.winLock, altF4Lock: before.settings.altF4Lock, altTabLock: before.settings.altTabLock };
+          this._save();
+          this._emit('change');
+        }
+        return res;
+      });
+    }
+
     /** The battery level through the 2.4G dongle (the USB-C link has no battery report). */
     pollBattery() {
       if (!this.dongle) return Promise.resolve(null);
@@ -734,6 +901,6 @@
     PACKET, REPORT, USER_DEFINED, KEY_PACKETS,
     lightingSteps, userDefinedSteps, keyColorTable, keyColorSteps, settingsSteps, accepted,
     rgbCommitReport, rgbReport, responseReport, batteryQuery, parseBattery, withChecksum,
-    CableLink, DongleLink, MaxSession, MaxError,
+    CableLink, DongleLink, DemoCableLink, DemoDongleLink, MaxSession, MaxError,
   };
 });

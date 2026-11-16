@@ -181,11 +181,16 @@ test('glass.js: a tiny blur after the shift smooths the one-pixel stairs, except
   assert.ok(js.includes("window.addEventListener('resize', onResize)") && js.includes("window.removeEventListener('resize', onResize)"), 'zooming or moving to another screen must rebuild the filters, and Classic must not keep the listener');
 });
 
-test('glass.js: panels get a wider, stronger rim and a little more frost than pills do', () => {
+test('glass.js: the big blocks are a lighter glass than the controls (gentler bend, quieter fringe, softer reflection) with a wide edge and some frost', () => {
   const { js } = surfaces();
   const m = js.match(/const PANEL = \{ bezel: ([\d.]+), amount: ([\d.]+), blur: ([\d.]+) \}/);
   assert.ok(m, 'PANEL factors not found');
-  assert.ok(+m[1] > 1 && +m[2] > 1 && +m[3] > 0, 'a panel must bend more and blur more than a leaf');
+  assert.ok(+m[1] > 1 && +m[2] < 1 && +m[3] > 0, 'a panel has a wide edge, bends less than a leaf and still blurs a little');
+  const f = js.match(/const PANEL_FRINGE = ([\d.]+)/);
+  assert.ok(f && +f[1] < 1 && js.includes('if (panel) ca *= PANEL_FRINGE'), 'a panel splits the colours less than a leaf');
+  const r = js.match(/const PANEL_RIM = \{ gain: ([\d.]+), lift: ([\d.]+), floor: ([\d.]+), width: (-?[\d.]+) \}/);
+  assert.ok(r && +r[1] < 2.2 && +r[4] <= 0, 'the reflection on a panel is softer and thinner than the one on a leaf (RIM.gain 2.2)');
+  assert.ok(js.includes("panel ? 'panel' : lens") && js.includes("lens === 'panel' ? PANEL_RIM"), 'a panel filter ends with its own reflection');
   assert.ok(js.includes('params.bezel * (panel ? PANEL.bezel : 1)') && js.includes('params.blur + panelFrost(panel)'), 'the factors are not applied');
   assert.ok(/const key = `[^`]*\$\{blur\}[^`]*\$\{amount\}/.test(js), 'filters with different panel settings must not share a cache key');
 });
@@ -304,9 +309,10 @@ test('glass.js: the smallest surfaces are only frosted, and no control splits co
       assert.strictEqual(r.ca, 0, `${w}x${h}: no colour split on a control`);
     }
   }
-  // Cards and panels are big: they keep exactly what the settings say (a panel gets its 1.25 on top), fringe included.
+  // Cards and panels are big: they keep what the settings say (a panel is a lighter glass: its 0.6 on top, and half the fringe).
   assert.strictEqual(G.rim(300, 110, false).amount, 30);
-  assert.strictEqual(G.rim(1200, 300, true).amount, 37.5);
+  assert.strictEqual(G.rim(1200, 300, true).amount, 18);
+  assert.ok(G.rim(1200, 300, true).ca < G.rim(300, 110, false).ca, 'a panel splits the colours less than a card');
   assert.ok(G.rim(300, 110, false).ca > 0 && G.rim(300, 110, false).ca <= 0.18);
   assert.ok(strong.rim(300, 110, false).ca >= G.rim(300, 110, false).ca);
   // The settings still rule: no bending, no fringe.
@@ -389,7 +395,7 @@ test('glass.js: the slider thumb and the sliding tab highlight, which are held a
   const m = js.match(/const LENSES = '([^']+)';/);
   assert.ok(m && m[1].includes('.range-lens') && m[1].includes('.tab-ind'), 'the two lenses are listed');
   assert.ok(js.includes('!panel && el.matches(LENSES)'), 'only leaves can be lenses, and the filter is told');
-  assert.ok(/\$\{lens \? 'L' : ''\}/.test(js.slice(js.indexOf('function acquire'), js.indexOf('function drop'))), 'a lens never shares a filter with a plain control of the same size');
+  assert.ok(/\$\{lens \? 'L' : ''\}/.test(js.slice(js.indexOf('function describe'), js.indexOf('function drop'))), 'a lens never shares a filter with a plain control of the same size');
   const { G } = loadGlass({ style: 'glass' });
   assert.ok(G.rimSpec(66, 44, true).width > G.rimSpec(66, 44, false).width, 'a lens gets a deeper band');
   assert.ok(G.rimLight(0, 1, true) > G.rimLight(0, 1, false), 'and a stronger one, on every edge');
@@ -435,4 +441,124 @@ test('glass.js: one canvas draws every map, and only a new or removed element st
   assert.ok(!/createElement\('canvas'\)/.test(maps), 'a canvas and a 2d context for each map was a large part of the cost of a new size');
   assert.ok((maps.match(/scratchCanvas\(/g) || []).length === 2, 'both maps use the shared canvas');
   assert.ok(/nodeType === 1/.test(js) && /hasElement\(m\.addedNodes\)/.test(js), 'text nodes arrive as mutations too, and must not start a scan');
+});
+
+test('glass.js: a page is not slow the first time: the sizes of surfaces are remembered and their maps made while idle at the next start', () => {
+  const js = src('js', 'glass.js');
+  assert.ok(js.includes("'aula.glassSizes'"), 'only the sizes are stored');
+  assert.ok(/host\.setMemory\(SIZES_KEY/.test(js) && /host\.loadMemory\(\) \|\| \{\}\)\[SIZES_KEY\]/.test(js), 'in the desktop app they live in its data file, like everything else it remembers (localStorage may not survive a restart there)');
+  assert.ok(!/localStorage\.setItem\([^)]*(maps|data:image)/.test(js), 'never the maps themselves: they would go stale when the way they are drawn changes');
+  const warm = js.slice(js.indexOf('function warmUp('), js.indexOf('// ---- sliders'));
+  assert.ok(/ensure\(w, h, describe\(/.test(warm), 'it builds the filter (and with it the maps) for the settings a surface would be given, the same way acquire does');
+  assert.ok(/timeRemaining\(\)/.test(warm) && /idle\(step\)/.test(warm), 'in idle time, a few at a time');
+  assert.ok(!/maps\.clear\(\)/.test(js.slice(js.indexOf('function mapUrl'), js.indexOf('// ---- one SVG filter'))), 'a full cache drops its oldest map, not all of them');
+});
+
+test('glass.js: sliders shown together are all measured before any is changed', () => {
+  const js = src('js', 'glass.js');
+  const ro = js.slice(js.indexOf('const roRange'), js.indexOf('function mountRange'));
+  assert.ok(ro.indexOf('rec.measure()') > 0 && ro.indexOf('rec.apply(') > ro.indexOf('rec.measure()'));
+  assert.ok(!/rec\.place\(\)/.test(ro), 'one lens at a time made each write force the next measurement to lay the page out again');
+});
+
+test('glass.js: filters made ahead of time are swept when the settings change, so they never pile up', () => {
+  const js = src('js', 'glass.js');
+  assert.ok(/function sweep\(\)/.test(js) && /if \(f\.refs > 0\) continue;/.test(js), 'only filters nobody uses are removed');
+  const flush = js.slice(js.indexOf('function flush()'), js.indexOf('function paint('));
+  assert.ok(/if \(sweepAfter\) sweep\(\);/.test(flush), 'after every surface has its new filter, not before');
+  assert.ok(/sweepAfter = true;/.test(js.slice(js.indexOf('function repaintAll()'), js.indexOf('function sweep()'))));
+});
+
+test('glass.js: filters made ahead of time are made again, in idle time, after the settings have stopped changing', () => {
+  const js = src('js', 'glass.js');
+  const repaint = js.slice(js.indexOf('function repaintAll()'), js.indexOf('// Filters made ahead of time'));
+  assert.ok(/warmUp\(\[\.\.\.sizes\.values\(\)\]\.reverse\(\), \d+\)/.test(repaint));
+  assert.ok(/clearTimeout\(warmTimer\);\s*warmRun\+\+;/.test(js.slice(js.indexOf('function release()'))), 'turning the glass off cancels it');
+  assert.ok(/run !== warmRun/.test(js), 'a newer run replaces one that is in progress');
+});
+
+// ---- Liquid glass looks: Clear glass, Blur glass, Frosted glass, and the Customise button --------------------------------
+
+test('glass.js: Clear, Blur and Frosted are ready-made looks, each inside the slider limits, and Blur is the default', () => {
+  const { G } = loadGlass(null);
+  assert.deepStrictEqual(Object.keys(G.PRESETS), ['clear', 'blur', 'frosted']);
+  for (const [name, look] of Object.entries(G.PRESETS)) {
+    assert.deepStrictEqual({ ...G.clean(look) }, { ...look }, `${name} is changed by clean(), so a slider could not hold it`);
+  }
+  assert.deepStrictEqual({ ...G.PRESETS.blur }, { ...G.DEFAULTS }, 'Blur glass is the look people already have by default');
+  assert.strictEqual(G.PRESETS.clear.blur, 0, 'Clear glass has no frost at all');
+  assert.ok(G.PRESETS.frosted.blur > G.PRESETS.blur.blur, 'Frosted glass is blurrier than Blur glass');
+  assert.ok(G.PRESETS.frosted.blur > G.PRESETS.clear.blur);
+  assert.strictEqual(G.PRESETS.frosted.chroma, 0, 'Frosted glass has no colour fringe');
+  // the three looks differ from each other, or one button would light for two of them
+  const keys = Object.values(G.PRESETS).map((l) => JSON.stringify([l.blur, l.bezel, l.amount, l.chroma]));
+  assert.strictEqual(new Set(keys).size, 3);
+});
+
+test('glass.js: presetOf names the look the four numbers make, and says custom for any other mix', () => {
+  const { G } = loadGlass(null);
+  for (const name of ['clear', 'blur', 'frosted']) assert.strictEqual(G.presetOf(G.PRESETS[name]), name);
+  assert.strictEqual(G.presetOf(null), 'blur', 'nothing saved is the default look, Blur glass');
+  assert.strictEqual(G.presetOf(G.DEFAULTS), 'blur');
+  assert.strictEqual(G.presetOf({ ...G.PRESETS.clear, blur: 1 }), 'custom');
+  assert.strictEqual(G.presetOf({ ...G.PRESETS.frosted, amount: 13 }), 'custom');
+  // values the page keeps as text (from a slider) still count, and values past a limit are held to it first
+  assert.strictEqual(G.presetOf({ blur: '0', bezel: '16', amount: '40', chroma: '35' }), 'clear');
+  assert.strictEqual(G.presetOf({ blur: 99, bezel: 10, amount: 12, chroma: 0 }), 'custom');
+  // a look saved by an older version (any four numbers) is kept as it is, not forced onto a preset
+  const old = loadGlass({ style: 'glass', glass: { blur: 4, bezel: 20, amount: 45, chroma: 10 } }).G;
+  assert.deepStrictEqual({ ...old.params() }, { blur: 4, bezel: 20, amount: 45, chroma: 10 });
+  assert.strictEqual(old.presetOf(old.params()), 'custom');
+});
+
+test('index.html: the glass section has the three looks, a Customise button, and the sliders hidden behind it', () => {
+  const html = src('index.html');
+  const sec = html.slice(html.indexOf('id="glassSection"'), html.indexOf('<h2>Background</h2>'));
+  for (const v of ['clear', 'blur', 'frosted']) assert.ok(sec.includes(`data-glass-preset="${v}"`), `no button for ${v}`);
+  for (const label of ['Clear glass', 'Blur glass', 'Frosted glass']) assert.ok(sec.includes(`>${label}</button>`), `${label} is not a label`);
+  assert.ok(/id="segGlass"[^>]*role="radiogroup"/.test(sec));
+  assert.ok(/id="glassCustomBtn"[^>]*aria-expanded="false"[^>]*aria-controls="glassCustom"/.test(sec));
+  const custom = sec.match(/<div id="glassCustom"[^>]*>/);
+  assert.ok(custom && /\bhidden\b/.test(custom[0]), 'the sliders must start hidden');
+  const inside = sec.slice(sec.indexOf('id="glassCustom"'));
+  for (const k of ['blur', 'bezel', 'amount', 'chroma']) assert.ok(inside.includes(`data-glass="${k}"`), `the ${k} slider is not behind Customise`);
+  assert.ok(inside.includes('id="glassReset"'));
+  // the looks and the Customise button stay in view when the sliders are hidden
+  const before = sec.slice(0, sec.indexOf('id="glassCustom"'));
+  assert.ok(before.includes('data-glass-preset="clear"') && before.includes('id="glassCustomBtn"'));
+  assert.ok(!before.includes('data-glass="'), 'no slider may sit outside the Customise panel');
+});
+
+test('app.js: a look sets the four numbers and saves, Customise only shows or hides the sliders, and moving a slider makes it custom', () => {
+  const js = src('js', 'app.js');
+  // choosing a look
+  const click = js.match(/for \(const b of \$\$\('#segGlass \.seg-btn'\)\) \{[\s\S]*?\n    \}\n/);
+  assert.ok(click, 'the look buttons have no click handler');
+  assert.ok(/G\.PRESETS\[b\.dataset\.glassPreset\]/.test(click[0]));
+  assert.ok(/prefs\.glass = G\.clean\(look\)/.test(click[0]));
+  assert.ok(/G\.setParams\(prefs\.glass\)/.test(click[0]) && /savePrefs\(\)/.test(click[0]) && /renderStyle\(\)/.test(click[0]));
+  // Customise
+  const cust = js.match(/\$\('#glassCustomBtn'\)\.addEventListener\('click', \(\) => \{([\s\S]*?)\n    \}\);/);
+  assert.ok(cust, 'Customise has no click handler');
+  assert.ok(/glassCustomOpen = !glassCustomOpen/.test(cust[1]));
+  assert.ok(!/prefs\.glass|G\.setParams/.test(cust[1]), 'Customise must not change the glass');
+  // the render reads the look from the numbers, so a slider move or Reset updates the lit button by itself
+  const render = js.match(/function renderGlassPreset\(\) \{([\s\S]*?)\n  \}\n/);
+  assert.ok(render, 'renderGlassPreset is missing');
+  assert.ok(/G\.presetOf\(prefs\.glass\)/.test(render[1]));
+  assert.ok(/'seg-none', preset === 'custom'/.test(render[1]), 'no button may be lit for a custom mix');
+  assert.ok(/\$\('#glassCustom'\)\.hidden = !glassCustomOpen/.test(render[1]));
+  assert.ok(/aria-expanded/.test(render[1]));
+  const style = js.match(/function renderStyle\(\) \{[\s\S]*?\n  \}\n/);
+  assert.ok(style && /renderGlassPreset\(\)/.test(style[0]), 'renderStyle must refresh the looks');
+  // the hint has a line for every look and for custom
+  for (const k of ['clear', 'blur', 'frosted', 'custom']) assert.ok(new RegExp(`\\b${k}: '`).test(js.slice(js.indexOf('GLASS_PRESET_HINT'))), `no hint for ${k}`);
+});
+
+test('app.css: the look switcher is wider than the theme one, hides its highlight for a custom mix, and the Customise panel is hidden with the attribute', () => {
+  const css = src('css', 'app.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(/\.seg-glass \{[^}]*width: 372px/.test(css));
+  assert.ok(/\.seg-glass\.seg-none::before \{ opacity: 0; \}/.test(css));
+  assert.ok(/\.glass-custom\[hidden\] \{ display: none; \}/.test(css), 'a rule that sets display on the panel must not beat the hidden attribute');
+  assert.ok(/\.glass-custom \{ border-top: 1px solid var\(--line\); \}/.test(css));
 });

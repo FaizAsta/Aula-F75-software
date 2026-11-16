@@ -152,13 +152,17 @@
    * Models this app can drive. `match` is tested against the USB product name, which is only a hint: the F75 and
    * F87 report the same USB ids, so the model is also a setting the person can change.
    */
+  // The keyboard's own hard reset (AULA's support pages: hold Fn + Esc for 5 seconds; some older F75 manuals say 3, and a 5 second
+  // hold covers both). It is a hotkey on the keyboard, the app sends nothing for it.
+  const HARD_RESET = Object.freeze({ keys: Object.freeze(['Fn', 'Esc']), hold: 5 });
+
   const MODELS = [
     // The plain F75 must not claim "F75 Pro" names, so its pattern steps aside for a trailing "Pro".
-    { id: 'f75', name: 'AULA F75', skin: 'f75', match: /f75(?![\s_-]*pro)/i, knob: true, ...F75 },
+    { id: 'f75', name: 'AULA F75', skin: 'f75', match: /f75(?![\s_-]*pro)/i, knob: true, hardReset: HARD_RESET, ...F75 },
     // The F75 Pro is the same 75% board with a knob. No separate LED table is published for it, so it uses the F75 one;
     // the light count check (fits) still catches a keyboard whose colour block is too small for it.
-    { id: 'f75pro', name: 'AULA F75 Pro', skin: 'f75pro', match: /f75[\s_-]*pro/i, knob: true, ...F75 },
-    { id: 'f87', name: 'AULA F87 / F87 Pro', skin: 'f87', match: /f87/i, knob: false, ...F87 },
+    { id: 'f75pro', name: 'AULA F75 Pro', skin: 'f75pro', match: /f75[\s_-]*pro/i, knob: true, hardReset: HARD_RESET, ...F75 },
+    { id: 'f87', name: 'AULA F87 / F87 Pro', skin: 'f87', match: /f87/i, knob: false, hardReset: HARD_RESET, ...F87 },
   ];
   const BY_ID = new Map(MODELS.map((m) => [m.id, m]));
   const DEFAULT_MODEL = 'f75';
@@ -217,6 +221,9 @@
   api.fits = (lights) => lights >= api.requiredLeds();
   api.modelName = (id) => (BY_ID.get(id) || BY_ID.get(DEFAULT_MODEL)).name;
   api.hasModel = (id) => BY_ID.has(id);
+  /** The hotkey that hard-resets the keyboard itself: { keys: ['Fn', 'Esc'], hold: seconds }. Also what the F75 Max uses. */
+  api.hardReset = (id) => (BY_ID.get(id) || BY_ID.get(DEFAULT_MODEL)).hardReset;
+  api.HARD_RESET = HARD_RESET;
 
   api.use(DEFAULT_MODEL);
   return api;

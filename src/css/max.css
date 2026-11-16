@@ -36,9 +36,14 @@
 .shell[data-family="max"][data-max-view="max"] .panels { display: none; }
 .shell[data-family="max"][data-max-view="app"] #maxRoot { display: none; }
 
-.mx-effects { grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); }
-.mx-effect { gap: 4px; padding: 12px; }
-.mx-effect .effect-tag { min-height: 14px; color: var(--muted); font-size: 11px; opacity: 0.85; }
+/* The Lighting page uses the F75 screen's own effect cards, slider and swatches (app.css, detail.css), so it needs no rules of
+   its own. The experimental note sits on a card so it stays readable over a picture background. */
+#maxRoot .ka-exp {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface, #181b22) 82%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
 
 /* The F75 Max board: drawn with the Max skin (skins.js sets the --sk-* colours on .mx-board). Light comes from the top left:
    the case has a bevelled edge and a sheen, the plate is a well with a shadow at its top, each cap has a bevel, a dished
@@ -240,3 +245,6 @@
 .mx-status { margin: 18px 2px 0; }
 .mx-status[data-s="ok"] { color: var(--ok); }
 .mx-status[data-s="bad"] { color: var(--bad); }
+
+/* A key picked with the Select tool on the Per-key page: a ring round the cap, as on the F75's preview. */
+.stage-max .mx-key[data-sel="1"] { outline: 2px solid rgb(var(--glow-ink)); outline-offset: 1px; z-index: 2; }

@@ -129,8 +129,13 @@ if (require.main === module) {
       await wait(20);
       doc.getElementById('pkPaintSel').click();
       await wait(40);
-      for (const id of ['pkBlack', 'pkAll', 'pkGradient', 'pkRainbow']) {
-        doc.getElementById(id).click();
+      // Turn all off, then Fill all keys with each kind of paint (solid, gradient, rainbow).
+      doc.getElementById('pkBlack').click();
+      await wait(30);
+      for (const mode of ['solid', 'gradient', 'rainbow']) {
+        doc.querySelector(`#segPaint [data-paint="${mode}"]`).click();
+        await wait(20);
+        doc.getElementById('pkAll').click();
         await wait(30);
       }
       doc.getElementById('btnApply').click();

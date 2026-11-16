@@ -52,6 +52,6 @@ test('the Max uses the F75 screen: its picture sits in the stage at the top, wit
   for (const id of ['#sbModel', '#sbLink', '#sbFx', '#sbColor', '#sbSpeed', '#sbBright', '#stageView']) assert.ok(js.includes(id), id);
   assert.match(app, /getView:\s*\(\)\s*=>\s*prefs\.view/);
   // painting happens on that picture, and the picture only takes the pointer on the Per-key page
-  assert.match(js, /tab === 'perkey' && b/);
+  assert.match(js, /pointerdown[\s\S]{0,80}tab !== 'perkey'/);
   assert.match(css, /\.stage-max:not\(\[data-paint="1"\]\) \.mx-key\s*\{\s*pointer-events:\s*none/);
 });

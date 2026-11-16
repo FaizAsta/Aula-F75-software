@@ -43,6 +43,41 @@
     return m ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : null;
   };
   const QUICK = ['#ff2d2d', '#ff7a00', '#ffd400', '#00d26a', '#00c8ff', '#2f5bff', '#8a2be2', '#ff2fa0', '#ffffff'];
+
+  // The little animated keyboard on each effect card (max-fx.js). The F75 screen has the same on its cards.
+  const FX = window.AulaMaxFx || null;
+
+  /** One line on what each of the keyboard's 20 effects does (the hover text and the line under "Effect"). */
+  const EFFECT_INFO = {
+    0: 'All lighting is switched off.',
+    1: 'Every key stays one colour.',
+    2: 'Keys light up when you press them.',
+    3: 'Pressed keys light up, then fade away slowly.',
+    4: 'Keys twinkle at random.',
+    5: 'Drops of light fall across the board.',
+    6: 'Every key has its own colour.',
+    7: 'The whole board brightens and dims.',
+    8: 'The whole board steps through every colour.',
+    9: 'Light spreads outward from the middle.',
+    10: 'A wave of light sweeps across the board.',
+    11: 'Bands of colour roll across the board.',
+    12: 'Light sweeps around the middle of the board.',
+    13: 'A key press sends a burst of light across the board.',
+    14: 'A key press shoots light up its column.',
+    15: 'A key press sends a ripple out from the key.',
+    16: 'Soft bands of colour flow across the board.',
+    17: 'Pulses of light spread out from the middle.',
+    18: 'A slanted stripe of light sweeps across.',
+    19: 'A bar of light sweeps back and forth.',
+  };
+
+  /** Short label for how an effect treats colour, used on the cards and as a chip (same wording as the F75 cards). */
+  function effectTag(e) {
+    if (e.mode === 0) return 'Lights off';
+    if (e.reactive) return 'Reacts to typing';
+    if (!e.color) return 'Multicolour';
+    return e.mode === 1 ? 'Single colour' : 'Colour or multi';
+  }
   const ink = (rgb) => ((rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 > 150 ? '#10131a' : '#ffffff');
 
   function hue(h) {
@@ -62,13 +97,97 @@
 
     let active = false;
     let tab = 'lighting'; // which section of the Max screen is showing: lighting | perkey | keyboard
-    let brush = [124, 214, 255];
-    let painting = false;
+    const sel = new Set(); // the keys picked with the Select tool on the Per-key page (lights, as on the F75 screen)
     let missed = 0;
     const refs = {};
 
     const $ = (sel) => root.querySelector(sel);
     const can = () => !max.busy && max.present;
+
+    // ------------------------------------------------------------------ per-key paint (the F75 screen's Per-key controls)
+    // What Brush, Paint selected and Fill all keys paint with: one colour, a gradient from a start to an end colour, or a rainbow,
+    // running left to right, top to bottom or diagonally. Only the picture changes; Apply writes it to the keyboard.
+
+    const PK_STORE = 'aula.max.paint';
+    const PAINTS = ['solid', 'gradient', 'rainbow'];
+    const DIRS = ['x', 'y', 'xy'];
+    const HEX6 = /^#[0-9a-f]{6}$/i;
+    const GRADIENTS = [
+      { name: 'Sunset', a: '#ffb300', b: '#ff2fa0' },
+      { name: 'Fire', a: '#ffd400', b: '#ff2d2d' },
+      { name: 'Ocean', a: '#00e5ff', b: '#2f5bff' },
+      { name: 'Aurora', a: '#00d26a', b: '#8a2be2' },
+      { name: 'Candy', a: '#ff2fa0', b: '#7cd6ff' },
+      { name: 'Ice', a: '#ffffff', b: '#00b4ff' },
+    ];
+    const saved = (() => {
+      try {
+        return JSON.parse((storage && storage.getItem(PK_STORE)) || 'null') || {};
+      } catch (e) {
+        return {};
+      }
+    })();
+    const pk = {
+      tool: saved.tool === 'brush' ? 'brush' : 'select',
+      paint: PAINTS.includes(saved.paint) ? saved.paint : 'solid',
+      a: HEX6.test(saved.a) ? saved.a.toLowerCase() : '#7cd6ff',
+      b: HEX6.test(saved.b) ? saved.b.toLowerCase() : '#ff2fa0',
+      dir: DIRS.includes(saved.dir) ? saved.dir : 'x',
+      stop: 'a',
+    };
+    const savePk = () => {
+      try {
+        if (storage) storage.setItem(PK_STORE, JSON.stringify({ tool: pk.tool, paint: pk.paint, a: pk.a, b: pk.b, dir: pk.dir }));
+      } catch (e) {
+        /* not saved: the choice only lasts until the window closes */
+      }
+    };
+    const LAYOUT = MX.keyLayout();
+    const BYLED = new Map(LAYOUT.map((k) => [k.led, k]));
+
+    function pkColourAt(t) {
+      const a = rgbOf(pk.a) || [255, 255, 255];
+      if (pk.paint === 'rainbow') return hue(t * 306);
+      if (pk.paint === 'gradient') {
+        const b = rgbOf(pk.b) || [255, 255, 255];
+        return a.map((v, i) => Math.round(v + (b[i] - v) * t));
+      }
+      return a;
+    }
+    /** The span (of key centres) a gradient or rainbow runs across. */
+    function pkSpan(keys) {
+      const sp = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+      for (const k of keys) {
+        const cx = k.x + k.w / 2;
+        const cy = k.y + k.h / 2;
+        sp.x0 = Math.min(sp.x0, cx);
+        sp.x1 = Math.max(sp.x1, cx);
+        sp.y0 = Math.min(sp.y0, cy);
+        sp.y1 = Math.max(sp.y1, cy);
+      }
+      return sp;
+    }
+    function pkT(k, sp) {
+      const nx = sp.x1 > sp.x0 ? (k.x + k.w / 2 - sp.x0) / (sp.x1 - sp.x0) : 0;
+      const ny = sp.y1 > sp.y0 ? (k.y + k.h / 2 - sp.y0) / (sp.y1 - sp.y0) : 0;
+      return pk.dir === 'y' ? ny : pk.dir === 'xy' ? (nx + ny) / 2 : nx;
+    }
+    /** Paints the given lights. fit = true runs a gradient or rainbow across just these keys (Paint selected); otherwise across the whole board. */
+    function paintLeds(leds, fit = false) {
+      const sp = pkSpan(fit ? leds.map((l) => BYLED.get(l)).filter(Boolean) : LAYOUT);
+      max.paintWith(leds, (led) => {
+        const k = BYLED.get(led);
+        return pkColourAt(k ? pkT(k, sp) : 0);
+      });
+    }
+    function setPkColour(hex, { keepHex = false } = {}) {
+      const rgb = rgbOf(hex);
+      if (!rgb) return;
+      pk[pk.paint === 'gradient' ? pk.stop : 'a'] = hexOf(rgb);
+      savePk();
+      syncPaint({ keepHex });
+      renderPerkey();
+    }
 
     // ------------------------------------------------------------------ building
 
@@ -80,7 +199,7 @@
       return box;
     }
 
-    function colourBlock(prefix, getRgb, setRgb) {
+    function colourBlock(prefix, getRgb, setRgb, { swatches = true } = {}) {
       const input = el('input', { type: 'color', id: `${prefix}Pick`, value: hexOf(getRgb()) });
       const text = el('input', { class: 'text-in mono', id: `${prefix}Hex`, type: 'text', maxlength: 7, spellcheck: 'false', 'aria-label': 'Hex colour', placeholder: '#RRGGBB', value: hexOf(getRgb()) });
       input.addEventListener('input', () => setRgb(rgbOf(input.value)));
@@ -91,7 +210,7 @@
       });
       const sw = el('div', { class: 'swatches small', 'aria-label': 'Quick colours' });
       for (const q of QUICK) sw.append(el('button', { class: 'swatch', type: 'button', title: q, 'aria-label': `Use ${q}`, style: `background:${q}`, onclick: () => setRgb(rgbOf(q)) }));
-      return { input, text, sw, node: el('div', {}, el('div', { class: 'color-edit' }, el('label', { class: 'color-pick' }, el('span', { class: 'sr', text: 'Colour' }), input), text), sw) };
+      return { input, text, sw, node: el('div', {}, el('div', { class: 'color-edit' }, el('label', { class: 'color-pick' }, el('span', { class: 'sr', text: 'Colour' }), input), text), swatches ? sw : null) };
     }
 
     // The picture of the Max. It is the same one on two pages: the Per-key page (keys you can paint) and the top of the
@@ -166,31 +285,54 @@
         el('p', { class: 'hint', text: 'Support for the F75 Max is experimental. It follows protocol notes confirmed on real keyboards by other projects, and it has not been tried on one by this app’s author. If something does not behave, tell me what you saw.' }));
 
       // ---- lighting
-      refs.effects = el('div', { class: 'effects mx-effects', role: 'radiogroup', 'aria-label': 'Lighting effect' });
+      refs.effects = el('div', { class: 'effects', role: 'radiogroup', 'aria-label': 'Lighting effect' });
+      refs.fx = new Map();
+      let n = 0;
       for (const e of MX.EFFECTS) {
-        const tags = [e.reactive ? 'on key press' : '', e.direction ? 'direction' : ''].filter(Boolean).join(' · ');
-        refs.effects.append(
-          el('button', { class: 'effect mx-effect', role: 'radio', 'aria-checked': 'false', type: 'button', 'data-mode': e.mode, onclick: () => max.setLighting({ mode: e.mode }) },
-            el('span', { class: 'effect-name' }, el('span', { text: e.name })),
-            el('span', { class: 'effect-tag', text: tags || ' ' })),
-        );
+        const c = el('canvas', { width: 224, height: 76, 'aria-hidden': 'true' });
+        const b = el('button', { class: 'effect', role: 'radio', 'aria-checked': 'false', type: 'button', 'data-mode': e.mode, style: `--n:${n++}`, title: EFFECT_INFO[e.mode] || '', onclick: () => max.setLighting({ mode: e.mode }) },
+          c,
+          el('span', { class: 'effect-name' }, el('span', { text: e.name })),
+          el('span', { class: 'effect-tag', text: effectTag(e) }));
+        refs.effects.append(b);
+        const entry = { b, c, e, hot: false, raf: 0, t0: 0 };
+        refs.fx.set(e.mode, entry);
+        bindFxHover(entry);
       }
-      refs.bright = seg('mxBright', 5, ['1', '2', '3', '4', '5'], 'Brightness', (v) => max.setLighting({ brightness: v + 1 }));
+      // Brightness is a slider like the F75's (1 to 5 here, the keyboard has no Off level: Off is an effect).
+      refs.bright = el('input', { class: 'range', id: 'mxBright', type: 'range', min: 1, max: 5, step: 1, value: 4, 'aria-label': 'Brightness' });
+      refs.bright.addEventListener('input', () => max.setLighting({ brightness: Number(refs.bright.value) }));
+      const meter = (id, count) => el('span', { class: 'meter', id, 'aria-hidden': 'true' }, ...Array.from({ length: count }, () => el('i')));
       refs.speed = seg('mxSpeed', 5, ['1', '2', '3', '4', '5'], 'Speed', (v) => max.setLighting({ speed: v + 1 }));
       refs.dir = seg('mxDir', 4, MX.DIRECTIONS, 'Direction', (v) => max.setLighting({ direction: v }));
-      refs.light = colourBlock('mxL', () => max.lighting.rgb, (rgb) => rgb && max.setLighting({ rgb }));
-      refs.colourful = el('button', { class: 'switch', id: 'mxColourful', role: 'switch', 'aria-checked': 'false', 'aria-label': 'Rainbow colours', type: 'button', onclick: () => max.setLighting({ colorful: !max.lighting.colorful }) }, el('i'));
+      refs.light = colourBlock('mxL', () => max.lighting.rgb, (rgb) => rgb && max.setLighting({ rgb, colorful: false }), { swatches: false });
+      refs.swatches = el('div', { class: 'swatches', id: 'mxSwatches', role: 'radiogroup', 'aria-label': 'Colour' });
+      for (const q of QUICK) {
+        refs.swatches.append(el('button', { class: 'swatch', type: 'button', role: 'radio', 'aria-checked': 'false', 'data-hex': q, title: q, 'aria-label': `Colour ${q}`, style: `background:${q}`, onclick: () => max.setLighting({ rgb: rgbOf(q), colorful: false }) }));
+      }
+      refs.swatches.append(el('button', { class: 'swatch rainbow', type: 'button', role: 'radio', 'aria-checked': 'false', 'data-hex': 'rainbow', title: 'Multicolour', 'aria-label': 'Multicolour', onclick: () => max.setLighting({ colorful: true }) }));
       refs.applyL = el('button', { class: 'btn primary', type: 'button', id: 'mxApplyL', onclick: () => run(max.applyLighting()) }, el('span', { class: 'lbl', text: 'Apply to keyboard' }));
 
       const lighting = el('div', { id: 'mxLighting' },
         el('div', { class: 'split' },
-          el('div', { class: 'block' }, el('div', { class: 'block-head' }, el('h2', { text: 'Effect' }), el('span', { class: 'val', id: 'mxEffName' })), refs.effects, el('p', { class: 'note', id: 'mxEffNote' })),
+          el('div', { class: 'block' },
+            el('div', { class: 'eff-top' },
+              el('div', { class: 'block-head' }, el('h2', { text: 'Effect' }), el('span', { class: 'val', id: 'mxEffName' })),
+              el('p', { class: 'eff-desc', id: 'mxEffDesc' }),
+              el('div', { class: 'eff-chips', id: 'mxEffChips' })),
+            refs.effects,
+            el('p', { class: 'note', id: 'mxEffNote' })),
           el('div', { class: 'group' },
-            el('div', { class: 'field' }, el('div', { class: 'field-head' }, el('h3', {}, ico('bright'), 'Brightness'), el('span', { class: 'val', id: 'mxValBright' })), refs.bright),
-            el('div', { class: 'field', id: 'mxSpeedField' }, el('div', { class: 'field-head' }, el('h3', {}, ico('speed'), 'Speed'), el('span', { class: 'val', id: 'mxValSpeed' })), refs.speed),
+            el('div', { class: 'field', id: 'mxBrightField' },
+              el('div', { class: 'field-head' }, el('h3', {}, ico('bright'), 'Brightness'), el('span', { class: 'fh-right' }, meter('mxMeterBright', 5), el('span', { class: 'val', id: 'mxValBright' }))),
+              el('div', { class: 'range-wrap' }, refs.bright, el('div', { class: 'range-ends', 'aria-hidden': 'true' }, el('span', { text: 'Min' }), el('span', { text: 'Max' })))),
+            el('div', { class: 'field', id: 'mxSpeedField' },
+              el('div', { class: 'field-head' }, el('h3', {}, ico('speed'), 'Speed'), el('span', { class: 'fh-right' }, meter('mxMeterSpeed', 5), el('span', { class: 'val', id: 'mxValSpeed' }))),
+              refs.speed),
             el('div', { class: 'field', id: 'mxDirField' }, el('div', { class: 'field-head' }, el('h3', {}, ico('direction'), 'Direction'), el('span', { class: 'val', id: 'mxValDir' })), refs.dir),
             el('div', { class: 'field', id: 'mxColourField' },
-              el('div', { class: 'field-head' }, el('h3', {}, ico('colour'), 'Colour'), el('span', { class: 'fh-right' }, el('span', { class: 'val', id: 'mxValColour' }), refs.colourful)),
+              el('div', { class: 'field-head' }, el('h3', {}, ico('colour'), 'Colour'), el('span', { class: 'val', id: 'mxValColour' })),
+              refs.swatches,
               refs.light.node,
               el('p', { class: 'hint', id: 'mxColourHint' })),
             el('div', { class: 'field' }, el('div', { class: 'btn-row first' }, refs.applyL)))));
@@ -198,46 +340,155 @@
       // ---- per-key
       // The painting happens on the keyboard picture at the top of the window (the F75 screen does the same), so this page
       // only holds the paint colour and the presets.
-      const pk = makeBoard(true);
-      refs.board = pk.grid;
-      refs.keys = pk.keys;
-      refs.stageBox = el('div', { class: 'stage-max', id: 'stageMax' }, pk.box);
+      const pkBoard = makeBoard(true);
+      refs.board = pkBoard.grid;
+      refs.keys = pkBoard.keys;
+      refs.stageBox = el('div', { class: 'stage-max', id: 'stageMax' }, pkBoard.box);
       const stageEl = document.querySelector('.stage');
       const canvasWrap = stageEl && stageEl.querySelector('.stage-canvas');
       if (canvasWrap) canvasWrap.after(refs.stageBox);
-      const paintAt = (b) => tab === 'perkey' && b && b.dataset && b.dataset.led && max.paint([Number(b.dataset.led)], brush);
+
+      // Click or drag on the picture: Select adds (or, starting on a picked key, removes) keys; Brush paints them.
+      let drag = null;
+      const ledOf = (e) => {
+        const b = e.target.closest && e.target.closest('.mx-key');
+        return b && b.dataset.led ? Number(b.dataset.led) : null;
+      };
+      const touch = (led) => {
+        if (led === null) return;
+        if (drag === 'brush') paintLeds([led]);
+        else {
+          if (drag === 'add') sel.add(led);
+          else sel.delete(led);
+          refreshPerkey();
+        }
+      };
       refs.board.addEventListener('pointerdown', (e) => {
         if (tab !== 'perkey') return;
-        const b = e.target.closest('.mx-key');
-        if (!b) return;
-        painting = true;
-        paintAt(b);
+        const led = ledOf(e);
+        if (led === null) {
+          if (pk.tool === 'select' && sel.size) {
+            sel.clear();
+            refreshPerkey();
+          }
+          return;
+        }
+        drag = pk.tool === 'brush' ? 'brush' : sel.has(led) ? 'del' : 'add';
+        touch(led);
         e.preventDefault();
       });
-      refs.board.addEventListener('pointerover', (e) => painting && paintAt(e.target.closest('.mx-key')));
-      window.addEventListener('pointerup', () => (painting = false));
-      refs.paintColour = colourBlock('mxP', () => brush, (rgb) => {
-        if (!rgb) return;
-        brush = rgb;
-        syncBrush();
+      refs.board.addEventListener('pointerover', (e) => drag && touch(ledOf(e)));
+      window.addEventListener('pointerup', () => (drag = null));
+
+      // The card: the same one the F75's Per-key page has (keys.css), in three columns: Tool and Selection, Colour, then Direction,
+      // Presets and the two actions.
+      const pseg = (id, count, aria, items, attr, onPick) => {
+        const box = el('div', { class: `seg seg-${count}`, id, style: `--n:${count}`, role: 'radiogroup', 'aria-label': aria });
+        for (const it of items) {
+          const btn = el('button', { class: 'seg-btn', role: 'radio', 'aria-checked': 'false', type: 'button', [`data-${attr}`]: it.v, title: it.title, 'aria-label': it.title, onclick: () => onPick(it.v) });
+          if (it.svg) btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>`;
+          else btn.textContent = it.label;
+          box.append(btn);
+        }
+        return box;
+      };
+      refs.tool = pseg('mxTool', 2, 'Tool', [{ v: 'select', label: 'Select' }, { v: 'brush', label: 'Brush' }], 'tool', (v) => {
+        pk.tool = v;
+        savePk();
+        refreshPerkey();
       });
+      refs.paintSeg = pseg('mxPaintWith', 3, 'Paint with', [{ v: 'solid', label: 'Solid' }, { v: 'gradient', label: 'Gradient' }, { v: 'rainbow', label: 'Rainbow' }], 'paint', (v) => {
+        pk.paint = v;
+        savePk();
+        syncPaint();
+        refreshPerkey();
+      });
+      refs.dirSeg = pseg('mxPkDir', 3, 'Direction', [
+        { v: 'x', title: 'Left to right', svg: '<path d="M5 12h14M13 6l6 6-6 6"/>' },
+        { v: 'y', title: 'Top to bottom', svg: '<path d="M12 5v14M6 13l6 6 6-6"/>' },
+        { v: 'xy', title: 'Diagonal', svg: '<path d="M6 6l12 12M18 9v9H9"/>' },
+      ], 'dir', (v) => {
+        pk.dir = v;
+        savePk();
+        syncPaint();
+      });
+      refs.dirSeg.classList.add('seg-sm');
+      const stop = (which, label) => {
+        const btn = el('button', { class: 'pk-stop', type: 'button', 'data-stop': which, 'aria-pressed': which === 'a' ? 'true' : 'false', 'aria-label': `${label} colour`, onclick: () => { pk.stop = which; syncPaint(); renderPerkey(); } },
+          el('span', { class: 'pk-dot' }), el('span', { class: 'pk-lbl', text: label }));
+        return btn;
+      };
+      refs.stopA = stop('a', 'Start');
+      refs.stopB = stop('b', 'End');
+      refs.pkBar = el('div', { class: 'pk-bar', 'aria-hidden': 'true' });
+      refs.pkInput = el('input', { type: 'color', id: 'mxPkInput', value: pk.a });
+      refs.pkHex = el('input', { class: 'text-in mono', id: 'mxPkHex', type: 'text', maxlength: 7, spellcheck: 'false', 'aria-label': 'Hex paint colour', value: pk.a });
+      refs.pkInput.addEventListener('input', () => setPkColour(refs.pkInput.value));
+      refs.pkHex.addEventListener('input', () => {
+        const v = refs.pkHex.value.startsWith('#') ? refs.pkHex.value : `#${refs.pkHex.value}`;
+        const rgb = rgbOf(v);
+        refs.pkHex.setAttribute('aria-invalid', rgb ? 'false' : 'true');
+        if (rgb) setPkColour(hexOf(rgb), { keepHex: true });
+      });
+      refs.swap = el('button', { class: 'btn ghost pk-swap', type: 'button', title: 'Swap the start and end colours', onclick: () => {
+        [pk.a, pk.b] = [pk.b, pk.a];
+        savePk();
+        syncPaint();
+      } });
+      refs.swap.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4"/></svg>Swap';
+      refs.pkSwatches = el('div', { class: 'swatches small', 'aria-label': 'Quick colours' });
+      for (const q of QUICK) refs.pkSwatches.append(el('button', { class: 'swatch', type: 'button', 'aria-label': `Use ${q}`, title: q, style: `background:${q}`, onclick: () => setPkColour(q) }));
+      refs.presets = el('div', { class: 'pk-presets', role: 'group', 'aria-label': 'Gradient presets' });
+      for (const g of GRADIENTS) {
+        refs.presets.append(el('button', { class: 'pk-preset', type: 'button', 'aria-pressed': 'false', 'aria-label': `${g.name} gradient`, title: g.name, 'data-a': g.a, 'data-b': g.b, style: `background:linear-gradient(90deg, ${g.a}, ${g.b})`, onclick: () => {
+          pk.a = g.a;
+          pk.b = g.b;
+          pk.stop = 'a';
+          pk.paint = 'gradient';
+          savePk();
+          syncPaint();
+          renderPerkey();
+        } }));
+      }
+      const act = (id, text, cls, onclick) => el('button', { class: cls, type: 'button', id, text, onclick });
+      refs.selAll = act('mxSelAll', 'Select all', 'btn ghost', () => {
+        for (const k of LAYOUT) sel.add(k.led);
+        refreshPerkey();
+      });
+      refs.selNone = act('mxSelNone', 'Clear selection', 'btn ghost', () => {
+        sel.clear();
+        refreshPerkey();
+      });
+      refs.pkOff = act('mxPkOff', 'Turn all off', 'btn ghost', () => max.clearPaint());
+      refs.paintSel = act('mxPaintSel', 'Paint selected', 'btn', () => paintLeds([...sel], true));
+      refs.fillAll = act('mxFillAll', 'Fill all keys', 'btn', () => paintLeds(LAYOUT.map((k) => k.led)));
       refs.applyK = el('button', { class: 'btn primary', type: 'button', id: 'mxApplyK', onclick: () => run(max.applyKeyColors()) }, el('span', { class: 'lbl', text: 'Apply to keyboard' }));
       const perkey = el('div', { id: 'mxPerkey' },
-        el('div', { class: 'split split-even' },
-          el('div', { class: 'group' },
-            el('div', { class: 'field' },
-              el('div', { class: 'field-head' }, el('h3', { text: 'Paint' }), el('span', { class: 'val', id: 'mxPaintCount' })),
-              el('p', { class: 'hint first', text: 'Click or drag over the keys on the picture above to paint them.' })),
-            el('div', { class: 'field' }, el('div', { class: 'field-head' }, el('h3', { text: 'Paint colour' })), refs.paintColour.node)),
-          el('div', { class: 'group' },
-            el('div', { class: 'field' },
-              el('div', { class: 'field-head' }, el('h3', { text: 'Presets' })),
-              el('div', { class: 'btn-row first' },
-                el('button', { class: 'btn', type: 'button', id: 'mxRainbow', text: 'Rainbow', onclick: rainbow }),
-                el('button', { class: 'btn', type: 'button', id: 'mxFill', text: 'Fill all keys', onclick: () => max.paint(MX.keyLayout().map((k) => k.led), brush) }),
-                el('button', { class: 'btn ghost', type: 'button', id: 'mxClear', text: 'Turn all off', onclick: () => max.clearPaint() })),
-              el('p', { class: 'hint', id: 'mxPerkeyHint' })),
-            el('div', { class: 'field' }, el('div', { class: 'btn-row first' }, refs.applyK)))));
+        el('div', { class: 'split split-one' },
+          el('div', { class: 'group pk-card', id: 'mxPkCard', 'data-paint': pk.paint },
+            el('div', { class: 'field pk-col pk-col-tool' },
+              el('div', { class: 'field-head' }, el('h3', { text: 'Tool' }), el('span', { class: 'val', id: 'mxSelCount' })),
+              refs.tool,
+              el('div', { class: 'pk-selection' },
+                el('div', { class: 'field-head' }, el('h3', { text: 'Selection' })),
+                el('div', { class: 'btn-row first' }, refs.selAll, refs.selNone, refs.pkOff))),
+            el('div', { class: 'field pk-col pk-col-colour' },
+              el('div', { class: 'field-head' }, el('h3', { text: 'Colour' }), el('span', { class: 'val pk-editing', id: 'mxPkEditing' })),
+              refs.paintSeg,
+              el('div', { class: 'pk-stops' }, refs.stopA, refs.pkBar, refs.stopB),
+              el('div', { class: 'pk-edit' },
+                el('div', { class: 'color-edit pk-color' }, el('label', { class: 'color-pick' }, el('span', { class: 'sr', text: 'Paint colour' }), refs.pkInput), refs.pkHex),
+                refs.swap),
+              refs.pkSwatches),
+            el('div', { class: 'field pk-col pk-col-do' },
+              el('div', { class: 'pk-opts' },
+                el('div', { class: 'pk-opt pk-opt-dir' }, el('h3', { text: 'Direction' }), refs.dirSeg),
+                el('div', { class: 'pk-opt pk-opt-presets' }, el('h3', { text: 'Presets' }), refs.presets)),
+              el('div', { class: 'pk-act' }, refs.paintSel, refs.fillAll))),
+          el('div', { class: 'pk-foot' },
+            el('div', { class: 'btn-row first' }, refs.applyK),
+            el('p', { class: 'hint pk-hint', id: 'mxToolHint' }),
+            el('p', { class: 'hint', id: 'mxPkHint' }))));
 
       // ---- keyboard
       refs.resp = seg('mxResp', 5, ['1', '2', '3', '4', '5'], 'Key response', (v) => max.setSettings({ response: v + 1 }));
@@ -253,7 +504,7 @@
       const keyboard = el('div', { id: 'mxKeyboard' },
         el('div', { class: 'split split-even' },
           el('div', { class: 'group' },
-            el('div', { class: 'field' }, el('div', { class: 'field-head' }, el('h3', { text: 'Key response' }), el('span', { class: 'val', id: 'mxRespVal' })), refs.resp, el('p', { class: 'hint', id: 'mxRespNote' })),
+            el('div', { class: 'field' }, el('div', { class: 'field-head' }, el('h3', {}, ico('speed'), 'Key response'), el('span', { class: 'fh-right' }, el('span', { class: 'meter', id: 'mxMeterResp', 'aria-hidden': 'true' }, ...Array.from({ length: 5 }, () => el('i'))), el('span', { class: 'val', id: 'mxRespVal' }))), refs.resp, el('p', { class: 'hint', id: 'mxRespNote' })),
             el('div', { class: 'field' }, el('div', { class: 'row' }, el('label', { class: 'grow fh-label', for: 'mxSleep' }, ico('sleep'), 'Sleep after'), refs.sleep))),
           el('div', { class: 'group' },
             toggle('mxWin', 'Disable the Windows key', 'winLock'),
@@ -269,17 +520,60 @@
       refs.sections = { lighting, perkey, keyboard };
     }
 
-    function rainbow() {
-      const keys = MX.keyLayout();
-      for (const k of keys) max.keyColors.set(k.led, hue((k.x / 16) * 330));
-      max.paint([], null); // saves and notifies
-    }
-
     async function run(promise) {
       const r = await promise;
       if (r.ok) toast(r.confirmed ? 'Applied to the keyboard.' : 'Sent to the keyboard.', 'ok');
       else toast(r.error, 'bad', 7000);
       render();
+    }
+
+    // ------------------------------------------------------------------ the effect cards' little keyboards
+
+    const canAnimate = () => (ctx.animate ? !!ctx.animate() : !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches));
+    const fxState = () => {
+      const l = max.lighting;
+      return { rgb: l.rgb, colorful: l.colorful, direction: l.direction, speed: l.speed };
+    };
+    const drawFx = (entry, t) => FX && FX.draw(entry.c, entry.e.mode, t, fxState());
+
+    // Hovering a card plays its effect in its picture, as on the F75 screen.
+    function bindFxHover(entry) {
+      const run = (now) => {
+        if (!entry.t0) entry.t0 = now;
+        drawFx(entry, FX.stillTime(entry.e.mode) + (now - entry.t0) / 1000);
+        entry.raf = requestAnimationFrame(run);
+      };
+      const stop = () => {
+        if (!entry.hot) return;
+        cancelAnimationFrame(entry.raf);
+        entry.hot = false;
+        drawFx(entry);
+      };
+      entry.b.addEventListener('pointerenter', () => {
+        if (!FX || !canAnimate() || entry.e.mode === 0) return;
+        entry.hot = true;
+        entry.t0 = 0;
+        entry.raf = requestAnimationFrame(run);
+      });
+      entry.b.addEventListener('pointerleave', stop);
+      entry.b.addEventListener('blur', stop);
+    }
+
+    // The chosen effect keeps playing in its own card (the loop ends when the page is left or hidden; render() starts it again).
+    let fxRaf = 0;
+    let fxLast = 0;
+    function fxLoop(now) {
+      fxRaf = 0;
+      if (!active || tab !== 'lighting' || (ctx.shown && !ctx.shown())) return;
+      fxRaf = requestAnimationFrame(fxLoop);
+      if (document.hidden || !canAnimate() || now - fxLast < 48) return;
+      const entry = refs.fx.get(max.lighting.mode);
+      if (!entry || entry.hot || entry.e.mode < 2) return;
+      fxLast = now;
+      drawFx(entry, FX.stillTime(entry.e.mode) + now / 1000);
+    }
+    function kickFx() {
+      if (FX && !fxRaf && active && tab === 'lighting') fxRaf = requestAnimationFrame(fxLoop);
     }
 
     // ------------------------------------------------------------------ drawing
@@ -289,10 +583,51 @@
       for (const b of box.querySelectorAll('.seg-btn')) b.setAttribute('aria-checked', Number(b.dataset.v) === index ? 'true' : 'false');
     };
 
-    function syncBrush() {
-      refs.paintColour.input.value = hexOf(brush);
-      refs.paintColour.text.value = hexOf(brush);
-      refs.paintColour.text.removeAttribute('aria-invalid');
+    /** Redraws the Colour section of the Per-key card from the paint state. keepHex leaves the hex box alone (so typing is not rewritten). */
+    function syncPaint({ keepHex = false } = {}) {
+      if (pk.paint !== 'gradient') pk.stop = 'a';
+      $('#mxPkCard').dataset.paint = pk.paint;
+      refs.paintSeg.style.setProperty('--i', PAINTS.indexOf(pk.paint));
+      for (const b of refs.paintSeg.children) b.setAttribute('aria-checked', b.dataset.paint === pk.paint ? 'true' : 'false');
+      for (const [which, btn] of [['a', refs.stopA], ['b', refs.stopB]]) {
+        btn.style.setProperty('--pk-c', pk[which]);
+        btn.setAttribute('aria-pressed', pk.stop === which ? 'true' : 'false');
+      }
+      const cols = [];
+      if (pk.paint === 'rainbow') for (let i = 0; i <= 10; i++) cols.push(hexOf(hue((i / 10) * 306)));
+      else cols.push(pk.a, pk.b);
+      refs.pkBar.style.background = `linear-gradient(90deg, ${cols.join(', ')})`;
+      refs.dirSeg.style.setProperty('--i', DIRS.indexOf(pk.dir));
+      for (const b of refs.dirSeg.children) b.setAttribute('aria-checked', b.dataset.dir === pk.dir ? 'true' : 'false');
+      for (const b of refs.presets.children) b.setAttribute('aria-pressed', pk.paint === 'gradient' && b.dataset.a === pk.a && b.dataset.b === pk.b ? 'true' : 'false');
+      $('#mxPkEditing').textContent = pk.paint === 'gradient' ? `Editing the ${pk.stop === 'a' ? 'start' : 'end'} colour` : '';
+      const cur = pk[pk.stop];
+      refs.pkInput.value = cur;
+      if (!keepHex) {
+        refs.pkHex.value = cur;
+        refs.pkHex.removeAttribute('aria-invalid');
+      }
+    }
+
+    /** The Tool column, the hints and which buttons can be pressed. */
+    function renderPerkey() {
+      $('#mxSelCount').textContent = `${sel.size} ${sel.size === 1 ? 'key' : 'keys'} selected`;
+      refs.tool.style.setProperty('--i', pk.tool === 'brush' ? 1 : 0);
+      for (const b of refs.tool.children) b.setAttribute('aria-checked', b.dataset.tool === pk.tool ? 'true' : 'false');
+      const withWhat = pk.paint === 'gradient' ? 'the gradient below (each key gets the colour for its place)' : pk.paint === 'rainbow' ? 'the rainbow below (each key gets the colour for its place)' : 'the colour below';
+      $('#mxToolHint').textContent = pk.tool === 'brush'
+        ? `Click or drag across the keys above to paint them with ${withWhat}.`
+        : `Click or drag across the keys above to select them, then press Paint selected${pk.paint === 'solid' ? '' : ` (the ${pk.paint} fits those keys)`}.`;
+      const note = max.cable
+        ? 'Painting only changes the picture. Press Apply to keyboard to write it and switch the keyboard to its user-defined lighting.'
+        : max.dongle ? 'Per-key colours need the USB-C cable: the 2.4G dongle only carries 32 bytes at a time.' : '';
+      $('#mxPkHint').textContent = `${max.keyColors.size} of ${refs.keys.size} keys lit. ${note}`.trim();
+      refs.paintSel.disabled = sel.size === 0;
+      refs.selNone.disabled = sel.size === 0;
+    }
+    function refreshPerkey() {
+      paintStage();
+      renderPerkey();
     }
 
     // ------------------------------------------------------------------ the keyboard picture (the F75 screen's stage)
@@ -316,6 +651,7 @@
         b.style.setProperty('--c', c ? hexOf(c) : '');
         b.style.color = c ? ink(c) : '';
         b.dataset.on = c ? '1' : '';
+        b.dataset.sel = tab === 'perkey' && sel.has(led) ? '1' : '';
       }
       refs.stageBox.dataset.paint = tab === 'perkey' ? '1' : '';
 
@@ -372,37 +708,62 @@
       for (const [name, node] of Object.entries(refs.sections)) node.hidden = name !== tab;
 
       // lighting
-      for (const b of refs.effects.children) b.setAttribute('aria-checked', Number(b.dataset.mode) === l.mode ? 'true' : 'false');
+      const animating = canAnimate();
+      for (const [mode, entry] of refs.fx) {
+        const on = mode === l.mode;
+        entry.b.setAttribute('aria-checked', on ? 'true' : 'false');
+        if (!entry.hot && !(on && animating && mode > 1)) drawFx(entry);
+      }
+      kickFx();
       $('#mxEffName').textContent = e ? e.name : '';
-      $('#mxEffNote').textContent = e && e.reactive ? 'This effect reacts to key presses.' : '';
-      setSeg(refs.bright, l.brightness - 1);
+      $('#mxEffDesc').textContent = e ? EFFECT_INFO[e.mode] || '' : '';
+      const chips = $('#mxEffChips');
+      chips.textContent = '';
+      if (e && e.mode !== 0) {
+        chips.append(el('span', { class: 'chip accent', text: effectTag(e) }));
+        chips.append(el('span', { class: 'chip', text: e.mode === 1 ? 'Fixed speed' : 'Adjustable speed' }));
+        if (e.direction) chips.append(el('span', { class: 'chip', text: 'Adjustable direction' }));
+        chips.append(el('span', { class: 'chip mono', text: `Mode ${e.mode}` }));
+      }
+      $('#mxEffNote').textContent = e && e.mode === 0
+        ? 'All lighting is switched off.'
+        : 'The small pictures only show roughly what each effect does; the keyboard’s own look may differ a little.';
+      refs.bright.value = String(l.brightness);
+      refs.bright.style.setProperty('--pf', (l.brightness - 1) / 4);
+      refs.bright.setAttribute('aria-valuetext', `Level ${l.brightness} of 5`);
       setSeg(refs.speed, l.speed - 1);
       setSeg(refs.dir, l.direction);
       $('#mxValBright').textContent = `Level ${l.brightness} of 5`;
       $('#mxValSpeed').textContent = `Level ${l.speed} of 5`;
+      for (const [id, n] of [['#mxMeterBright', l.brightness], ['#mxMeterSpeed', l.speed]]) [...$(id).children].forEach((tick, i) => tick.classList.toggle('on', i < n));
       $('#mxValDir').textContent = MX.DIRECTIONS[l.direction] || '';
-      $('#mxValColour').textContent = l.colorful ? 'Rainbow' : hexOf(l.rgb).toUpperCase();
+      $('#mxValColour').textContent = l.colorful ? 'Multicolour' : hexOf(l.rgb).toUpperCase();
       const off = l.mode === 0;
+      $('#mxBrightField').hidden = off;
       $('#mxSpeedField').hidden = off || l.mode === 1;
       $('#mxDirField').hidden = !(e && e.direction);
       $('#mxColourField').hidden = !(e && e.color);
-      refs.colourful.setAttribute('aria-checked', l.colorful ? 'true' : 'false');
+      for (const sw of refs.swatches.children) {
+        const hit = sw.dataset.hex === 'rainbow' ? l.colorful : !l.colorful && sw.dataset.hex === hexOf(l.rgb).toLowerCase();
+        sw.setAttribute('aria-checked', hit ? 'true' : 'false');
+      }
       refs.light.input.value = hexOf(l.rgb);
-      refs.light.input.disabled = refs.light.text.disabled = l.colorful;
       if (document.activeElement !== refs.light.text) refs.light.text.value = hexOf(l.rgb);
-      $('#mxColourHint').textContent = l.colorful ? 'Rainbow colours are on, so the keyboard uses its own palette.' : 'Switch on rainbow colours to use the keyboard’s own palette instead.';
+      refs.light.input.closest('.color-edit').hidden = l.colorful;
+      const hint = $('#mxColourHint');
+      hint.hidden = !l.colorful;
+      hint.textContent = l.colorful ? 'Multicolour is on, so the keyboard uses its own palette.' : '';
 
       // per-key, and the keyboard picture at the top
       paintStage();
-      $('#mxPaintCount').textContent = `${max.keyColors.size} of ${refs.keys.size} keys lit`;
-      $('#mxPerkeyHint').textContent = max.cable
-        ? 'Painting only changes the picture. Apply writes it and switches the keyboard to its user-defined lighting.'
-        : max.dongle ? 'Per-key colours need the USB-C cable: the 2.4G dongle only carries 32 bytes at a time.' : '';
+      syncPaint({ keepHex: document.activeElement === refs.pkHex });
+      renderPerkey();
 
       // keyboard
       const s = max.settings;
       setSeg(refs.resp, s.response - 1);
-      $('#mxRespVal').textContent = `Level ${s.response}`;
+      $('#mxRespVal').textContent = `Level ${s.response} of 5`;
+      [...$('#mxMeterResp').children].forEach((tick, i) => tick.classList.toggle('on', i < s.response));
       $('#mxRespNote').textContent = `${MX.RESPONSE_NOTES[s.response]} Raise it if keys double-type.`;
       refs.sleep.value = String(s.sleep);
       for (const k of ['winLock', 'altF4Lock', 'altTabLock', 'fnSwitch']) refs[k].setAttribute('aria-checked', s[k] ? 'true' : 'false');
@@ -434,7 +795,7 @@
         $$('batChip').dataset.unk = '';
         $$('batChip').dataset.wide = p === null ? '1' : '';
         $$('batChip').dataset.s = p === null ? '' : p <= 15 ? 'bad' : p < 40 ? 'warn' : 'ok';
-        $$('batChip').title = max.dongle ? 'Battery, read through the 2.4G dongle' : 'The USB-C cable has no battery report. Use the 2.4G dongle to see the level.';
+        $$('batChip').title = max.demo ? 'Battery of the demo keyboard (simulated)' : max.dongle ? 'Battery, read through the 2.4G dongle' : 'The USB-C cable has no battery report. Use the 2.4G dongle to see the level.';
       }
       if ($$('batFill')) $$('batFill').style.width = `${p === null ? 0 : (12.6 * p) / 100}px`;
     }
@@ -454,6 +815,14 @@
       render();
       max.pollBattery().then(render);
       return true;
+    }
+
+    /** The simulated F75 Max (Start screen, "Demo F75 Max"): every page works, nothing reaches real hardware. */
+    async function enterDemo() {
+      if (active && max.demo) return true;
+      if (active) leave(); // a real F75 Max on screen is let go first
+      await max.enterDemo();
+      return enter();
     }
 
     function leave() {
@@ -565,6 +934,7 @@
       max,
       active: () => active,
       enter,
+      enterDemo,
       leave,
       watch,
       render,

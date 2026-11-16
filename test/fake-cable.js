@@ -49,6 +49,8 @@ class CableKeyboard {
     this.writes = []; // { block, size } for every write command
     this.gets = 0;
     this.colorsBeforeConfig = false;
+    this.colorsSinceConfig = false; // a colour block has arrived since the last config
+    this.lastConfigLit = true; // the last config written showed its per-key colours (or was another effect)
   }
 
   _block(name) {
@@ -79,7 +81,10 @@ class CableKeyboard {
     }
     if (!byWrite) return;
     this.writes.push({ block: byWrite, size, cmd, layer: byWrite === 'matrix' ? body[1] : undefined, at: this.sets.length });
-    if (byWrite === 'colors') this.colorsBeforeConfig = true; // colours are in place for the next config
+    if (byWrite === 'colors') {
+      this.colorsBeforeConfig = true; // colours are in place for the next config
+      this.colorsSinceConfig = true;
+    }
     if (byWrite === 'led' && body[7 + P.OFF.MODE] !== P.MODE_CUSTOM) this.colorsBeforeConfig = false;
     const data = body.slice(7, 7 + size);
     if (byWrite === 'matrix') {
@@ -92,6 +97,10 @@ class CableKeyboard {
       const custom = data[P.OFF.MODE] === P.MODE_CUSTOM;
       if (!custom && data[P.OFF.APPLY] === 1) return;
       if (!custom) data[P.OFF.APPLY] = 1;
+      // Seen on a real F75: every per-key config shows the colours that arrived since the previous config. A config sent on
+      // its own (a brightness change from the Lighting page) leaves the keyboard dark until the colours are sent again.
+      this.lastConfigLit = !custom || this.colorsSinceConfig;
+      this.colorsSinceConfig = false;
       this.led = data;
     } else if (byWrite === 'rgb') this.rgb = data;
     else this.colors = data;
@@ -103,7 +112,7 @@ class CableKeyboard {
    */
   get perKeyLit() {
     if (this.led[P.OFF.MODE] !== P.MODE_CUSTOM) return true;
-    return this.led[P.OFF.APPLY] === 1 && this.colorsBeforeConfig;
+    return this.led[P.OFF.APPLY] === 1 && this.colorsBeforeConfig && this.lastConfigLit;
   }
 
   get() {

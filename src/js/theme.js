@@ -15,6 +15,8 @@
 
   // Same lookup order as app.js: the desktop app's data file first, then localStorage (browser tab / older versions).
   function readSaved() {
+    // The live picture on the UI question (boot.js sets AULA_PREVIEW) shows the colours the page around it has right now.
+    if (window.AULA_PREVIEW && CHOICES.includes(window.AULA_PREVIEW.theme)) return window.AULA_PREVIEW.theme;
     let raw = null;
     try {
       if (host && host.loadMemory) raw = (host.loadMemory() || {})[PREF_KEY] ?? null;

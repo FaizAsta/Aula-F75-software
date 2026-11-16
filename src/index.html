@@ -158,47 +158,81 @@
 
       <!-- ============================================================= Per-key -->
       <section class="panel" id="panel-perkey" role="tabpanel" aria-labelledby="tab-perkey" hidden>
-        <div class="split split-even">
-          <div class="group">
-            <div class="field">
-              <div class="field-head"><h3>Paint</h3><span class="val" id="selCount">0 keys selected</span></div>
+        <div class="split split-one">
+          <!-- One wide card, three columns, left to right:
+               1. Tool (pick keys, or brush over them) and the Selection helpers.
+               2. Colour: what to paint with (one colour, a two-colour gradient, or a rainbow) and the colours themselves.
+               3. Direction and the gradient presets, then the two actions.
+               Brush, Paint selected and Fill all keys all use the paint chosen in column 2. -->
+          <div class="group pk-card" id="pkCard" data-paint="solid">
+            <div class="field pk-col pk-col-tool">
+              <div class="field-head"><h3>Tool</h3><span class="val" id="selCount">0 keys selected</span></div>
               <div class="seg seg-2" id="segTool" style="--n:2" role="radiogroup" aria-label="Tool">
                 <button class="seg-btn" role="radio" data-tool="select" type="button">Select</button>
                 <button class="seg-btn" role="radio" data-tool="brush" type="button">Brush</button>
               </div>
-              <p class="hint" id="toolHint"></p>
+              <div class="pk-selection">
+                <div class="field-head"><h3>Selection</h3></div>
+                <div class="btn-row first">
+                  <button class="btn ghost" id="pkSelAll" type="button">Select all</button>
+                  <button class="btn ghost" id="pkSelNone" type="button">Clear selection</button>
+                  <button class="btn ghost" id="pkBlack" type="button">Turn all off</button>
+                </div>
+              </div>
             </div>
-            <div class="field">
-              <div class="color-edit pk-color">
-                <label class="color-pick"><span class="sr">Paint colour</span><input type="color" id="pkInput" value="#7cd6ff"></label>
-                <input class="text-in mono" id="pkHex" type="text" maxlength="7" spellcheck="false" aria-label="Hex paint colour" value="#7cd6ff">
+
+            <div class="field pk-col pk-col-colour">
+              <div class="field-head"><h3>Colour</h3><span class="val pk-editing" id="pkEditing"></span></div>
+              <div class="seg seg-3" id="segPaint" style="--n:3" role="radiogroup" aria-label="Paint with">
+                <button class="seg-btn" role="radio" data-paint="solid" type="button">Solid</button>
+                <button class="seg-btn" role="radio" data-paint="gradient" type="button">Gradient</button>
+                <button class="seg-btn" role="radio" data-paint="rainbow" type="button">Rainbow</button>
+              </div>
+              <!-- Start and End with the run between them (Gradient), the rainbow strip (Rainbow), or nothing here (Solid). -->
+              <div class="pk-stops" id="pkStops">
+                <button class="pk-stop" id="pkStopA" data-stop="a" type="button" aria-pressed="true" aria-label="Start colour">
+                  <span class="pk-dot"></span><span class="pk-lbl">Start</span>
+                </button>
+                <div class="pk-bar" id="pkBar" aria-hidden="true"></div>
+                <button class="pk-stop" id="pkStopB" data-stop="b" type="button" aria-pressed="false" aria-label="End colour">
+                  <span class="pk-dot"></span><span class="pk-lbl">End</span>
+                </button>
+              </div>
+              <div class="pk-edit" id="pkEdit">
+                <div class="color-edit pk-color">
+                  <label class="color-pick"><span class="sr">Paint colour</span><input type="color" id="pkInput" value="#7cd6ff"></label>
+                  <input class="text-in mono" id="pkHex" type="text" maxlength="7" spellcheck="false" aria-label="Hex paint colour" value="#7cd6ff">
+                </div>
+                <button class="btn ghost pk-swap" id="pkSwap" type="button" title="Swap the start and end colours"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4"/></svg>Swap</button>
               </div>
               <div class="swatches small" id="pkSwatches" aria-label="Quick colours"></div>
-              <div class="btn-row">
+            </div>
+
+            <div class="field pk-col pk-col-do">
+              <div class="pk-opts" id="pkOpts">
+                <div class="pk-opt pk-opt-dir">
+                  <h3>Direction</h3>
+                  <div class="seg seg-3 seg-sm" id="segDir" style="--n:3" role="radiogroup" aria-label="Direction">
+                    <button class="seg-btn" role="radio" data-dir="x" type="button" title="Left to right" aria-label="Left to right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+                    <button class="seg-btn" role="radio" data-dir="y" type="button" title="Top to bottom" aria-label="Top to bottom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>
+                    <button class="seg-btn" role="radio" data-dir="xy" type="button" title="Diagonal" aria-label="Diagonal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 9v9H9"/></svg></button>
+                  </div>
+                </div>
+                <div class="pk-opt pk-opt-presets">
+                  <h3>Presets</h3>
+                  <div class="pk-presets" id="pkPresets" role="group" aria-label="Gradient presets"></div>
+                </div>
+              </div>
+              <div class="pk-act">
                 <button class="btn" id="pkPaintSel" type="button">Paint selected</button>
-                <button class="btn ghost" id="pkSelAll" type="button">Select all</button>
-                <button class="btn ghost" id="pkSelNone" type="button">Clear selection</button>
+                <button class="btn" id="pkAll" type="button">Fill all keys</button>
               </div>
             </div>
           </div>
-
-          <div class="group">
-            <div class="field">
-              <div class="field-head"><h3>Presets</h3></div>
-              <div class="btn-row first">
-                <button class="btn" id="pkRainbow" type="button">Rainbow</button>
-                <button class="btn" id="pkGradient" type="button">Gradient</button>
-                <button class="btn" id="pkAll" type="button">Fill all keys</button>
-                <button class="btn ghost" id="pkBlack" type="button">Turn all off</button>
-              </div>
-              <div class="row gradient-row">
-                <label class="grow" for="pkInput2">Gradient end colour</label>
-                <label class="color-pick"><span class="sr">Gradient end colour</span><input type="color" id="pkInput2" value="#ff2fa0"></label>
-              </div>
-            </div>
-            <div class="field">
-              <p class="hint first">Painting only changes the preview. Press <b>Apply to keyboard</b> to write it, which also switches the keyboard to the Per-key effect.</p>
-            </div>
+          <!-- What to do, said once under the card (the first line also carries the USB-C note; app.js fills it in). -->
+          <div class="pk-foot">
+            <p class="hint pk-hint" id="toolHint"></p>
+            <p class="hint">Painting only changes the preview. Press <b>Apply to keyboard</b> to write it and switch to the Per-key effect.</p>
           </div>
         </div>
       </section>
@@ -373,7 +407,14 @@
                 <div class="srow-ctl"><select class="select" id="brightMaxSel" aria-label="Brightness levels"></select></div>
               </div>
               <div class="srow">
-                <div class="srow-text"><b>Demo keyboard</b><p class="hint">A simulated keyboard, so you can try every control without hardware.</p></div>
+                <div class="srow-text"><b>Reset keyboard</b><p class="hint">Puts the lighting (effect, brightness, speed, colours), the per-key colours, the light-off timer and any keys you reassigned back to their defaults. On the F75 Max: lighting, response, sleep, key locks and per-key colours. The knob setting and the Fn layer's special keys stay as they are. This cannot be undone, so use Export first if you want a copy of your settings.</p><p class="hint" id="resetInfo"></p></div>
+                <div class="srow-ctl">
+                  <button class="btn small ghost" id="kbReset" type="button">Reset keyboard</button>
+                </div>
+                <p class="hint reset-hotkey" id="resetHotkey"></p>
+              </div>
+              <div class="srow">
+                <div class="srow-text"><b>Demo keyboard</b><p class="hint">A simulated F75, so you can try every control without hardware. To try the F75 Max the same way, click the Aula logo and choose Demo F75 Max.</p></div>
                 <div class="srow-ctl">
                   <button class="switch" id="swDemo" role="switch" aria-checked="false" aria-label="Demo keyboard" type="button"><i></i></button>
                 </div>
@@ -465,10 +506,10 @@
                   <div class="srow-text"><b>Frosted window</b><p class="hint" id="frostHint">Lets the desktop show through the window, blurred. Only with the default background.</p></div>
                   <div class="srow-ctl"><button class="switch" id="swFrost" role="switch" aria-checked="true" aria-label="Frosted window" type="button"><i></i></button></div>
                 </div>
-                <!-- A card behind the keyboard picture, in the same style as the cards below it (Classic: lite.css 4d, Liquid glass: glass.css). Off shows the picture straight on the page, as before. -->
+                <!-- Classic only (hidden with Liquid glass, which always shows its glass behind the keyboard picture): a card behind the keyboard picture, in the same style as the cards below it (lite.css 4d). Off (the default) shows the picture straight on the page, as before. -->
                 <div class="srow" id="stageBgRow">
-                  <div class="srow-text"><b>Keyboard background</b><p class="hint">A panel behind the keyboard picture, in the same style as the cards below it. Turn it off to show the keyboard straight on the page.</p></div>
-                  <div class="srow-ctl"><button class="switch" id="swStageBg" role="switch" aria-checked="true" aria-label="Keyboard background" type="button"><i></i></button></div>
+                  <div class="srow-text"><b>Keyboard background</b><p class="hint">A panel behind the keyboard picture, in the same style as the cards below it. Off by default: the keyboard sits straight on the page.</p></div>
+                  <div class="srow-ctl"><button class="switch" id="swStageBg" role="switch" aria-checked="false" aria-label="Keyboard background" type="button"><i></i></button></div>
                 </div>
               </div>
             </section>
@@ -476,6 +517,22 @@
             <section class="set" id="glassSection" hidden>
               <h2>Liquid glass</h2>
               <div class="group">
+                <!-- Three ready-made looks. The sliders below stay hidden until Customise is pressed; moving one makes the look "custom" (no button lit). -->
+                <div class="srow">
+                  <div class="srow-text"><b>Glass style</b><p class="hint" id="glassPresetHint">Pick a look for the glass.</p></div>
+                  <div class="srow-ctl">
+                    <div class="seg seg-3 seg-glass" id="segGlass" style="--n:3" role="radiogroup" aria-label="Glass style">
+                      <button class="seg-btn" role="radio" data-glass-preset="clear" type="button">Clear glass</button>
+                      <button class="seg-btn" role="radio" data-glass-preset="blur" type="button">Blur glass</button>
+                      <button class="seg-btn" role="radio" data-glass-preset="frosted" type="button">Frosted glass</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="srow">
+                  <div class="srow-text"><b>Customise</b><p class="hint">Set the blur, edge width, refraction and colour fringe yourself.</p></div>
+                  <div class="srow-ctl"><button class="btn small ghost" id="glassCustomBtn" type="button" aria-expanded="false" aria-controls="glassCustom">Customise</button></div>
+                </div>
+                <div id="glassCustom" class="glass-custom" hidden>
                 <div class="srow">
                   <div class="srow-text"><b>Blur</b><p class="hint">How soft the picture looks behind the glass. 0 is clear.</p></div>
                   <div class="srow-ctl">
@@ -513,8 +570,9 @@
                   </div>
                 </div>
                 <div class="srow">
-                  <div class="srow-text"><b>Reset glass</b><p class="hint">Back to the default look.</p></div>
+                  <div class="srow-text"><b>Reset glass</b><p class="hint">Back to Blur glass, the default look.</p></div>
                   <div class="srow-ctl"><button class="btn small ghost" id="glassReset" type="button">Reset</button></div>
+                </div>
                 </div>
               </div>
             </section>
@@ -647,11 +705,14 @@
 
     <!-- Shown once, after Start, to everybody who has not chosen a UI yet (a first install, or an update from a build without
          this question). See js/stylepick.js for who is asked and js/home.js for the screen. The two pictures are made by
-         `npm run screenshots -- ui-previews` (scripts/screenshots.js) from the real app, so re-make them when the UI changes. -->
+         `npm run screenshots -- ui-previews` (scripts/screenshots.js) from the real app, so re-make them when the UI changes. The
+         selected card also shows a LIVE picture (this same page inside an iframe, js/stylepick-ui.js) with that style's options under it;
+         the pictures stay underneath it until the live one is ready, and for the card that is not selected. -->
     <section class="scr scr-style" id="spScreen" aria-labelledby="spTitle">
       <h2 class="sp-title" id="spTitle">Which UI do you want to use?</h2>
       <p class="sp-sub">Pick the look you like. You can change it any time in Settings, Theme, UI.</p>
       <div class="sp-cards" id="spCards" role="radiogroup" aria-labelledby="spTitle">
+        <div class="sp-col">
         <button class="sp-card" type="button" role="radio" aria-checked="true" tabindex="0" data-style-choice="classic" aria-describedby="spClassicText" data-lock>
           <span class="sp-shot"><img src="img/ui/classic.webp" alt="The Lighting tab in the Classic UI" width="720" height="480" draggable="false"></span>
           <span class="sp-meta">
@@ -660,6 +721,19 @@
           </span>
           <svg class="sp-tick" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.6 12.4l3 3 5.8-6.2"/></svg>
         </button>
+          <!-- What goes with the selected card (js/stylepick-ui.js). The picture on the card follows these; they are saved when Continue is pressed. -->
+          <div class="sp-opts" id="spOptsClassic" data-opts="classic" role="group" aria-label="Classic options" hidden>
+            <div class="sp-opt">
+              <span class="sp-opt-text"><b>Blur</b><span>Frosted blur behind the cards and pop-ups.</span></span>
+              <button class="switch" id="spBlur" role="switch" aria-checked="true" aria-label="Blur" type="button"><i></i></button>
+            </div>
+            <div class="sp-opt">
+              <span class="sp-opt-text"><b>Keyboard background</b><span>A panel behind the keyboard picture.</span></span>
+              <button class="switch" id="spStageBg" role="switch" aria-checked="false" aria-label="Keyboard background" type="button"><i></i></button>
+            </div>
+          </div>
+        </div>
+        <div class="sp-col">
         <button class="sp-card" type="button" role="radio" aria-checked="false" tabindex="-1" data-style-choice="glass" aria-describedby="spGlassText" data-lock>
           <span class="sp-shot"><img src="img/ui/glass.webp" alt="The Lighting tab in the Liquid glass UI" width="720" height="480" draggable="false"></span>
           <span class="sp-meta">
@@ -668,6 +742,16 @@
           </span>
           <svg class="sp-tick" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.6 12.4l3 3 5.8-6.2"/></svg>
         </button>
+          <div class="sp-opts" id="spOptsGlass" data-opts="glass" role="group" aria-label="Liquid glass options" hidden>
+            <div class="sp-opts-head"><span>Same sliders as Settings, Theme.</span><button class="btn small ghost" id="spGlassReset" type="button">Reset</button></div>
+            <div class="sp-sliders">
+              <label class="sp-rng"><span class="sp-rng-top"><b>Blur</b><output id="spGBlurVal" for="spGBlur"></output></span><input class="range" id="spGBlur" data-glass="blur" type="range" min="0" max="12" step="0.5" value="2.5" aria-label="Blur"></label>
+              <label class="sp-rng"><span class="sp-rng-top"><b>Edge width</b><output id="spGBezelVal" for="spGBezel"></output></span><input class="range" id="spGBezel" data-glass="bezel" type="range" min="4" max="28" step="1" value="14" aria-label="Edge width"></label>
+              <label class="sp-rng"><span class="sp-rng-top"><b>Refraction</b><output id="spGAmountVal" for="spGAmount"></output></span><input class="range" id="spGAmount" data-glass="amount" type="range" min="0" max="60" step="1" value="30" aria-label="Refraction"></label>
+              <label class="sp-rng"><span class="sp-rng-top"><b>Colour fringe</b><output id="spGChromaVal" for="spGChroma"></output></span><input class="range" id="spGChroma" data-glass="chroma" type="range" min="0" max="100" step="5" value="30" aria-label="Colour fringe"></label>
+            </div>
+          </div>
+        </div>
       </div>
       <button class="btn primary sp-go" id="spGo" type="button" data-lock>Continue</button>
       <p class="sp-note">Both are shown over a background picture, which is optional (Settings, Theme).</p>
@@ -744,6 +828,7 @@
 <script src="js/dragseg.js"></script>
 <script src="js/keys-ui.js"></script>
 <script src="js/max.js"></script>
+<script src="js/max-fx.js"></script>
 <script src="js/max-ui.js"></script>
 <script src="js/battery.js"></script>
 <script src="js/preview.js"></script>
@@ -751,6 +836,7 @@
 <script src="js/motion.js"></script>
 <script src="js/background.js"></script>
 <script src="js/stylepick.js"></script>
+<script src="js/stylepick-ui.js"></script>
 <script src="js/app.js"></script>
 <script src="js/home.js"></script>
 <script src="js/update.js"></script>

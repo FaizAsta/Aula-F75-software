@@ -17,7 +17,7 @@
     colors: { get: P.CMD.GET_COLORS, set: P.CMD.SET_COLORS },
   };
   const ORDER = ['led', 'rgb', 'colors'];
-  const KEY = { backup: 'aula.backup.first', history: 'aula.battery.history', keep: 'aula.keep.settings', keepOn: 'aula.keep.optin', brightMax: 'aula.bright.max', lowLight: 'aula.lowlight.saved' };
+  const KEY = { backup: 'aula.backup.first', history: 'aula.battery.history', keep: 'aula.keep.settings', keepOn: 'aula.keep.optin', brightMax: 'aula.bright.max', lowLight: 'aula.lowlight.saved', lastColors: 'aula.perkey.last' };
   // The low-battery light: the Breathing effect, first palette colour set to red, at half of the keyboard's brightness levels.
   const LOW_LIGHT = { mode: 2, colour: [255, 0, 0], brightness: 0.5, speed: 2 };
   const WAKE_HINT = 'Waking the keyboard. Press any key on it if it stays asleep.';
@@ -146,6 +146,7 @@
       // Which blocks were really read from the keyboard on this link. The USB-C cable may not hand over the palette or the
       // per-key colours; those are then stand-ins (never written unless the user edits them, never remembered, never verified).
       this.readable = { led: true, rgb: true, colors: true };
+      this._lastColors = null; // the per-key colours this app last wrote (the cable may not let it read them back)
       this.link = null; // 'feature' for the USB-C cable's feature reports, 'output' for the 20-byte reports, 'demo'
 
       this.battery = { percent: null, at: 0, source: null };
@@ -991,6 +992,43 @@
       return this._restoreKept({ force: true });
     }
 
+    /**
+     * Reset keyboard: puts the lighting block (effect, brightness, speed, colour choice, sleep time), the palette and the
+     * per-key colours back to the defaults in P.FACTORY, and drops any unsaved edit. No factory-reset command of this
+     * keyboard family is known, so this is an ordinary write: the same read-and-merge, commit and read-back as Apply, on
+     * every model and on both links. Bytes the app does not know about (the knob function, Fn changes) stay as they are.
+     * A block this link cannot read (the cable may not hand over the palette or the per-key colours) is not written with a
+     * stand-in and is listed in `skipped`. The key layers are not part of this session (see KeyAssign.resetToOriginal).
+     * Resolves { ok, modeOk, written, skipped, error }; it does not throw.
+     */
+    async factoryReset(onProgress) {
+      if (!this.ready) return { ok: false, error: 'The keyboard is not connected.', written: [], skipped: [] };
+      if (this._applying || this._restoring || this._lowBusy) return { ok: false, busy: true, error: 'The keyboard is busy. Try again in a moment.', written: [], skipped: [] };
+      const skipped = ORDER.filter((k) => k !== 'led' && !this.readable[k]).map((k) => (k === 'rgb' ? 'palette' : 'per-key colours'));
+      this._restoring = true;
+      try {
+        // Start from what the keyboard holds now; edits that were not applied are dropped (the person asked for a reset).
+        this.cur = {
+          led: P.factoryLed(this.dev0.led),
+          rgb: this.readable.rgb ? P.factoryRgb(this.dev0.rgb) : this.dev0.rgb.slice(),
+          colors: this.readable.colors ? new Uint8Array(this.dev0.colors.length) : this.dev0.colors.slice(),
+        };
+        this.emit('change');
+        this._note('reset keyboard: writing the default lighting, palette and per-key colours');
+        // restore: the per-key colours are cleared on purpose, so Apply must not switch the effect to per-key.
+        const r = await this.apply(onProgress, { restore: true });
+        return { ok: r.ok, modeOk: r.modeOk, written: r.written, unverified: r.unverified, mode: r.mode, skipped };
+      } catch (err) {
+        // The write failed part way: show what the keyboard really holds again.
+        this.cur = clone(this.dev0);
+        this.emit('change');
+        return { ok: false, error: err && err.message ? err.message : 'The reset did not work.', written: [], skipped };
+      } finally {
+        this._restoring = false;
+        this.emit('change');
+      }
+    }
+
     // ------------------------------------------------- low-battery light
 
     /** True while the red low-battery light is on the keyboard. */
@@ -1511,6 +1549,38 @@
       });
     }
 
+    /**
+     * The per-key colours that must go out again with a config sent while Per-key is the effect. The keyboard lights the
+     * colours that arrived with a config, so a config on its own (a brightness or sleep change made on another page) leaves
+     * the keys dark. The colours the app read from the keyboard are used; where the cable does not hand them over, the ones
+     * this app last wrote are (kept on this computer too). Null when neither exists.
+     */
+    _perKeyColours() {
+      const want = this.cur && this.cur.colors ? this.cur.colors.length : 0;
+      if (!want) return null;
+      if (this.readable.colors) return this.cur.colors.slice();
+      if (this._lastColors && this._lastColors.length === want) return this._lastColors.slice();
+      if (this.mode === 'demo') return null;
+      try {
+        const raw = this.storage.getItem(KEY.lastColors);
+        const arr = raw ? JSON.parse(raw) : null;
+        if (Array.isArray(arr) && arr.length === want) return (this._lastColors = Uint8Array.from(arr)).slice();
+      } catch (_) {
+        /* unreadable: nothing to send */
+      }
+      return null;
+    }
+
+    _rememberColours(bytes) {
+      this._lastColors = Uint8Array.from(bytes);
+      if (this.mode === 'demo') return; // playing with the demo keyboard never touches what belongs to the real one
+      try {
+        this.storage.setItem(KEY.lastColors, JSON.stringify(Array.from(bytes)));
+      } catch (_) {
+        /* storage full or unavailable: the copy in memory still serves this session */
+      }
+    }
+
     dirtyKeys() {
       if (!this.cur || !this.dev0) return [];
       return ORDER.filter((k) => !P.same(this.cur[k], this.dev0[k]));
@@ -1550,7 +1620,11 @@
         // sent (least written, least that can go wrong on a link no real keyboard has confirmed yet). Never a stand-in.
         const wired = this.transport.kind === 'feature';
         const withLed = !wired && this.readable.rgb;
-        let keys = ORDER.filter((k) => dirty.includes(k) || (k === 'rgb' && dirty.includes('led') && withLed));
+        // A config written while Per-key is the effect takes its colours with it: sent alone (brightness, speed or sleep changed on
+        // another page) it leaves the keys dark and the colours gone until they are painted again.
+        const perKeyOn = dirty.includes('led') && !dirty.includes('colors') && P.getMode(this.cur.led) === P.MODE_CUSTOM;
+        const resend = perKeyOn ? this._perKeyColours() : null;
+        let keys = ORDER.filter((k) => dirty.includes(k) || (k === 'rgb' && dirty.includes('led') && withLed) || (k === 'colors' && !!resend));
         // Over the USB-C cable the official driver sends the colour blocks first and the lighting block last (colours, a read of
         // the config, then the config write that switches the effect on). The keyboard shows the per-key colours it holds when
         // that config arrives, so a config sent before the colours leaves the per-key effect with nothing to show.
@@ -1567,6 +1641,12 @@
         const base = {};
         const pre = {}; // what the keyboard held for each block just before this write
         for (const k of keys) {
+          if (k === 'colors' && resend && !dirty.includes('colors')) {
+            // Sent again as the app holds them: what the keyboard answers now may already be blank.
+            base[k] = resend;
+            pre[k] = this.dev0[k];
+            continue;
+          }
           let fresh = null;
           try {
             if (this.readable[k]) fresh = await t.readBlock(BLOCKS[k].get);
@@ -1610,6 +1690,7 @@
             this._note(`${k} block: no acknowledgement, but the keyboard holds what was sent`);
             if (onProgress) onProgress(Math.min(1, ++done / totalPackets));
           }
+          if (k === 'colors') this._rememberColours(out[k]);
           wroteBefore = true;
           await sleep(40);
         }
@@ -1626,6 +1707,7 @@
         const back = {};
         const unverified = []; // sent, but the keyboard could not be asked what it now holds (cable only)
         for (const k of keys) {
+          if (k === 'colors' && resend && !dirty.includes('colors')) continue; // nothing new to check: the block is as the app held it
           if (this.readable[k]) {
             try {
               back[k] = await this._readBack(t, k, out[k], intended[k]);
@@ -1648,7 +1730,7 @@
         this.emit('change');
         // The person applied lighting of their own while the red light was on: that is their choice now, so nothing is put back.
         if (this._lowLight && !opts.lowLight) this._clearLowLight();
-        const result = { ok: allOk, written: keys, modeOk, committed, mode: P.getMode(this.dev0.led), unverified };
+        const result = { ok: allOk, written: keys, modeOk, committed, mode: P.getMode(this.dev0.led), unverified, colorsResent: !!resend && !dirty.includes('colors'), colorsMissing: perKeyOn && !resend };
         this.emit('applied', result);
         return result;
       } finally {

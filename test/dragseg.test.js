@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Hold and drag on the tab bar and the 1-5 selectors (v1.5.1). The module is plain DOM, so it is driven here with small
+ * Hold and drag on the tab bar and the 1-5 selectors (v1.5.2). The module is plain DOM, so it is driven here with small
  * stand-ins for the elements and real pointer-event order: down, move, up. No browser needed.
  */
 
@@ -244,5 +244,5 @@ test('the stylesheet lets the highlight follow the pointer and keeps the reduced
   assert.match(css, /\.seg\.is-dragging::before \{[^}]*var\(--di, var\(--i\)\)[^}]*transition: none/);
   assert.match(css, /\.tabs\.is-dragging \.tab-ind \{ transition: none; \}/);
   assert.match(css, /\.seg, \.tabs \{ touch-action: none; \}/);
-  assert.ok(css.indexOf('hold and drag (v1.5.1)') < css.indexOf('reduced motion: must stay last'), 'the drag rules come before the reduced-motion block');
+  assert.ok(css.indexOf('hold and drag (v1.5.2)') < css.indexOf('reduced motion: must stay last'), 'the drag rules come before the reduced-motion block');
 });

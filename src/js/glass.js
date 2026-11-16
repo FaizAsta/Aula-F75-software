@@ -40,6 +40,14 @@
   const PREF_KEY = 'aula.prefs';
   const DEFAULTS = { blur: 2.5, bezel: 14, amount: 30, chroma: 30 }; // px, px, px, percent
   const LIMITS = { blur: [0, 12], bezel: [4, 28], amount: [0, 60], chroma: [0, 100] };
+  // The ready-made looks in Settings > Theme > Liquid glass (the same four numbers the sliders set). Blur glass is the default look.
+  // Clear: no frost at all and a strong, sharp bend, so the picture shows through. Frosted: heavy blur, a gentle edge and no
+  // colour fringe, so it reads like frosted glass. A look the sliders land on by hand is "custom".
+  const PRESETS = {
+    clear: { blur: 0, bezel: 16, amount: 40, chroma: 35 },
+    blur: { ...DEFAULTS },
+    frosted: { blur: 9, bezel: 10, amount: 12, chroma: 0 },
+  };
   const TARGETS = [
     '.tabs, .tab-ind, .seg, .btn, .pill-btn', // controls
     '.select, .text-in, .color-pick, .win-btn, .day, .ka-chip, .ka-key', // dropdowns, inputs, window buttons, small buttons
@@ -49,7 +57,11 @@
   const PANELS = '.group, .help-body, .stage'; // boxes that hold other glass controls (see the note above)
   // A box is big next to its rim, so the same numbers that look right on a pill read as a thin outline on it. Panels get a
   // wider, stronger bending rim and a little more frost (they carry paragraphs of text) on top of the person's settings.
-  const PANEL = { bezel: 2, amount: 1.25, blur: 2.5 };
+  const PANEL = { bezel: 1.6, amount: 0.6, blur: 2 };
+  // The big blocks are a lighter glass than the controls: a gentler bend, half the colour fringe and a thinner, softer reflection on the edge
+  // (their tint and sheen are lighter too, in css/glass.css). The reflection settings replace RIM's, like RIM.lens does for the lenses.
+  const PANEL_FRINGE = 0.5; // times the person's Colour fringe setting
+  const PANEL_RIM = { gain: 1.45, lift: 0.05, floor: 0.12, width: -0.5 };
   // The extra frost of a panel follows the Blur slider down: it is the full PANEL.blur from the default setting up, and fades to
   // nothing at 0, so that 0 really is clear glass (before, a panel kept 2.5 px of blur however low the slider went).
   const panelFrost = (panel) => (panel ? PANEL.blur * Math.min(1, params.blur / DEFAULTS.blur) : 0);
@@ -98,7 +110,7 @@
     rim: { gain: 1.15, lift: 0.04, floor: 0.16, width: 0.45 }, // like RIM.lens, softer
   };
   // `lens` is false (a plain surface), true (the tab highlight and other lenses) or 'slider' (the slider lens). Its reflection settings:
-  const lensRim = (lens) => (lens === 'slider' ? SLIDER.rim : lens ? RIM.lens : null);
+  const lensRim = (lens) => (lens === 'slider' ? SLIDER.rim : lens === 'panel' ? PANEL_RIM : lens ? RIM.lens : null);
   const RANGES = 'input.range'; // sliders: the native thumb is hidden and a glass lens is drawn over it (see "sliders" below)
   const THUMB = 42; // px, width of the native (invisible) thumb: the lens rests on it, so the travel stays the same
   const PEEK_MS = 700; // how long the lens stays swollen after a key press or wheel nudge
@@ -116,6 +128,13 @@
       out[k] = Math.min(LIMITS[k][1], Math.max(LIMITS[k][0], v));
     }
     return out;
+  }
+
+  // Which ready-made look the numbers are: 'clear', 'blur' or 'frosted', or 'custom' when they match none of them.
+  function presetOf(p) {
+    const c = clean(p);
+    for (const name of Object.keys(PRESETS)) if (Object.keys(DEFAULTS).every((k) => c[k] === PRESETS[name][k])) return name;
+    return 'custom';
   }
 
   // Same lookup order as theme.js: the desktop app's data file first, then localStorage.
@@ -141,6 +160,11 @@
   const maps = new Map();
   // One canvas does for every map: making a canvas and its 2d context for each of them was a big part of what a new size cost.
   // Setting the size also clears it, so each map starts empty.
+  // The oldest maps go first when there are too many (all of them used to go at once, which made the next page start from nothing).
+  const MAPS_MAX = 480;
+  function trimMaps() {
+    while (maps.size >= MAPS_MAX) maps.delete(maps.keys().next().value);
+  }
   let scratch = null;
   function scratchCanvas(w, h) {
     if (!scratch) {
@@ -157,7 +181,7 @@
   function mapUrl(w, h, r, bezel) {
     const key = `${w}x${h}r${Math.round(r)}b${bezel}`;
     if (maps.has(key)) return maps.get(key);
-    if (maps.size > 60) maps.clear(); // panels have large maps and sizes change while the window is dragged
+    trimMaps(); // panels have large maps and sizes change while the window is dragged
     const mw = Math.max(1, w);
     const mh = Math.max(1, h);
     const mr = r;
@@ -235,19 +259,16 @@
     const back = RIM.bounce * Math.pow(Math.max(-d, 0), RIM.power);
     return Math.min(1, (lens ? lensRim(lens).floor : RIM.floor) + lit + back);
   }
-  // `strength` true draws only the strength of the reflection, as the picture's alpha (the form a surface that bends uses: it needs no
-  // direction, so the filter can use the picture as its mask straight away, one pass fewer). False is the full map above (strength in B,
-  // direction in R and G), which a surface too small to bend needs to fetch its reflected colours from inside.
-  function rimMapUrl(w, h, r, width, lens, strength = false) {
-    const key = `rim${strength ? 'A' : ''}${w}x${h}r${Math.round(r)}w${width}${lens === 'slider' ? 'S' : lens ? 'L' : ''}`;
+  function rimMapUrl(w, h, r, width, lens) {
+    const key = `rim${w}x${h}r${Math.round(r)}w${width}${lens === 'slider' ? 'S' : lens === 'panel' ? 'P' : lens ? 'L' : ''}`;
     if (maps.has(key)) return maps.get(key);
-    if (maps.size > 60) maps.clear();
+    trimMaps();
     const mw = Math.max(1, w);
     const mh = Math.max(1, h);
     const { cv, ctx } = scratchCanvas(mw, mh);
     const img = ctx.createImageData(mw, mh);
     const px = img.data;
-    if (!strength) new Uint32Array(px.buffer).fill(FLAT_RIM[0]); // (the alpha form starts as the empty, transparent picture)
+    new Uint32Array(px.buffer).fill(FLAT_RIM[0]);
     const hw = mw / 2;
     const hh = mh / 2;
     const reach = width + 0.5;
@@ -276,10 +297,6 @@
       const t = Math.min(1, Math.max(0, 1 - (Math.max(depth, 0) - 0.5) / width)); // 1 on the edge, 0 at the inner end of the band
       const fade = t * t * (3 - 2 * t); // smooth, so the reflection has no hard inner line
       const i = (y * mw + x) * 4;
-      if (strength) {
-        px[i + 3] = Math.round(255 * fade * rimLight(nx, ny, lens));
-        return;
-      }
       px[i] = Math.round(127.5 - nx * 127.5);
       px[i + 1] = Math.round(127.5 - ny * 127.5);
       px[i + 2] = Math.round(255 * fade * rimLight(nx, ny, lens));
@@ -336,7 +353,7 @@
   //  - the map's blue channel says how much of it shows at each pixel (it becomes the mask's alpha).
   function rimPass(w, h, r, base, bent, lens) {
     const { width, pull } = rimSpec(w, h, lens);
-    const map = `<feImage href="${rimMapUrl(w, h, r, width, lens, bent)}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="rm"/>`;
+    const map = `<feImage href="${rimMapUrl(w, h, r, width, lens)}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="rm"/>`;
     const fetch = bent
       ? ''
       : `<feDisplacementMap in="b" in2="rm" scale="${(pull * 2).toFixed(2)}" xChannelSelector="R" yChannelSelector="G" result="rr"/>`;
@@ -344,9 +361,8 @@
       map +
       fetch +
       `<feColorMatrix in="${bent ? 'o' : 'rr'}" type="matrix" values="${rimBoost(lens)}" result="rc"/>` +
-      // bending surface: the map's alpha is the strength already; small surface: it is the map's blue channel, moved into the alpha first
-      (bent ? '' : '<feColorMatrix in="rm" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 1 0 0" result="ra"/>') +
-      `<feComposite in="rc" in2="${bent ? 'rm' : 'ra'}" operator="in" result="rl"/>` +
+      '<feColorMatrix in="rm" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 1 0 0" result="ra"/>' +
+      '<feComposite in="rc" in2="ra" operator="in" result="rl"/>' +
       `<feComposite in="rl" in2="${base}" operator="over" result="f"/>`
     );
   }
@@ -392,29 +408,41 @@
     // The person's fringe, cut down where the gap between the two shifts (2 x fringe x amount) would pass FRINGE of the side.
     let ca = (params.chroma / 100) * 0.6;
     if (amount > 0) ca = Math.min(ca, (side * FRINGE) / (2 * amount));
+    if (panel) ca *= PANEL_FRINGE; // the big blocks: a lighter glass, a quieter fringe
     if (side < FRINGE_FROM) ca = 0; // pills, buttons, inputs: bent a little, never split into colours
     ca = ca < 0.01 ? 0 : Math.round(ca * 1000) / 1000; // none worth a second shift: one pass fewer
     return { amount, ca };
   }
   // Gives `el` the filter that fits its size (making it if nobody has one like it) and lets go of the one it had.
-  function acquire(el, w, h, radius, panel, lens, slider) {
+  function describe(w, h, radius, panel, lens, slider) {
     const r = Math.min(radius, w / 2, h / 2);
     const bezel = Math.min(params.bezel * (panel ? PANEL.bezel : 1) * (slider ? SLIDER.bezel : 1), Math.min(w, h) / 2);
     const blur = slider ? Math.round(params.blur * SLIDER.blur * 100) / 100 : Math.round((params.blur + panelFrost(panel)) * 100) / 100;
     const { amount, ca } = rim(w, h, panel, slider);
-    const kind = slider ? 'slider' : lens; // which reflection the filter ends with (see lensRim)
-    const key = `${w}x${h}r${Math.round(r)}b${bezel}|${blur}|${amount}|${ca}|${lens ? 'L' : ''}${slider ? 'S' : ''}|${dpr()}`;
-    if (el._agKey === key && filters.has(key)) return filters.get(key).id;
-    drop(el);
-    let f = filters.get(key);
+    const kind = slider ? 'slider' : panel ? 'panel' : lens; // which reflection the filter ends with (see lensRim)
+    const key = `${w}x${h}r${Math.round(r)}b${bezel}|${blur}|${amount}|${ca}|${lens ? 'L' : ''}${slider ? 'S' : ''}${panel ? 'P' : ''}|${dpr()}`;
+    return { r, bezel, blur, amount, ca, kind, key };
+  }
+  // The filter for a description, built if it does not exist yet (it starts with nobody using it).
+  function ensure(w, h, d) {
+    let f = filters.get(d.key);
     if (!f) {
       const id = `ag-${++seq}`;
-      const node = makeFilter(id, w, h, r, bezel, blur, amount, ca, kind);
+      const node = makeFilter(id, w, h, d.r, d.bezel, d.blur, d.amount, d.ca, d.kind);
       if (pending) pending.push(node);
       else defs.append(node);
-      f = { id, node, refs: 0, key };
-      filters.set(key, f);
+      f = { id, node, refs: 0, key: d.key };
+      filters.set(d.key, f);
     }
+    return f;
+  }
+  function acquire(el, w, h, radius, panel, lens, slider) {
+    const d = describe(w, h, radius, panel, lens, slider);
+    const key = d.key;
+    if (el._agKey === key && filters.has(key)) return filters.get(key).id;
+    drop(el);
+    if (!filters.has(key)) noteSize(w, h, radius, panel, lens, slider);
+    const f = ensure(w, h, d);
     f.refs++;
     el._agKey = key;
     return f.id;
@@ -428,6 +456,83 @@
     }
   }
 
+  // ---- the first visit to a page: the maps of its surfaces are the slow part of it (each is drawn and then encoded as a PNG).
+  // The sizes of the surfaces that got a filter are remembered (only the sizes: a few hundred bytes, and nothing that could go
+  // stale when the maps are drawn differently some day), and after the next start the maps for them are made while nothing
+  // else is happening, and so are the filters themselves: the first visit finds them ready and only has to point at them.
+  // A filter that nobody has used yet stays until the settings change (their key holds the settings, so it can never be the
+  // right one again); see sweep().
+  const SIZES_KEY = 'aula.glassSizes';
+  const MAX_SIZES = 160;
+  const sizes = new Map(); // "w,h,radius,panel,lens,slider" -> [w, h, radius, panel, lens, slider], the newest last
+  let sizesTimer = 0;
+  function noteSize(w, h, radius, panel, lens, slider) {
+    const a = [w, h, Math.round(radius * 100) / 100, panel ? 1 : 0, lens ? 1 : 0, slider ? 1 : 0];
+    const k = a.join(',');
+    sizes.delete(k);
+    sizes.set(k, a);
+    while (sizes.size > MAX_SIZES) sizes.delete(sizes.keys().next().value);
+    if (!sizesTimer) sizesTimer = setTimeout(saveSizes, 3000);
+  }
+  // Where it is kept is where the app keeps everything it remembers (see app.js): the desktop app's data file, and only without
+  // one, localStorage (a browser tab). With neither, nothing is remembered and nothing else changes.
+  function saveSizes() {
+    sizesTimer = 0;
+    if (window.AULA_PREVIEW) return; // the live picture on the UI question (boot.js) keeps nothing of its own
+    const raw = JSON.stringify([...sizes.values()]);
+    try {
+      if (host && host.setMemory) return host.setMemory(SIZES_KEY, raw);
+    } catch (e) {}
+    try {
+      localStorage.setItem(SIZES_KEY, raw);
+    } catch (e) {}
+  }
+  function loadSizes() {
+    if (window.AULA_PREVIEW) return [];
+    let raw = null;
+    try {
+      if (host && host.loadMemory) raw = (host.loadMemory() || {})[SIZES_KEY] ?? null;
+    } catch (e) {}
+    if (raw == null) {
+      try {
+        raw = localStorage.getItem(SIZES_KEY);
+      } catch (e) {}
+    }
+    try {
+      return JSON.parse(raw || '[]');
+    } catch (e) {
+      return [];
+    }
+  }
+  const idle = (fn) => (window.requestIdleCallback ? window.requestIdleCallback(fn, { timeout: 5000 }) : setTimeout(() => fn({ timeRemaining: () => 0 }), 60));
+  // `list`: sizes, the newest first. A newer run replaces the one in progress (the settings may have changed meanwhile).
+  let warmTimer = 0;
+  let warmRun = 0;
+  function warmUp(list, delay) {
+    const run = ++warmRun;
+    clearTimeout(warmTimer);
+    let i = 0;
+    const step = (deadline) => {
+      if (!on || run !== warmRun) return;
+      do {
+        const a = list[i++];
+        if (!Array.isArray(a) || a.length !== 6 || !(a[0] > 0 && a[1] > 0)) continue;
+        const [w, h, radius, panel, lens, slider] = a;
+        ensureDefs();
+        ensure(w, h, describe(w, h, radius, !!panel, !!lens, !!slider)); // the maps and the filter, as the surface will ask for them
+      } while (i < list.length && deadline.timeRemaining() > 12);
+      if (i < list.length) idle(step);
+    };
+    warmTimer = setTimeout(() => idle(step), delay);
+  }
+  function warm() {
+    let list = loadSizes();
+    if (!Array.isArray(list) || !list.length) return;
+    list = list.slice(-MAX_SIZES).reverse(); // the newest first
+    for (const a of list.slice().reverse()) if (Array.isArray(a)) sizes.set(a.join(','), a); // remembered again, so a start without a visit does not forget them
+    warmUp(list, 1500); // let the first screen settle first
+  }
+
   // ---- sliders: the thumb is a glass lens. At rest it is a small frosted pill; while held it swells into a clear lens that
   // bends the track (css/glass.css does the looks). The native <input type=range> stays in charge of dragging, keys and
   // screen readers; the lens is a decorative sibling that follows its value. It goes through the same refraction filter as
@@ -435,10 +540,13 @@
   const lensOf = new Map(); // range input -> { lens, off() }
   const roRange = new ResizeObserver((entries) => {
     if (!on) return;
+    const recs = [];
     for (const e of entries) {
       const rec = lensOf.get(e.target);
-      if (rec) rec.place();
+      if (rec) recs.push(rec);
     }
+    const spots = recs.map((rec) => rec.measure());
+    recs.forEach((rec, i) => rec.apply(spots[i]));
   });
   function mountRange(rng) {
     if (lensOf.has(rng) || !rng.parentNode) return;
@@ -448,16 +556,24 @@
     rng.after(lens); // empty: what you see through it while it is held is the real track, bent by its filter
     let peek = 0;
     const hold = (v) => lens.classList.toggle('held', v);
-    const place = () => {
+    // Where the lens goes is measured (measure) and written (apply) apart, so that several sliders shown together (a page that
+    // has just been opened) are all measured before the first is changed; one by one, each write made the next measurement lay
+    // the page out again.
+    const measure = () => {
       const w = rng.offsetWidth;
-      if (!w) return; // hidden for now: the observer fires again when it is shown
+      if (!w) return null; // hidden for now: the observer fires again when it is shown
       const min = rng.min === '' ? 0 : +rng.min;
       const max = rng.max === '' ? 100 : +rng.max;
       const pf = max > min ? Math.min(1, Math.max(0, (+rng.value - min) / (max - min))) : 0;
-      lens.style.setProperty('--lx', `${rng.offsetLeft + THUMB / 2 + (w - THUMB) * pf}px`);
-      lens.style.setProperty('--ly', `${rng.offsetTop + rng.offsetHeight / 2}px`);
-      lens.style.setProperty('--lp', String(pf));
+      return { x: rng.offsetLeft + THUMB / 2 + (w - THUMB) * pf, y: rng.offsetTop + rng.offsetHeight / 2, pf };
     };
+    const apply = (m) => {
+      if (!m) return;
+      lens.style.setProperty('--lx', `${m.x}px`);
+      lens.style.setProperty('--ly', `${m.y}px`);
+      lens.style.setProperty('--lp', String(m.pf));
+    };
+    const place = () => apply(measure());
     // The held lens is a drop of liquid: dragged fast it stretches (css/glass.css reads --lv, -1 to 1: the smoothed pointer speed,
     // signed by direction), then settles back. Only a scale is applied, never a change of shape, so the filter built for the lens stays exact. `kick` is the latest move, `vel` follows it with a lag, and a frame loop runs only while either moves.
     // Speeds are in px per 16.7 ms (one frame at 60 Hz) and the easing is by elapsed time, so a slow machine eases at the same pace.
@@ -525,6 +641,8 @@
     lensOf.set(rng, {
       lens,
       place,
+      measure,
+      apply,
       off() {
         clearTimeout(peek);
         letGo();
@@ -739,6 +857,7 @@
       if (pending.length) defs.append(...pending);
       pending = null;
     }
+    if (sweepAfter) sweep();
   }
   function paint(el, w, h, radius) {
     const panel = el.matches(PANELS);
@@ -805,13 +924,27 @@
   // done in one go, so a setting that is dragged never shows a frame with the glass missing.
   function repaintAll() {
     ensureDefs();
+    sweepAfter = true;
     for (const el of live) queueNow(el);
+    warmUp([...sizes.values()].reverse(), 2500); // the filters made ahead of time were for the old settings (sweep), so make them again once nothing is being changed
+  }
+  // Filters made ahead of time (warm) for settings that are gone are removed once everything has been given its new filter.
+  let sweepAfter = false;
+  function sweep() {
+    sweepAfter = false;
+    for (const f of [...filters.values()]) {
+      if (f.refs > 0) continue;
+      f.node.remove();
+      filters.delete(f.key);
+    }
   }
   function release() {
     mo.disconnect();
     if (window.removeEventListener) window.removeEventListener('resize', onResize);
     clearTimeout(scanTimer);
     scanTimer = 0;
+    clearTimeout(warmTimer);
+    warmRun++;
     dirty.clear();
     unmountRanges();
     unmountScrolls();
@@ -834,12 +967,15 @@
     seenDpr = dpr();
     if (window.addEventListener) window.addEventListener('resize', onResize);
     scan();
+    warm();
   }
 
   window.AulaGlass = {
     DEFAULTS,
     LIMITS,
+    PRESETS,
     clean,
+    presetOf,
     rim,
     rimSpec,
     rimLight,

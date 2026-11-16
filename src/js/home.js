@@ -8,6 +8,7 @@
   const { session, prefs } = A;
   const W = window.AulaWebHID;
   const SP = window.AulaStylePick || null; // stylepick.js: which UI is owed, and the arrow-key order of the choices
+  const SPUI = window.AulaStylePickUI || null; // stylepick-ui.js: the options under the selected card and the live picture on it
   const $ = (s) => home.querySelector(s);
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const shell = document.querySelector('.shell');
@@ -259,9 +260,11 @@
       home.hidden = false;
       void home.offsetWidth; // so the layer fades in instead of popping
     }
+    const left = screen;
     screen = name;
     home.dataset.screen = name;
     shell.dataset.screen = name;
+    if (left === 'style' && name !== 'style' && SPUI) SPUI.close(); // the live pictures stop costing anything once the question is gone
     lock = null;
     lockBox = null;
     lastTarget = null;
@@ -315,6 +318,7 @@
   // Selects a card (a radio group with one tab stop, like the other segmented choices in the app).
   function markStyle(style, focus) {
     spPick = style;
+    if (SPUI && screen === 'style') SPUI.select(style);
     for (const c of spCards) {
       const on = c.dataset.styleChoice === style;
       c.setAttribute('aria-checked', on ? 'true' : 'false');
@@ -325,6 +329,7 @@
   function openStyle() {
     spDone = false;
     markStyle(A.styleStart ? A.styleStart() : 'classic', false);
+    if (SPUI) SPUI.open(spPick);
     const on = spCards.find((c) => c.dataset.styleChoice === spPick);
     if (on) on.focus({ preventScroll: true }); // for the keyboard: arrows pick, Enter continues (a mouse click shows no focus ring)
   }
@@ -333,7 +338,7 @@
     if (screen !== 'style' || spDone) return;
     spDone = true;
     try {
-      A.chooseStyle(spPick);
+      A.chooseStyle(spPick, SPUI ? SPUI.draft() : null); // the style and the options shown under it
     } catch (_) {
       /* the style could not be applied; the devices still open and Settings, Theme, UI still has the choice */
     }
@@ -381,7 +386,7 @@
       seen.add(d.id);
       const isMax = d.family === 'max';
       const mx = isMax && A.max ? A.max : null;
-      const mine = isMax ? !!(mx && mx.active()) : !prefs.demo && s.ifaceId === d.id;
+      const mine = isMax ? !!(mx && mx.active() && !mx.max.demo) : !prefs.demo && s.ifaceId === d.id;
       let st = 'Detected';
       let k = 'idle';
       if (!d.supported) [st, k] = ['Not supported', 'warn'];
@@ -406,6 +411,10 @@
     }
     const live = prefs.demo && s.status === 'ready';
     out.push({ kind: 'kb', name: 'Demo keyboard', sub: 'Simulated · try every control without hardware', supported: true, demo: true, st: live ? 'Connected' : prefs.demo ? 'Starting' : 'Available', k: live ? 'ok' : prefs.demo ? 'busy' : 'idle', bat: live ? s.battery.percent : null });
+    if (A.max) {
+      const onDemo = !!(A.max.active() && A.max.max.demo);
+      out.push({ kind: 'kb', name: 'Demo F75 Max', sub: 'Simulated · try every F75 Max page without hardware', supported: true, demo: true, demoMax: true, st: onDemo ? 'Connected' : 'Available', k: onDemo ? 'ok' : 'idle', bat: onDemo ? A.max.max.battery.percent : null });
+    }
     return out;
   }
 
@@ -434,7 +443,7 @@
   function renderDevices() {
     const its = items();
     const real = its.filter((i) => i.real).length;
-    const sub = real ? `${real} device${real === 1 ? '' : 's'} found. Choose one to continue.` : 'No keyboard found yet. Plug in the 2.4G dongle or the USB-C cable, or try the demo keyboard.';
+    const sub = real ? `${real} device${real === 1 ? '' : 's'} found. Choose one to continue.` : 'No keyboard found yet. Plug in the 2.4G dongle or the USB-C cable, or try a demo keyboard (F75 or F75 Max).';
     const next = sub + JSON.stringify(its.map((i) => [i.name, i.st, i.bat, i.chg]));
     if (next === sig) return;
     sig = next;
@@ -464,6 +473,15 @@
       node.classList.add('shake');
       return;
     }
+    if (it.demoMax && A.max) {
+      go('app');
+      if (A.max.active() && A.max.max.demo) return; // already on it
+      if (prefs.demo) await A.setDemo(false).catch(() => {});
+      const opened = await A.max.enterDemo();
+      if (!opened) A.toast('Could not start the demo F75 Max.', 'warn', 6000);
+      else A.toast('Demo F75 Max on. Changes stay in the demo.', 'info');
+      return;
+    }
     if (it.family === 'max' && A.max) {
       // Other AULA keyboards share the F75 Max's USB ids, so a device whose name does not say which model it is waits for a yes.
       if (it.confirm && !A.max.max.confirmed.size) {
@@ -471,6 +489,7 @@
         if (!ok) return;
       }
       go('app');
+      if (A.max.active() && A.max.max.demo) A.max.leave(); // the demo F75 Max is let go, so the real one is the one that opens
       if (prefs.demo) await A.setDemo(false).catch(() => {});
       const opened = await A.max.enter({ confirmed: it.confirm });
       if (!opened) A.toast('Could not reach the F75 Max. Close the official AULA driver and try again.', 'warn', 6000);
@@ -525,7 +544,8 @@
       // Left / Up and Right / Down move the choice, Enter continues, Escape goes back to Start. Enter only counts from the
       // question itself (or from nowhere in particular), never from the Back, Support or Update buttons.
       const t = e.target;
-      const here = t === document.body || t === document.documentElement || !!(t.closest && t.closest('.scr-style'));
+      // The sliders and switches under the selected card keep their own arrow keys and Enter.
+      const here = t === document.body || t === document.documentElement || (!!(t.closest && t.closest('.scr-style')) && !t.closest('.sp-opts'));
       if (e.key === 'Escape') {
         go('home');
       } else if (here && SP && /^Arrow(Left|Up|Right|Down)$/.test(e.key)) {
@@ -550,4 +570,6 @@
   setHeavy(false);
   setTimeout(() => screen !== 'app' && setHeavy(false), 600);
   kick();
+  // The live picture on a card of the UI question (boot.js, stylepick-ui.js) is this page with no start screens: straight to the app.
+  if (window.AULA_PREVIEW) go('app');
 })();

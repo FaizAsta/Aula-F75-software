@@ -507,8 +507,40 @@
   /** All keys off, for `n` lights (the cable's per-key table holds 126). */
   const defaultColors = (n = 126) => new Uint8Array(n * 3);
 
+  // ------------------------------------------------------- keyboard reset
+
+  // What "Reset keyboard" puts back. No factory-reset command of the F75 family is known, so a reset is a write of these
+  // default values through the same, read-back-checked path as every other change (see Session.factoryReset).
+  const FACTORY = { mode: 3, brightness: LEVEL_MAX, speed: 2, sleep: 10 }; // Rainbow, full brightness, medium speed, lights off after 5 minutes
+
+  /**
+   * A copy of the keyboard's own lighting block with the user-facing settings put back to FACTORY: the running effect, the
+   * brightness, speed and colour choice of every effect the app knows, and the sleep time. Every other byte (the knob
+   * function, the apply flag, anything the app does not know about) stays exactly as the keyboard holds it.
+   */
+  function factoryLed(led) {
+    const out = led.slice();
+    out[OFF.MODE] = FACTORY.mode;
+    out[OFF.SLEEP] = FACTORY.sleep;
+    for (const e of EFFECTS) {
+      setBrightness(out, e, FACTORY.brightness);
+      setSpeed(out, e, FACTORY.speed);
+      setColorIndex(out, e, MULTICOLOR);
+      settleColor(out, e); // an effect that cannot run multicolour gets its first palette colour
+    }
+    return out;
+  }
+
+  /** A copy of the keyboard's own palette table with the factory colours in every effect slot; the bytes around them stay. */
+  function factoryRgb(rgb) {
+    const out = rgb.slice();
+    for (let slot = 0; slot < 19; slot++) FACTORY_PALETTE.forEach((c, j) => palOffset(slot, j) + 3 <= out.length && out.set(c, palOffset(slot, j)));
+    return out;
+  }
+
   return {
     FEATURE_ID, FEATURE_LEN, FEATURE_HEAD, WIRE, buildFeature, parseFeature, DEFAULT_PALETTE, defaultRgb, defaultColors,
+    FACTORY, factoryLed, factoryRgb,
     REPORT_ID, PACKET_LEN, CHUNK, LED_SIZE, CMD, OFF, MODE_CUSTOM, MODE_OFF, LEVEL_MAX, BRIGHT_CAP, PALETTE_SLOTS, MULTICOLOR,
     DEVICES, deviceFor, maxModel, EFFECTS, EFFECT_OFF, effectOf, SLEEP_OPTIONS,
     checksum, buildPacket, normalizeInput, parseFragment, splitChunks, joinParts,

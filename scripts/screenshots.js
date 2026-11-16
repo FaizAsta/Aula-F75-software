@@ -340,7 +340,7 @@ const SHOTS = {
     const page = await open('demo', { extra: { styleAsked: false } });
     await page.click('#hmStart');
     await page.waitForFunction(() => document.getElementById('home').dataset.screen === 'style');
-    await wait(1100); // the screen's entrance and the pictures
+    await wait(4500); // the screen's entrance, and the live picture on the selected card (a second copy of the app that has to start)
     await snap(page, 'style-picker');
     check(page, 'style-picker');
     await page.ctx.close();
@@ -438,7 +438,8 @@ const SHOTS = {
     await page.click('#pkSelAll');
     await page.click('#pkPaintSel');
     await wait(150);
-    await page.click('#pkRainbow');
+    await page.click('#segPaint [data-paint="gradient"]');
+    await page.click('#pkAll');
     await wait(900);
     await snap(page, 'per-key');
     check(page, 'per-key');

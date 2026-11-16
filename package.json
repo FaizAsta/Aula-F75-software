@@ -1,7 +1,7 @@
 {
   "name": "aula-control",
   "productName": "Aula Control",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Unofficial companion app for AULA F75, F75 Pro and F87 keyboards: battery, lighting effects and per-key RGB.",
   "main": "main.js",
   "author": "",
@@ -14,6 +14,7 @@
     "test": "node --test",
     "icon": "python3 scripts/make-icon.py",
     "screenshots": "node scripts/screenshots.js",
+    "slideshow": "python3 scripts/make-slideshow.py",
     "dist": "electron-builder --win nsis portable",
     "dist:linux": "electron-builder --linux AppImage deb"
   },
@@ -37,7 +38,7 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Aula Control",
       "runAfterFinish": true,
-      "deleteAppDataOnUninstall": false,
+      "deleteAppDataOnUninstall": true,
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico",
       "artifactName": "Aula-Control-Setup.${ext}"

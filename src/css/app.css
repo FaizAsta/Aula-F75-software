@@ -686,6 +686,9 @@ html.frost, html.frost body { background: transparent; }
 .btn.ghost { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-2); }
 .btn.ghost:hover:not(:disabled) { background: rgb(var(--ink) / 0.06); color: var(--text); }
 .btn.small { height: 30px; padding: 0 13px; font-size: 12.5px; }
+/* Reset keyboard, armed: the second click does it. */
+.btn[data-armed] { background: var(--bad); color: #fff; font-weight: 600; box-shadow: none; }
+.btn[data-armed]:hover:not(:disabled) { background: var(--bad); filter: brightness(1.08); }
 .btn.primary { background: var(--btn-bg); color: var(--btn-fg); font-weight: 600; box-shadow: none; }
 .btn.primary:hover:not(:disabled) { background: var(--btn-hover); }
 .btn.primary:disabled { background: var(--btn-off-bg); color: var(--btn-off-fg); opacity: 1; }
@@ -800,6 +803,9 @@ html.frost, html.frost body { background: transparent; }
 .srow-text .style-tag { margin-left: 8px; vertical-align: 1px; }
 .hint.caution { color: var(--warn); }
 .srow-ctl { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.reset-hotkey { flex: 1 0 100%; margin: 0; text-align: right; }
+.reset-hotkey b { font-weight: 500; color: var(--text); }
+.reset-hotkey kbd { display: inline-block; min-width: 1.9em; padding: 1px 6px; margin: 0 1px; border-radius: 6px; font: inherit; font-size: 11.5px; font-weight: 500; line-height: 1.5; text-align: center; color: var(--text); background: rgb(var(--ink) / 0.07); box-shadow: inset 0 0 0 1px var(--line-2), 0 1px 0 var(--line-2); }
 
 .help-body { padding: 18px 20px; border-radius: var(--r-group); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
 .help-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 12px; }
@@ -1076,6 +1082,13 @@ html.frost, html.frost body { background: transparent; }
 
 .seg-3 { grid-template-columns: repeat(3, 1fr); }
 .seg-theme { width: 252px; }
+/* Liquid glass look picker (Settings > Theme): three longer names, so wider than the theme switcher; it wraps under the text on a narrow window. */
+.seg-glass { width: 372px; max-width: 100%; }
+.seg-glass::before { transition: transform 0.3s var(--spring), opacity 0.2s; }
+.seg-glass.seg-none::before { opacity: 0; } /* the sliders hold a mix of their own: no look is lit */
+/* The four sliders behind the Customise button. They are rows of the same box, so the line above them is drawn here (a row inside a wrapper is not the next sibling of the one before it). */
+.glass-custom { border-top: 1px solid var(--line); }
+.glass-custom[hidden] { display: none; }
 
 /* ---- light theme: the few things that need more than a colour swap ---------------------------------------------- */
 
@@ -1097,7 +1110,7 @@ html.frost, html.frost body { background: transparent; }
 [data-theme="light"] .hm-radar::after { background: hsl(var(--hue) 80% 48%); box-shadow: 0 0 14px hsl(var(--hue) 80% 48% / 0.55); }
 [data-theme="light"] .hs-logo { filter: none; }
 
-/* ---- hold and drag (v1.5.1): the tab bar and the 1-5 selectors ------------------------------------------------------ */
+/* ---- hold and drag (v1.5.2): the tab bar and the 1-5 selectors ------------------------------------------------------ */
 
 .seg, .tabs { touch-action: none; }
 .seg.is-dragging, .tabs.is-dragging, .seg.is-dragging .seg-btn, .tabs.is-dragging .tab-btn { cursor: grabbing; -webkit-user-select: none; user-select: none; }

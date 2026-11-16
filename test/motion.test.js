@@ -209,6 +209,22 @@ test('Classic: the Effect heading is a card of its own, and the header has no da
   assert.match(lite, /:root\.has-picture:not\(\.glass\) \.win-btns \.win-close:hover \{ background: rgb\(229 72 77/, 'close still turns red on hover');
 });
 
+test('Classic: the battery pill, Support, the update badge and the window buttons are frosted over a picture, like the tab bar', () => {
+  const lite = read('css/lite.css');
+  const sel = ':root\\.has-picture:not\\(\\.glass\\):not\\(\\.frost\\):not\\(\\.no-blur\\) :is\\(\\.top-right > :is\\(\\.pill-btn, \\.icon-btn\\), \\.win-btn\\)';
+  const on = new RegExp(sel + ' \\{([^}]*)\\}').exec(lite);
+  assert.ok(on, 'one rule blurs the header buttons over a picture');
+  assert.match(on[1], /backdrop-filter:\s*blur\(var\(--frost-blur\)\) saturate\(1\.45\) !important/);
+  // the same blur as the tab bar and the cards
+  assert.match(lite, /:root:not\(\.glass\):not\(\.frost\) :is\(\.tabs, \.set-nav, \.group, \.effect, \.eff-top\) \{[^}]*blur\(var\(--frost-blur\)\) saturate\(1\.45\)/);
+  // Blur off, Windows' own frost and Liquid glass are excluded by the selector itself; "Reduce transparency" turns it off again
+  const off = new RegExp('@media \\(prefers-reduced-transparency: reduce\\) \\{\\s*' + sel + ' \\{[^}]*backdrop-filter:\\s*none !important').exec(lite);
+  assert.ok(off, 'no blur with Reduce transparency');
+  // it comes after the rule that switches every backdrop off, and the tint rule above it is unchanged
+  assert.ok(lite.indexOf(on[0]) > lite.indexOf('*, *::before, *::after { backdrop-filter: none !important; }'));
+  assert.match(lite, /:root\.has-picture:not\(\.glass\) :is\(\.tabs, \.top-right > :is\(\.pill-btn, \.icon-btn\), \.win-btn\) \{/);
+});
+
 test('Classic: a Blur switch in Settings > Theme turns the frosted blur off, and Liquid glass does not show it', () => {
   const lite = read('css/lite.css');
   const js = read('js/app.js');

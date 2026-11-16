@@ -262,6 +262,37 @@
       }
       return edits;
     }
+
+    /**
+     * Reset keyboard, key part: puts every key the person reassigned back to what it was when this keyboard model was first
+     * opened here, on both layers, with the same checks as any key write (fresh read, only changed keys, read-back). The Fn
+     * key and the keyboard's special keys are never touched. Resolves { ok, changed, failed, error, skipped }: `changed` is
+     * how many keys were put back, `skipped` is set when the layers cannot be read (nothing is written then).
+     */
+    async resetToOriginal() {
+      const t = this.o.transport ? this.o.transport() : null;
+      if (!t) return { ok: false, changed: 0, failed: 0, skipped: true, error: 'No keyboard is connected.' };
+      const st = await this.load(); // always a fresh read: what is on the keyboard now is what gets compared
+      if (st.status !== 'ready') return { ok: false, changed: 0, failed: 0, skipped: true, error: st.error || 'The key layers could not be read.' };
+      let changed = 0;
+      let failed = 0;
+      let error = '';
+      for (const layer of [0, 1]) {
+        if (!this.layerAvailable(layer)) continue;
+        const cur = this.state.layers[layer];
+        const edits = this.restoreEdits(layer);
+        for (const led of [...edits.keys()]) if (this.isFnKey(led) || K.decode(K.codeAt(cur, led)).protected) edits.delete(led);
+        if (!edits.size) continue;
+        const r = await this.apply(layer, edits);
+        changed += r.kept.length;
+        failed += r.wrong.length;
+        if (!r.ok) {
+          if (!r.kept.length && !r.wrong.length) failed += edits.size; // the write did not go at all
+          error = r.error || error;
+        }
+      }
+      return { ok: failed === 0, changed, failed, error, skipped: false };
+    }
   }
 
   return { KeyAssign };

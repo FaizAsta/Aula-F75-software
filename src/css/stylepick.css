@@ -4,6 +4,9 @@
    (a radio group) and Continue applies it. The pictures are src/img/ui/*.webp, made by `npm run screenshots -- ui-previews`.
    Colours come from the same variables as everything else, so the light theme and Liquid glass apply. Liquid glass restyles the
    cards in css/glass.css; every rule there starts with html.glass.
+
+   The selected card also has its options under it (.sp-opts) and a LIVE picture of the app on it (.sp-live, an iframe of this same
+   page in preview mode; js/stylepick-ui.js). The rules for the page inside that iframe are at the end of this file (html.preview).
    ========================================================================== */
 
 /* This screen is taller than the others, so on the smallest window it may scroll (its scroll bar is hidden, like the device list's). */
@@ -19,7 +22,7 @@
 .scr-style > :last-child { margin-bottom: auto; }
 
 .sp-title { font-size: clamp(24px, 3.6vw, 34px); font-weight: 700; }
-.sp-sub { margin: 8px 0 clamp(14px, 3vh, 26px); max-width: 620px; color: var(--muted); font-size: 13.5px; text-wrap: balance; }
+.sp-sub { margin: 8px 0 clamp(10px, 2vh, 18px); max-width: 620px; color: var(--muted); font-size: 13.5px; text-wrap: balance; }
 
 .sp-cards {
   display: grid;
@@ -27,6 +30,9 @@
   gap: 20px;
   width: min(900px, 100%);
 }
+
+.sp-cards { align-items: start; }
+.sp-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 
 .sp-card {
   position: relative;
@@ -55,9 +61,10 @@
 
 /* The picture of the app. Shown whole at the top (a 3:2 window); on a short window it is cropped from the bottom, never stretched. */
 .sp-shot {
+  position: relative;
   display: block;
   aspect-ratio: 3 / 2;
-  max-height: clamp(150px, 33vh, 300px);
+  max-height: clamp(140px, 28vh, 280px);
   width: 100%;
   overflow: hidden;
   border-radius: 16px;
@@ -92,7 +99,7 @@
 .sp-tick path { stroke: #fff; }
 .sp-card[aria-checked="true"] .sp-tick { opacity: 1; transform: none; }
 
-.sp-go { height: 46px; margin-top: clamp(14px, 3vh, 26px); padding: 0 46px; font-size: 14px; }
+.sp-go { height: 46px; margin-top: clamp(12px, 2vh, 20px); padding: 0 46px; font-size: 14px; }
 .sp-note { margin-top: 12px; color: var(--faint); font-size: 12px; }
 
 /* A narrow window: the cards sit one above the other, with the picture beside the words so the page stays short. */
@@ -102,3 +109,69 @@
   .sp-shot { width: 44%; flex: none; max-height: none; }
   .sp-tick { top: 14px; right: 14px; }
 }
+
+/* ---------------------------------------------------------------------------------------------------------------------------
+   The live picture: the app's own window (1200 x 800) in an iframe, scaled to the width of the card by stylepick-ui.js. It fades in
+   over the screenshot once it is ready, and is cut off at the bottom of the card like the screenshot is when the window is short.
+   --------------------------------------------------------------------------------------------------------------------------- */
+.sp-live {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1200px;
+  height: 800px;
+  max-width: none;
+  border: 0;
+  transform-origin: 0 0;
+  opacity: 0;
+  transition: opacity 0.45s;
+  pointer-events: none;
+  background: transparent;
+}
+.sp-shot.live .sp-live { opacity: 1; }
+
+/* ---------------------------------------------------------------------------------------------------------------------------
+   The options under the selected card: a small panel, in the same colours as the cards.
+   --------------------------------------------------------------------------------------------------------------------------- */
+.sp-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-radius: 18px;
+  text-align: left;
+  background: rgb(var(--tile) / 0.78);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  animation: sp-opts-in 0.3s var(--spring) both;
+}
+@keyframes sp-opts-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+.sp-opt { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.sp-opt-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sp-opt-text b { font-weight: 600; font-size: 13px; }
+.sp-opt-text span { color: var(--muted); font-size: 12px; line-height: 1.35; }
+.sp-opts-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 26px; color: var(--muted); font-size: 12px; }
+.sp-opts-head .btn { height: 26px; padding: 0 12px; font-size: 12px; }
+.sp-sliders { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 22px; }
+.sp-rng { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sp-rng-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.sp-rng-top b { font-weight: 600; font-size: 12.5px; }
+.sp-rng-top output { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.sp-rng .range { width: 100%; }
+@media (max-width: 520px) {
+  .sp-sliders { grid-template-columns: 1fr; }
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------------
+   Preview mode: this page inside a card (boot.js puts class "preview" on <html>). It is only a picture of the app: no start screens,
+   no window buttons, no pop-ups, and nothing in it answers the pointer or the keyboard.
+   --------------------------------------------------------------------------------------------------------------------------- */
+html.preview .home,
+html.preview .win-btns,
+html.preview .toasts,
+html.preview .xh { display: none !important; }
+html.preview,
+html.preview * { pointer-events: none !important; cursor: default !important; user-select: none !important; }
+html.preview ::-webkit-scrollbar { display: none; }

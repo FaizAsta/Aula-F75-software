@@ -16,20 +16,22 @@ const js = read('js/app.js');
 const lite = read('css/lite.css');
 const glass = read('css/glass.css');
 
-test('Settings > Theme > Appearance has a Keyboard background switch, on by default', () => {
-  assert.match(html, /<div class="srow" id="stageBgRow">[\s\S]*?<button class="switch" id="swStageBg" role="switch" aria-checked="true"[^>]*>/);
+test('Settings > Theme > Appearance has a Keyboard background switch, off by default', () => {
+  assert.match(html, /<div class="srow" id="stageBgRow">[\s\S]*?<button class="switch" id="swStageBg" role="switch" aria-checked="false"[^>]*>/);
   // it sits in the Theme page, in the Appearance group with Blur and Frosted window
   const theme = html.slice(html.indexOf('id="setpage-theme"'), html.indexOf('id="glassSection"'));
   assert.ok(theme.includes('id="swStageBg"'), 'the switch is on the Theme page');
   assert.ok(theme.includes('id="swBlur"'), 'next to the other appearance switches');
 });
 
-test('the choice is saved as prefs.stageBg (on unless turned off) and put on <html> as "no-stage-bg"', () => {
-  assert.match(js, /prefs\.stageBg = prefs\.stageBg !== false;/);
-  // at start, and on every click
-  assert.equal((js.match(/classList\.toggle\('no-stage-bg', !prefs\.stageBg\)/g) || []).length, 2);
+test('the choice is saved as prefs.stageBgOn (off unless turned on) and put on <html> as "no-stage-bg"', () => {
+  assert.match(js, /prefs\.stageBgOn = prefs\.stageBgOn === true;/);
+  // the first version saved "stageBg" with the default on: that key is ignored and dropped, so the new default (off) reaches everyone
+  assert.match(js, /delete prefs\.stageBg;/);
+  // at start, on every click, and when the UI question applies the options shown under its card
+  assert.equal((js.match(/classList\.toggle\('no-stage-bg', !prefs\.stageBgOn\)/g) || []).length, 3);
   assert.match(js, /\$\('#swStageBg'\)\.addEventListener\('click'/);
-  assert.match(js, /\$\('#swStageBg'\)\.setAttribute\('aria-checked', prefs\.stageBg \? 'true' : 'false'\)/);
+  assert.match(js, /\$\('#swStageBg'\)\.setAttribute\('aria-checked', prefs\.stageBgOn \? 'true' : 'false'\)/);
   // the switch is brought in step with the saved choice when the app starts
   assert.match(js, /renderStyle\(\);\s*renderStageBg\(\);/);
   // and the click saves it
@@ -86,9 +88,15 @@ test('Classic with the switch off: the stage is left exactly as it was (no card,
   for (const f of ['app.css', 'home.css', 'detail.css', 'motion.css', 'max.css', 'glass.css']) assert.ok(!/\.stage-card/.test(read('css', f)), `${f} leaves the card alone`);
 });
 
-test('Liquid glass: the same switch hides the glass behind the keyboard picture', () => {
-  assert.match(glass, /html\.glass\.no-stage-bg \.stage\.ag-panel::after \{ display: none; \}/);
-  assert.match(glass, /html\.glass\.no-stage-bg \.stage\.ag-panel \{ box-shadow: none; \}/);
-  // the glass still shows by default: the rule that paints it is unchanged and not conditional on the class
+test('Liquid glass: the glass behind the keyboard picture is always on, and the switch is a Classic setting only', () => {
+  // glass.css never reads the class, so the switch cannot hide the glass (the code, not the comment that explains it)
+  const gcss = glass.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/no-stage-bg/.test(gcss), 'glass.css does not look at no-stage-bg');
+  // the glass still shows, unconditionally
   assert.match(glass, /html\.glass \.stage\.ag-panel::after \{/);
+  assert.ok(!/\.stage\.ag-panel[^{]*\{[^}]*display:\s*none/.test(gcss), 'nothing hides the stage glass');
+  // the row is hidden with Liquid glass, like the Blur row, and brought back for Classic
+  assert.match(js, /\$\('#stageBgRow'\)\.hidden = glass;/);
+  // the saved choice is untouched by the style, so Classic gets it back
+  assert.ok(!/setStyle[\s\S]{0,400}prefs\.stageBgOn =/.test(js), 'switching style does not change the choice');
 });

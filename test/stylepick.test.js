@@ -124,7 +124,7 @@ test('Start opens the question when it is owed, and the devices when it is not',
 test('Continue applies and saves the answer first, then goes to the devices', () => {
   const fn = home.slice(home.indexOf('function confirmStyle()'));
   const body = fn.slice(0, fn.indexOf('\n  }\n'));
-  assert.match(body, /A\.chooseStyle\(spPick\)/);
+  assert.match(body, /A\.chooseStyle\(spPick, SPUI \? SPUI\.draft\(\) : null\)/, 'the style and the options shown under it');
   assert.ok(body.indexOf('A.chooseStyle') < body.indexOf("go('devices')"));
   assert.match(body, /spDone/, 'a double click cannot answer twice');
   assert.match(home, /getElementById\('spGo'\)|\$\('#spGo'\)\.addEventListener\('click', confirmStyle\)/);
