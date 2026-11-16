@@ -140,28 +140,6 @@ In the app, press **Support** (on the start screen and in the top bar) for the D
 | Red breathing light on the keyboard while the battery is low | ✅ | ❌ | ❌ |
 | Battery history and estimate | ✅ | ❌ | ✅ |
 
-**Live preview** (the Live / Picture switch)
-
-| Feature | Live | Picture |
-| :-- | :-: | :-: |
-| Follows the keyboard | ✅ | ❌ |
-| Goes dark when the keyboard is off or asleep | ✅ | ❌ |
-| Animation | ✅ | ❌ |
-| Pointer effects | ✅ | ❌ |
-| Shows the board's current light colours | ✅ | ✅ |
-
-**Look of the app**
-
-| Feature | Classic | Liquid glass |
-| :-- | :-: | :-: |
-| Default look | ✅ | ❌ |
-| Stable | ✅ | ❌ |
-| Switch any time (Settings > Theme > UI) | ✅ | ✅ |
-| Background picture (Settings > Theme) | ✅ | ✅ |
-| Blur switch (Settings > Theme > Blur) | ✅ | ❌ |
-| Clear, Blur and Frosted glass looks | ❌ | ✅ |
-| Glass sliders: blur, edge width, refraction, colour fringe | ❌ | ✅ |
-
 **The app**
 
 | Feature | Windows installer | Windows portable | Linux |
