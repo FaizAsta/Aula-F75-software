@@ -50,18 +50,13 @@ Battery, lighting effects, per-key RGB and a live preview.
 
 ## New: Liquid glass UI (experimental)
 
-Aula Control now has a second look: **Liquid glass**. Panels, buttons, switches, sliders, scroll bars and the update
-progress bar become glass that bends and blurs the picture behind them, a bit like iOS. **Classic** is still the default.
+A second look for the app: panels, buttons, sliders and switches become glass that blurs and bends the picture behind
+them, a bit like iOS. **Classic** is still the default.
 
-The first time you press **Start** (a new install, or an update from a version that did not ask), the app asks **"Which UI do you want to use?"**
-and shows both looks side by side. Pick one and its options appear under it (Blur and Keyboard background for Classic, the four glass
-sliders for Liquid glass), and the picture on the card is the real app, changing live as you move them. Press **Continue** to keep
-your choice. It is asked only once, and you can change your mind any time in **Settings, Theme, UI**.
-
-With Liquid glass on, **Settings, Theme, Liquid glass** has three looks you can switch between with one press: **Clear glass**
-(no blur, the picture shows through sharply), **Blur glass** (a soft blur, the default) and **Frosted glass** (a heavy blur and a
-soft edge). Press **Customise** to show the sliders (blur, edge width, refraction, colour fringe) and make your own; the sliders
-are hidden until you do, and **Reset** inside them goes back to Blur glass.
+- **Choose it:** the first time you press **Start**, the app asks "Which UI do you want to use?" and shows both looks.
+  Pick one and press **Continue**. You can change it any time in **Settings > Theme > UI**.
+- **Three looks:** **Clear glass** (no blur), **Blur glass** (soft blur, the default) and **Frosted glass** (heavy blur).
+  Press **Customise** for sliders (blur, edge width, refraction, colour fringe). **Reset** goes back to Blur glass.
 
 <div align="center">
 
@@ -72,9 +67,9 @@ are hidden until you do, and **Reset** inside them goes back to Blur glass.
 </div>
 
 > [!CAUTION]
-> **Liquid glass is experimental.** It is **not stable** and it **can be laggy**, more so on weaker or older computers.
-> It may also look off or glitch in places, and I have not tested it everywhere. It looks best with a background picture
-> (Settings, Theme). If anything misbehaves, switch back to **Classic** in the same place. Nothing else is affected.
+> **Experimental:** it is **not stable** and **can be laggy**, more so on older computers, and it may glitch in places.
+> It looks best with a background picture (Settings > Theme). If anything misbehaves, switch back to **Classic** in the
+> same place. Nothing else is affected.
 
 ## Read this first
 
@@ -92,24 +87,29 @@ Not affiliated with AULA.
 
 ## Download
 
-Get **Aula-Control-Setup.exe** from [Releases](../../releases) and run it. No admin needed.
-A portable **Aula-Control-Portable.exe** is there too.
+Everything is on the [Releases](../../releases) page.
 
-Uninstalling the installed app (Windows Settings, Apps) also deletes its data: your settings and what the app remembers. Updating keeps them. The portable build has no uninstaller, so delete its data folder yourself if you want it gone.
+**Windows 10 / 11**
 
-Windows may warn about an unknown publisher because the app isn't code-signed: choose *More info, Run anyway*.
-No keyboard? Try **Settings, Demo keyboard**, or click the Aula logo and choose **Demo F75 Max** to try the F75 Max the same way.
+1. Download **Aula-Control-Setup.exe** and run it. No admin needed. (Or **Aula-Control-Portable.exe**, which needs no install.)
+2. If Windows warns about an unknown publisher (the app isn't code-signed), choose **More info**, then **Run anyway**.
 
-**Linux (64-bit, new and untested):** get one of these from [Releases](../../releases).
+No keyboard? Try the demo: **Settings, Demo keyboard**, or click the Aula logo and choose **Demo F75 Max**.
 
-- **Aula-Control-amd64.deb** for Ubuntu, Debian, Mint and Pop!_OS. Double-click it and press Install (or run
-  `sudo apt install ./Aula-Control-amd64.deb`). It also sets up keyboard access, so unplug and plug the keyboard once after installing.
-- **Aula-Control-x86_64.AppImage** for any other distro. Right-click it, Properties, allow executing as a program, then double-click it.
-  Keyboard access needs one step the AppImage cannot do itself: download **99-aula-control.rules** from the same release and run
-  `sudo cp 99-aula-control.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules && sudo udevadm trigger`,
-  then unplug and plug the keyboard.
+To uninstall, use Windows Settings, Apps. That also deletes the app's data (your settings and what it remembers);
+updating keeps it. The portable build has no uninstaller, so delete its data folder yourself.
 
-On Linux the app does not update itself: it tells you a new version is out and opens the release page. *Start with Windows* does nothing there.
+**Linux (64-bit, new and untested)**
+
+- **Ubuntu, Debian, Mint, Pop!_OS:** download **Aula-Control-amd64.deb**, double-click it and press Install (or run
+  `sudo apt install ./Aula-Control-amd64.deb`). Then unplug and plug the keyboard once.
+- **Any other distro:** download **Aula-Control-x86_64.AppImage**, right-click it, Properties, allow executing as a
+  program, then double-click it. The AppImage cannot set up keyboard access itself, so also download
+  **99-aula-control.rules** from the same release and run this, then unplug and plug the keyboard:
+
+  ```
+  sudo cp 99-aula-control.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules && sudo udevadm trigger
+  ```
 
 ## Community
 
