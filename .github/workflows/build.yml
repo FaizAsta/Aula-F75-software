@@ -1,19 +1,38 @@
 name: Build and release
 
-# Upload a zip of the project (for example aula-control-v1_4_7.zip) to the top folder of the main branch. This then:
-#   1. unpacks the zip into main (the project's files are replaced by the zip's; the .github folder is never touched),
-#   2. builds Windows (Setup + Portable) and Linux (AppImage + .deb + .tar.gz),
-#   3. publishes the release v<version from package.json>. Its text is only the header "What's new in <version>": never
-#      the older sections of RELEASE_NOTES.md and no description (the description is written on the release page afterwards),
-#   4. moves the zip to the dev branch (it is removed from main).
+# Run it by hand: Actions > Build and release > Run workflow (use the main branch). It asks for two things:
+#   - Version: the version to release, for example 1.5.3 (or 1.5.3-beta.1). It is written into package.json on main, so the app,
+#     the file names and the release tag v<version> all say the same thing.
+#   - Release type: stable (published as the latest release, so the app's updater offers it) or pre-release (marked as a
+#     pre-release and never "latest"; the app's updater ignores it).
+# Nothing starts by itself any more: uploading a zip to main does not build anything. After you upload a zip, run this.
 #
-# Actions > Build and release > Run workflow builds main as it is. A zip still waiting in main's top folder is unpacked first.
+# What it does:
+#   1. unpacks the zip waiting in main's top folder (for example aula-control-v1_4_7.zip), if there is one: the project's files are
+#      replaced by the zip's, and the .github folder is never touched,
+#   2. sets the version you typed in package.json on main,
+#   3. builds Windows (Setup + Portable) and Linux (AppImage + .deb + .tar.gz),
+#   4. publishes the release v<version>. Its text is only the header "What's new in <version>": never the older sections of
+#      RELEASE_NOTES.md and no description (the description is written on the release page afterwards),
+#   5. moves the zip to the dev branch (it is removed from main).
+#
+# With no zip in main's top folder it builds main as it is (with the version you typed).
 
 on:
-  push:
-    branches: [main]
-    paths: ['*.zip']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (for example 1.5.3)'
+        required: true
+        type: string
+      release_type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+          - stable
+          - pre-release
+        default: stable
 
 permissions:
   contents: write
@@ -26,7 +45,8 @@ jobs:
   extract:
     runs-on: ubuntu-latest
     outputs:
-      sha: ${{ steps.unpack.outputs.sha }}
+      sha: ${{ steps.version.outputs.sha }}
+      version: ${{ steps.version.outputs.version }}
       zip: ${{ steps.unpack.outputs.zip }}
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +70,6 @@ jobs:
           if [ -z "$ZIP" ]; then
             echo "No zip in the top folder: building main as it is."
             echo "zip=" >> "$GITHUB_OUTPUT"
-            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "Unpacking $ZIP"
@@ -79,6 +98,37 @@ jobs:
             git push origin HEAD:main
           fi
           echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+      - name: Set the version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          # "v1.5.3" and " 1.5.3 " are accepted; anything that is not a version stops the run before anything is built.
+          VERSION="$(printf '%s' "$INPUT_VERSION" | tr -d '[:space:]')"
+          VERSION="${VERSION#v}"
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "\"$INPUT_VERSION\" is not a version. Use something like 1.5.3 or 1.5.3-beta.1."
+            exit 1
+          fi
+          CURRENT=$(node -p "require('./package.json').version")
+          if [ "$CURRENT" = "$VERSION" ]; then
+            echo "package.json already says $VERSION."
+          else
+            echo "Changing the version in package.json from $CURRENT to $VERSION."
+            # Only the version line changes (the rest of package.json keeps its layout). $VERSION was checked above.
+            sed -i -E '0,/"version": *"[^"]*"/s//"version": "'"$VERSION"'"/' package.json
+            [ "$(node -p "require('./package.json').version")" = "$VERSION" ] || { echo "Could not set the version in package.json."; exit 1; }
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package.json
+            git commit -q -m "Set version $VERSION"
+            git push origin HEAD:main
+          fi
+          if ! grep -qxF "## What's new in $VERSION" RELEASE_NOTES.md 2>/dev/null; then
+            echo "::warning::RELEASE_NOTES.md has no \"## What's new in $VERSION\" header, so the app's What's new window will have nothing to show for this version."
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   windows:
@@ -148,10 +198,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ needs.extract.outputs.sha }}
+          VERSION: ${{ needs.extract.outputs.version }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
         run: |
           [ -f RELEASE_NOTES.md ] || { echo "RELEASE_NOTES.md is missing."; exit 1; }
-          VERSION=$(node -p "require('./package.json').version")
           TAG="v$VERSION"
+          # Stable is the latest release (the app's updater offers it). A pre-release is marked as one and is never the latest.
+          if [ "$RELEASE_TYPE" = "pre-release" ]; then
+            CREATE_FLAGS="--prerelease"
+            EDIT_FLAGS="--prerelease --latest=false"
+          else
+            CREATE_FLAGS="--latest"
+            EDIT_FLAGS="--prerelease=false --latest"
+          fi
+          echo "Publishing $TAG as a $RELEASE_TYPE."
           # The release text: only the header of this version, never the older sections and no description.
           printf "## What's new in %s\n" "$VERSION" > "$RUNNER_TEMP/release-body.md"
           FILES=$(find artifacts -type f)
@@ -159,12 +219,12 @@ jobs:
             gh release upload "$TAG" $FILES --clobber
             # A description that is already on the release page is kept; only an empty text gets the header.
             if [ -z "$(gh release view "$TAG" --json body --jq .body | tr -d '[:space:]')" ]; then
-              gh release edit "$TAG" --notes-file "$RUNNER_TEMP/release-body.md" --latest
+              gh release edit "$TAG" --notes-file "$RUNNER_TEMP/release-body.md" $EDIT_FLAGS
             else
-              gh release edit "$TAG" --latest
+              gh release edit "$TAG" $EDIT_FLAGS
             fi
           else
-            gh release create "$TAG" $FILES --title "Aula Control $VERSION" --notes-file "$RUNNER_TEMP/release-body.md" --target "$SHA" --latest
+            gh release create "$TAG" $FILES --title "Aula Control $VERSION" --notes-file "$RUNNER_TEMP/release-body.md" --target "$SHA" $CREATE_FLAGS
           fi
 
   archive:
