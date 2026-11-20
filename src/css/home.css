@@ -123,7 +123,7 @@
 .hm-radar i:nth-child(3) { animation-delay: 1.6s; }
 .hm-radar::after { content: ""; position: absolute; inset: 27px; border-radius: 50%; background: hsl(var(--hue) 100% 65%); box-shadow: 0 0 14px hsl(var(--hue) 100% 65%); }
 .hm-list { width: min(560px, 100%); display: grid; gap: 10px; min-height: 0; padding: 6px; overflow-y: auto; scrollbar-width: none; }
-.hm-actions { margin-top: 18px; }
+.hm-actions { margin-top: 18px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 
 .hm-dev {
   display: grid;

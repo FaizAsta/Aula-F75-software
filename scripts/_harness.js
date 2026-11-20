@@ -253,6 +253,12 @@ async function enter(page, card = /Demo keyboard/, { ready = true } = {}) {
   await page.click('#hmStart');
   await page.waitForSelector('#hmList .hm-dev');
   await wait(500);
+  // The simulated keyboards sit behind one plate in the list ("Demo keyboards"): it is opened first.
+  if (/demo/i.test(card instanceof RegExp ? card.source : String(card))) {
+    await page.locator('#hmList .hm-dev', { hasText: 'Demo keyboards' }).first().click();
+    await page.waitForFunction(() => document.getElementById('hmTitle').textContent === 'Demo keyboards');
+    await wait(400);
+  }
   await page.locator('#hmList .hm-dev', { hasText: card }).first().click();
   await page.waitForFunction(() => document.querySelector('.shell').dataset.screen === 'app');
   if (ready) await page.waitForFunction(() => window.aulaApp.session.ready || (window.aulaApp.max && window.aulaApp.max.active()), null, { timeout: 15000 });

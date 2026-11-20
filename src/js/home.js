@@ -262,6 +262,7 @@
     }
     const left = screen;
     screen = name;
+    if (name !== 'devices') demoView = false;
     home.dataset.screen = name;
     shell.dataset.screen = name;
     if (left === 'style' && name !== 'style' && SPUI) SPUI.close(); // the live pictures stop costing anything once the question is gone
@@ -364,6 +365,8 @@
   let found = [];
   let scanning = false;
   let sig = '';
+  // The demo keyboards sit behind the small Demo keyboards button beside Search again; once it is pressed the list shows only them (Back returns to the devices).
+  let demoView = false;
 
   async function scan() {
     if (scanning) return;
@@ -377,16 +380,35 @@
     renderDevices();
   }
 
+  /** The simulated keyboards, in the order they are listed once the Demo keyboards button is pressed. */
+  function demoItems() {
+    const s = session;
+    const out = [];
+    const live = prefs.demo && s.status === 'ready';
+    out.push({ kind: 'kb', name: 'Demo keyboard', sub: 'Simulated · try every control without hardware', supported: true, demo: true, st: live ? 'Connected' : prefs.demo ? 'Starting' : 'Available', k: live ? 'ok' : prefs.demo ? 'busy' : 'idle', bat: live ? s.battery.percent : null });
+    if (A.max) {
+      for (const [fam, name] of [['max', 'F75 Max'], ['he', 'F75 HE']]) {
+        if (!A.max.session(fam)) continue;
+        const onDemo = !!(A.max.active() && A.max.family() === fam && A.max.max.demo);
+        out.push({ kind: 'kb', name: `Demo ${name}`, sub: `Simulated · all ${name} pages`, supported: true, demo: true, demoFamily: fam, demoName: name, st: onDemo ? 'Connected' : 'Available', k: onDemo ? 'ok' : 'idle', bat: onDemo ? A.max.max.battery.percent : null });
+      }
+    }
+    return out;
+  }
+
   function items() {
+    if (demoView) return demoItems();
     const s = session;
     const out = [];
     const seen = new Set();
     for (const d of found) {
       if (seen.has(d.id)) continue; // one card per physical device, not per HID interface
       seen.add(d.id);
-      const isMax = d.family === 'max';
+      const isMax = d.family === 'max' || d.family === 'he'; // the boards driven by max-ui.js (F75 Max, F75 HE)
       const mx = isMax && A.max ? A.max : null;
-      const mine = isMax ? !!(mx && mx.active() && !mx.max.demo) : !prefs.demo && s.ifaceId === d.id;
+      const mine = isMax ? !!(mx && mx.active() && mx.family() === d.family && !mx.max.demo) : !prefs.demo && s.ifaceId === d.id;
+      // the battery of those boards: read through the dongle; the F75 HE's receiver has nothing behind it while the cable is in
+      const mxBat = isMax && mine && mx.max.dongle && !(d.family === 'he' && mx.max.cable) ? mx.max.battery.percent : null;
       let st = 'Detected';
       let k = 'idle';
       if (!d.supported) [st, k] = ['Not supported', 'warn'];
@@ -402,18 +424,12 @@
         real: true,
         st,
         k,
-        bat: isMax ? (mine && mx.max.dongle ? mx.max.battery.percent : null) : mine && s.status === 'ready' ? s.battery.percent : null,
-        chg: isMax ? false : mine && s.status === 'ready' && s.charging,
+        bat: isMax ? mxBat : mine && s.status === 'ready' ? s.battery.percent : null,
+        chg: isMax ? d.family === 'he' && mxBat !== null && !!mx.max.battery.charging : mine && s.status === 'ready' && s.charging,
       });
     }
     if (!out.length && s.battery.source === 'bluetooth' && s.battery.percent != null) {
       out.push({ kind: 'bt', name: 'Bluetooth keyboard', sub: 'Battery only · reported by Windows', supported: true, real: true, st: 'Battery', k: 'warn', bat: s.battery.percent });
-    }
-    const live = prefs.demo && s.status === 'ready';
-    out.push({ kind: 'kb', name: 'Demo keyboard', sub: 'Simulated · try every control without hardware', supported: true, demo: true, st: live ? 'Connected' : prefs.demo ? 'Starting' : 'Available', k: live ? 'ok' : prefs.demo ? 'busy' : 'idle', bat: live ? s.battery.percent : null });
-    if (A.max) {
-      const onDemo = !!(A.max.active() && A.max.max.demo);
-      out.push({ kind: 'kb', name: 'Demo F75 Max', sub: 'Simulated · try every F75 Max page without hardware', supported: true, demo: true, demoMax: true, st: onDemo ? 'Connected' : 'Available', k: onDemo ? 'ok' : 'idle', bat: onDemo ? A.max.max.battery.percent : null });
     }
     return out;
   }
@@ -443,24 +459,42 @@
   function renderDevices() {
     const its = items();
     const real = its.filter((i) => i.real).length;
-    const sub = real ? `${real} device${real === 1 ? '' : 's'} found. Choose one to continue.` : 'No keyboard found yet. Plug in the 2.4G dongle or the USB-C cable, or try a demo keyboard (F75 or F75 Max).';
-    const next = sub + JSON.stringify(its.map((i) => [i.name, i.st, i.bat, i.chg]));
+    const sub = demoView
+      ? 'Simulated keyboards, no hardware needed. Changes stay in the demo. Choose one.'
+      : real ? `${real} device${real === 1 ? '' : 's'} found. Choose one to continue.` : 'No keyboard found yet. Plug in the 2.4G dongle or the USB-C cable, or press Demo keyboards to try the app.';
+    const next = (demoView ? 'demos|' : '') + sub + JSON.stringify(its.map((i) => [i.name, i.st, i.bat, i.chg]));
     if (next === sig) return;
     sig = next;
+    $('#hmTitle').textContent = demoView ? 'Demo keyboards' : 'Connected devices';
     $('#hmSub').textContent = sub;
-    $('#hmRadar').hidden = real > 0;
+    $('#hmRadar').hidden = real > 0 || demoView;
+    $('#hmRescan').parentElement.hidden = demoView; // searching again is for real devices
     listEl.textContent = '';
     its.forEach((it, i) => listEl.append(card(it, i)));
   }
 
   let enterTimer = 0;
-  function openDevices() {
+  /** The cards cascade in when the screen opens or the list changes to the demo keyboards; later refreshes do not replay it. */
+  function cascade() {
     sig = '';
-    // The cards cascade in once, when the screen opens; later refreshes of the list do not replay it.
     listEl.dataset.enter = '1';
     clearTimeout(enterTimer);
     enterTimer = setTimeout(() => delete listEl.dataset.enter, 1100);
     renderDevices();
+  }
+
+  /** Opens the list of demo keyboards (the Demo keyboards button), or returns to the devices. */
+  function showDemos(on) {
+    if (demoView === on) return;
+    demoView = on;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    listEl.scrollTop = 0;
+    cascade();
+  }
+
+  function openDevices() {
+    demoView = false;
+    cascade();
     scan();
     if (!prefs.demo && !session.connected && session.nudge) session.nudge();
   }
@@ -473,26 +507,31 @@
       node.classList.add('shake');
       return;
     }
-    if (it.demoMax && A.max) {
+    if (it.demoFamily && A.max) {
       go('app');
-      if (A.max.active() && A.max.max.demo) return; // already on it
+      if (A.max.active() && A.max.family() === it.demoFamily && A.max.max.demo) return; // already on it
       if (prefs.demo) await A.setDemo(false).catch(() => {});
-      const opened = await A.max.enterDemo();
-      if (!opened) A.toast('Could not start the demo F75 Max.', 'warn', 6000);
-      else A.toast('Demo F75 Max on. Changes stay in the demo.', 'info');
+      const opened = await A.max.enterDemo(it.demoFamily);
+      if (!opened) A.toast(`Could not start the demo ${it.demoName}.`, 'warn', 6000);
+      else A.toast(`Demo ${it.demoName} on. Changes stay in the demo.`, 'info');
       return;
     }
-    if (it.family === 'max' && A.max) {
-      // Other AULA keyboards share the F75 Max's USB ids, so a device whose name does not say which model it is waits for a yes.
-      if (it.confirm && !A.max.max.confirmed.size) {
-        const ok = window.confirm('This keyboard shares its USB ids with several AULA models (S98 Pro, L99, F108 Pro and others) and its name does not say which one it is.\n\nUse it as an F75 Max? Choose Cancel if it is another model.');
-        if (!ok) return;
+    if ((it.family === 'max' || it.family === 'he') && A.max) {
+      const fam = it.family;
+      const name = fam === 'he' ? 'F75 HE' : 'F75 Max';
+      // Other AULA keyboards share these USB ids, so a device whose name does not say which model it is waits for a yes.
+      const sess = A.max.session(fam);
+      if (it.confirm && sess && !sess.confirmed.size) {
+        const ask = fam === 'he'
+          ? 'The 2.4G receiver is shared by several AULA Hall-effect keyboards (MINI 60 HE PRO, MINI 68 HE and others) and its name does not say which one it is.\n\nUse it as an F75 HE? The keyboard is asked who it is before anything is written, and the app stops if it names another model. Choose Cancel if it is another model.'
+          : 'This keyboard shares its USB ids with several AULA models (S98 Pro, L99, F108 Pro and others) and its name does not say which one it is.\n\nUse it as an F75 Max? Choose Cancel if it is another model.';
+        if (!window.confirm(ask)) return;
       }
       go('app');
-      if (A.max.active() && A.max.max.demo) A.max.leave(); // the demo F75 Max is let go, so the real one is the one that opens
+      if (A.max.active() && A.max.max.demo) A.max.leave(); // the demo keyboard is let go, so the real one is the one that opens
       if (prefs.demo) await A.setDemo(false).catch(() => {});
-      const opened = await A.max.enter({ confirmed: it.confirm });
-      if (!opened) A.toast('Could not reach the F75 Max. Close the official AULA driver and try again.', 'warn', 6000);
+      const opened = await A.max.enter({ family: fam, confirmed: it.confirm });
+      if (!opened) A.toast(`Could not reach the ${name}. Close the official AULA driver and try again.`, 'warn', 6000);
       return;
     }
     if (A.max && A.max.active()) A.max.leave(); // choosing an F75 or the demo leaves the Max screen
@@ -513,7 +552,10 @@
   // -------------------------------------------------------------------- wiring
 
   $('#hmStart').addEventListener('click', start);
-  $('#hmBack').addEventListener('click', () => go(entered ? 'app' : 'home'));
+  // Back and Escape go one step up: from the demo keyboards to the devices, from the devices to where the person came from.
+  const backFromDevices = () => (demoView ? showDemos(false) : go(entered ? 'app' : 'home'));
+  $('#hmBack').addEventListener('click', backFromDevices);
+  $('#hmDemos').addEventListener('click', () => showDemos(true));
   $('#hmRescan').addEventListener('click', () => {
     if (session.poke) session.poke();
     const run = async () => {
@@ -539,7 +581,7 @@
       e.preventDefault();
       start();
     } else if (screen === 'devices' && e.key === 'Escape') {
-      go(entered ? 'app' : 'home');
+      backFromDevices();
     } else if (screen === 'style' && !document.querySelector('.upd:not([hidden])')) {
       // Left / Up and Right / Down move the choice, Enter continues, Escape goes back to Start. Enter only counts from the
       // question itself (or from nowhere in particular), never from the Back, Support or Update buttons.

@@ -27,24 +27,26 @@ for (const m of L.MODELS) {
     knob: !!m.knob,
   };
 }
-// The F75 Max is not in layout.js (it has its own key table, max.js), so its keys come from there. Its keys sit on a
+// The F75 Max and the F75 HE are not in layout.js (they have their own key tables, max.js and he.js). Their keys sit on a
 // 16 x 6 grid with no gap under the function row.
-try {
-  const MX = require('../../src/js/max.js');
-  const skin = S.get('max');
-  if (skin && skin.id === 'max' && !out.max) {
-    const keys = MX.keyLayout().map((k) => ({ n: k.name, x: k.x, y: k.y, w: k.w }));
+for (const [id, file] of [['max', '../../src/js/max.js'], ['f75he', '../../src/js/he.js']]) {
+  try {
+    const KB = require(file);
+    const skin = S.get(id);
+    if (!skin || skin.id !== id || out[id]) continue;
+    const keys = KB.keyLayout().map((k) => ({ n: k.name, x: k.x, y: k.y, w: k.w }));
     const caps = new Set();
     for (const k of keys) {
       const acc = S.accentOf(skin, k.n);
       const name = acc ? Object.keys(skin.accents).find((a) => skin.accents[a] === acc) : '-';
       caps.add(`${k.w}|${name}`);
     }
-    out.max = {
+    const grid = KB.GRID || { w: 16, h: 6 };
+    out[id] = {
       skin,
-      model: 'max',
-      width: 16,
-      height: 6,
+      model: id,
+      width: grid.w,
+      height: grid.h,
       keys,
       caps: [...caps].map((c) => {
         const [w, accent] = c.split('|');
@@ -52,9 +54,9 @@ try {
       }),
       knob: !!skin.knob,
     };
+  } catch (e) {
+    process.stderr.write(`${id} left out: ${e.message}\n`);
   }
-} catch (e) {
-  process.stderr.write(`F75 Max left out: ${e.message}\n`);
 }
 
 process.stdout.write(JSON.stringify(out, null, 1));

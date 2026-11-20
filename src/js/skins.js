@@ -9,6 +9,7 @@
  *   f75pro  silver case, light caps, blue-sided Esc / Enter / arrows, larger metal knob
  *   f87     blue-black case, graphite caps, orange-sided Esc / Enter / Backspace / arrows, no knob (TKL)
  *   max     graphite case, grey caps, green-sided Esc / Enter / arrows, metal knob and a small TFT screen
+ *   f75he   black case, white caps with grey modifiers, darker grey F5-F8, black Esc / Enter / arrows / space, round metal knob (the colours of the real board)
  *
  * Positions are in key units (1u = one key) measured from the top-left corner of the key block, the same space layout.js
  * uses, so a skin follows whatever layout it is drawn on.
@@ -113,6 +114,36 @@
       // The small colour screen sits beside the knob, in the corner right of the function row.
       screen: { x: 13.3, y: 0.1, w: 1.7, h: 0.8 },
       indicators: [{ kind: 'dot', x: -0.26, key: 'Caps' }],
+      usb: true,
+    },
+
+    // ---------------------------------------------------------------- AULA F75 HE: black case, white and grey caps, round knob (the colours of the real board)
+    // Pictured from photos of the black / white / grey F75 HE: white letter caps with dark print, mid-grey modifiers and
+    // navigation column, a darker grey F5-F8 block, near-black Esc / Enter / arrows / space, and a round knob with a metal ring at
+    // the right end of the function row. The key names are the ones in he.js (lower case; matching ignores case).
+    f75he: {
+      id: 'f75he',
+      colourway: 'Black, white and grey',
+      case: { top: '#26272b', bottom: '#101113', edge: 'rgba(255,255,255,0.12)', shine: 'rgba(255,255,255,0.04)' },
+      plate: { fill: '#0a0a0c', edge: 'rgba(255,255,255,0.08)' },
+      slot: '#040405',
+      // `blend`: how a painted colour is laid on this cap in the HTML board (max-ui.js). Multiply keeps a colour true on white; the default (hard-light) is true on mid-grey and vivid on black, but clips on white.
+      cap: { face: ['#ffffff', '#f1f1f3'], body: ['#d6d7da', '#a4a6ab'], legend: '#16171a', lit: 0.035, blend: 'multiply' },
+      accents: {
+        // an accent cap is coloured all over; its print is white
+        grey: {
+          face: ['#8d8e92', '#78797d'], body: ['#6c6d71', '#4b4c50'], legend: '#ffffff',
+          keys: ['Tab', 'CapsLock', 'ShiftLeft', 'ShiftRight', 'CtrlLeft', 'WinLeft', 'AltLeft', 'Fn', 'CtrlRight', 'Backspace', 'Delete', 'PageUp', 'PageDown', 'End'],
+        },
+        dark: { face: ['#6d6e72', '#58595d'], body: ['#505155', '#37383b'], legend: '#ffffff', keys: ['F5', 'F6', 'F7', 'F8'] },
+        black: { face: ['#2b2c2f', '#1b1c1e'], body: ['#202123', '#0c0d0e'], legend: '#ffffff', keys: ['Esc', 'Enter', 'Up', 'Left', 'Down', 'Right', 'Space'] },
+      },
+      knob: { r: 0.54, ring: ['#eef0f3', '#a3a9b2', '#4e535b', '#cfd3d9'], face: '#0b0b0d', dent: 'rgba(255,255,255,0.07)' },
+      indicators: [
+        { kind: 'bar', x: 1.5, y: 0.5, len: 0.55 },
+        { kind: 'dot', x: -0.26, key: 'CapsLock' },
+      ],
+      underlight: true, // lit keys glow from under and around the caps, as on the F75 (max-ui.js); the caps keep their own colour
       usb: true,
     },
   };

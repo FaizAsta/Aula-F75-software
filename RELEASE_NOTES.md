@@ -9,6 +9,8 @@
   description). So start every bullet with a bold title, as the older sections do.
 -->
 
+## What's new in 1.5.3-beta.1
+
 ## What's new in 1.5.2
 
 ## What's new in 1.5.1

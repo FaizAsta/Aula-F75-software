@@ -115,15 +115,27 @@ test('entering the demo lets a real F75 Max go first, and a real one is found ag
   assert.equal(s.cable.device, cable, 'the real cable is found again');
 });
 
-test('the Start screen offers the demo F75 Max and the Max screen can start it', () => {
+test('the Start screen has a small Demo keyboards button beside Search again that opens the list of simulated keyboards, and the Max screen can start each', () => {
   const home = read('src/js/home.js');
-  assert.match(home, /name: 'Demo F75 Max'/);
-  assert.match(home, /demoMax: true/);
-  assert.match(home, /A\.max\.enterDemo\(\)/);
-  assert.match(home, /!mx\.max\.demo/, 'a real F75 Max card is not shown as connected while the demo is on');
+  const html = read('src/index.html');
+  // no long plate in the list any more: a small button sits next to Search again, in the same row and with the same look
+  assert.doesNotMatch(home, /demoList/, 'no Demo keyboards plate in the device list');
+  assert.match(html, /<div class="hm-actions"><button class="btn ghost" id="hmRescan"[^>]*>Search again<\/button><button class="btn ghost" id="hmDemos"[^>]*>Demo keyboards<\/button><\/div>/, 'the button is beside Search again and is the same size');
+  assert.match(home, /\$\('#hmDemos'\)\.addEventListener\('click', \(\) => showDemos\(true\)\)/, 'pressing it only opens the list of demo keyboards');
+  assert.match(home, /if \(demoView\) return demoItems\(\)/, 'pressing it lists only the demo keyboards');
+  assert.match(home, /\$\('#hmRescan'\)\.parentElement\.hidden = demoView/, 'the button row is hidden while the demo keyboards are listed');
+  assert.match(home, /demoView \? showDemos\(false\) : go\(entered \? 'app' : 'home'\)/, 'Back and Escape go one step up');
+  assert.match(home, /if \(name !== 'devices'\) demoView = false/, 'leaving the devices screen closes the demo list');
+  // the demo keyboards themselves: one card per family
+  assert.match(home, /\['max', 'F75 Max'\], \['he', 'F75 HE'\]/, 'one demo card per family');
+  assert.match(home, /name: `Demo \$\{name\}`/);
+  assert.match(home, /demoFamily: fam/);
+  assert.match(home, /A\.max\.enterDemo\(it\.demoFamily\)/);
+  assert.match(home, /!mx\.max\.demo/, 'a real card is not shown as connected while the demo is on');
   const ui = read('src/js/max-ui.js');
-  assert.match(ui, /enterDemo,/, 'exported');
+  assert.match(ui, /async enterDemo\(family = 'max'\)/, 'exported, for either family');
   const app = read('src/js/app.js');
-  assert.match(app, /MXU\.max\.demo\) MXU\.leave\(\)/, 'turning the demo F75 on ends the demo F75 Max');
-  assert.match(read('src/index.html'), /Demo F75 Max/, 'Settings says where to find it');
+  assert.match(app, /MXU\.max\.demo\) MXU\.leave\(\)/, 'turning the demo F75 on ends the demo F75 Max / F75 HE');
+  assert.match(html, /id="hmTitle"/, 'the heading can say Demo keyboards');
+  assert.match(html, /choose Demo keyboards, then Demo F75 Max or Demo F75 HE/, 'Settings says where to find them');
 });

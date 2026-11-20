@@ -71,8 +71,42 @@
     return st.colorful ? hsv(((hue % 360) + 360) % 360, 1, clamp01(v)) : scale(st.rgb, clamp01(v));
   }
 
+  // The F75 HE's Snake is not a firmware effect: the app draws it on the keyboard (he.js, snakeFrame). Its path winds through the keys row by
+  // row, every other row run backwards, over the layout in use: `st.layout` when given (the keyboard picture's keys), else this board's.
+  const snakePaths = new WeakMap();
+  function snakeIndex(layout) {
+    let p = snakePaths.get(layout);
+    if (!p) {
+      const rows = new Map();
+      for (const k of layout) {
+        const r = Math.round(k.y * 10);
+        if (!rows.has(r)) rows.set(r, []);
+        rows.get(r).push(k);
+      }
+      const order = [...rows.keys()].sort((a, b) => a - b).flatMap((r, i) => {
+        const row = rows.get(r).sort((a, b) => a.x - b.x);
+        return i % 2 ? row.reverse() : row;
+      });
+      p = { n: order.length, at: new Map(order.map((k, i) => [k.led, i])) };
+      snakePaths.set(layout, p);
+    }
+    return p;
+  }
+  /** The Snake: the head is the brightest key, the ten keys behind it fade out. Same pace and look as the F75's own Snake. */
+  function snake(k, t, st) {
+    const p = snakeIndex(st.layout || KEYS);
+    const i = p.at.get(k.led);
+    if (i === undefined) return null;
+    const reverse = st.direction === 2 || st.direction === 3;
+    const steps = Math.floor(t * (0.35 + st.speed * 0.45) * 14);
+    const head = (((reverse ? -steps : steps) % p.n) + p.n) % p.n;
+    const behind = reverse ? (i - head + p.n) % p.n : (head - i + p.n) % p.n;
+    return paint(st, 1 - behind / 10, (behind / 12) * 360);
+  }
+
   /** The firmware effects, by mode number. Each returns [r, g, b] or null (key dark). */
   const FX = {
+    100: snake,
     0: () => null,
     1: (k, t, st) => paint(st, 1, (k.x / W) * 300),
     2: (k, t, st) => reactive(k, t, st, 0.5, 0.9, 2),
@@ -184,7 +218,7 @@
   }
 
   /** A moment in each effect that shows what it does, for a card that is not playing. */
-  const STILL = { 2: 0.18, 3: 0.2, 4: 0.9, 5: 0.5, 9: 0.5, 10: 0.7, 12: 0.9, 13: 0.55, 14: 0.4, 15: 0.5, 17: 0.9, 18: 0.6, 19: 1.1 };
+  const STILL = { 100: 1.2, 2: 0.18, 3: 0.2, 4: 0.9, 5: 0.5, 9: 0.5, 10: 0.7, 12: 0.9, 13: 0.55, 14: 0.4, 15: 0.5, 17: 0.9, 18: 0.6, 19: 1.1 };
   const stillTime = (mode) => (STILL[mode] !== undefined ? STILL[mode] : 0.8);
 
   const DEFAULT_ST = { rgb: [0x6e, 0x7b, 0xff], colorful: false, direction: 0, speed: 3 };
@@ -195,6 +229,36 @@
     const fx = FX[mode];
     const c = fx ? fx(key, t, withDefaults(st)) : null;
     return c || OFF;
+  }
+
+  /** The colour of one key at time t (seconds) as [r, g, b], or null when the effect leaves the key dark (the keyboard picture then shows it unlit). */
+  function lit(mode, key, t, st) {
+    const fx = FX[mode];
+    return fx ? fx(key, t === undefined ? stillTime(mode) : t, withDefaults(st)) : null;
+  }
+
+  /**
+   * The board's average light at time t (seconds) as [r, g, b], 0..255 each. A key the effect leaves dark counts as black (not
+   * the dim grey of the drawing), so an effect that lights few keys gives a dim average and Off gives [0, 0, 0]. This is what the
+   * window is tinted with, the same measure the F75 screen takes from its own preview.
+   */
+  function mean(mode, t, st) {
+    const fx = FX[mode];
+    const s = withDefaults(st);
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    if (fx) {
+      for (const k of KEYS) {
+        const c = fx(k, t === undefined ? stillTime(mode) : t, s);
+        if (c) {
+          r += c[0];
+          g += c[1];
+          b += c[2];
+        }
+      }
+    }
+    return [r / KEYS.length, g / KEYS.length, b / KEYS.length];
   }
 
   function draw(canvas, mode, t, st) {
@@ -214,5 +278,5 @@
     }
   }
 
-  return { keyColor, draw, stillTime, WIDTH: W, HEIGHT: H };
+  return { keyColor, lit, mean, draw, stillTime, WIDTH: W, HEIGHT: H };
 });

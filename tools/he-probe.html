@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AULA F75 HE probe (read-only)</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1f24; --mut:#5b6572; --card:#f3f5f8; --line:#d5dbe3; --acc:#2563eb; --good:#15803d; --warn:#b45309; --bad:#b91c1c; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171c; --fg:#e8ebf0; --mut:#9aa4b2; --card:#1d222a; --line:#313845; --acc:#6ea0ff; --good:#4ade80; --warn:#fbbf24; --bad:#f87171; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 0 0 8px; }
+  p { margin: 6px 0; }
+  .sub { color: var(--mut); margin-bottom: 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:14px 0; }
+  ol, ul { margin: 6px 0; padding-left: 22px; }
+  button { font: inherit; font-weight: 600; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--acc); background: var(--acc); color: #fff; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--acc); }
+  button:disabled { opacity: .45; cursor: default; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+  select, textarea { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; width: 100%; }
+  label { display:block; margin-top:10px; color: var(--mut); font-size: 14px; }
+  .dev { border-top:1px solid var(--line); padding:8px 0; font-size:15px; }
+  .dev:first-child { border-top:0; }
+  .tag { display:inline-block; font-size:12px; padding:1px 8px; border-radius:99px; border:1px solid var(--line); color:var(--mut); margin-left:6px; }
+  .tag.v { color: var(--good); border-color: var(--good); }
+  .f { padding:6px 0 6px 10px; border-left:4px solid var(--line); margin:6px 0; }
+  .f.good { border-color:var(--good); } .f.warn { border-color:var(--warn); } .f.bad { border-color:var(--bad); }
+  pre { background: var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; max-height: 300px; overflow:auto; font: 12px/1.4 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
+  .banner { padding: 12px 14px; border-radius: 10px; font-weight: 600; margin: 12px 0; border:1px solid var(--bad); color: var(--bad); }
+  details summary { cursor: pointer; font-weight: 600; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>AULA F75 HE probe</h1>
+  <p class="sub">Asks your keyboard who it is and what it answers, then saves the answers to a text file. <b>Read-only: it never changes anything on the keyboard.</b></p>
+
+  <div id="noHid" class="banner" hidden>This browser cannot talk to USB devices. Open this page in Google Chrome or Microsoft Edge on a computer (not a phone).</div>
+
+  <div class="card">
+    <h2>Before you start</h2>
+    <ol>
+      <li><b>Close</b> the official AULA driver (website or program) and the Aula Control app. Only one program can use the keyboard at a time.</li>
+      <li>Set the keyboard to the way you want to test: <b>USB-C cable</b> or <b>2.4G dongle</b>. On 2.4G, press a key right before step 2 so it is awake.</li>
+      <li>Do the whole thing once per connection (cable, then dongle) and send both files.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>Step 1: choose the keyboard</h2>
+    <p>Press the button, then <b>tick every entry that could be your keyboard</b>: anything with AULA, F75, HE, "USB Receiver" or a name you do not recognise. Ticking extra entries is fine. Press Connect.</p>
+    <div class="row">
+      <button id="pick">Choose keyboard...</button>
+      <button id="pickAll" class="ghost">Show every USB device</button>
+    </div>
+    <div id="devs" style="margin-top:10px"></div>
+    <label for="conn">How is the keyboard connected right now?</label>
+    <select id="conn">
+      <option value="USB-C cable">USB-C cable</option>
+      <option value="2.4G dongle">2.4G dongle</option>
+      <option value="not sure">Not sure</option>
+    </select>
+    <label for="notes">Anything else (optional): colour, firmware shown in the official driver, what did not work</label>
+    <textarea id="notes" rows="2"></textarea>
+  </div>
+
+  <div class="card">
+    <h2>Step 2: run the scan</h2>
+    <p>Takes about 10 to 30 seconds.</p>
+    <div class="row"><button id="run" disabled>Run read-only scan</button></div>
+    <p id="status" class="sub"></p>
+    <div id="findings"></div>
+    <details><summary>Live log</summary><pre id="log"></pre></details>
+  </div>
+
+  <div class="card">
+    <h2>Step 3: save the report</h2>
+    <p>Send the saved file back in the chat.</p>
+    <div class="row">
+      <button id="save" disabled>Save report file</button>
+      <button id="copy" class="ghost" disabled>Copy report text</button>
+    </div>
+  </div>
+
+  <details class="card">
+    <summary>What exactly does this send?</summary>
+    <p>Only read requests, the same ones Aula Control already uses:</p>
+    <ul>
+      <li>F75 HE style: <code>0x10</code> device info, <code>0x13</code> lighting, <code>0x14</code> per-key colours.</li>
+      <li>F75 / F75 Pro / F87 dongle style: <code>0x4a</code> battery status.</li>
+      <li>F75 / F75 Pro / F87 cable style: a read of the lighting block (<code>0x84</code>) on feature report 6.</li>
+    </ul>
+    <p>It never sends write, reset, calibration or firmware commands, and the code refuses to build them. The report holds the USB ids, the interface layout, the raw replies and your browser name. Nothing else about your computer.</p>
+  </details>
+</main>
+
+<script>
+// <probe-core>
+'use strict';
+var PROBE_VERSION = '1';
+var MAGIC = 0xaa, REPLY = 0x55, HEAD = 8;
+var READ = { INFO: 0x10, LIGHT: 0x13, KEYS: 0x14 };
+var READ_SET = new Set([READ.INFO, READ.LIGHT, READ.KEYS]);
+var TABLE = {}; TABLE[READ.INFO] = 0x38; TABLE[READ.LIGHT] = 0x10; TABLE[READ.KEYS] = 126 * 4;
+var EXPECTED = { vid: 0x38a6, pid: 0x2729 };
+var OTHER_HFD = [[0x0c45, 0x80a2], [0x0c45, 0x80b2], [0x0c45, 0x80a1], [0x38a6, 0x2722], [0x38a6, 0x2723], [0x38a6, 0x2724]];
+var HFD_PAGES = [0xff68, 0xff80, 0xff60, 0xff00, 0xff01, 0xff5b]; // the usage pages the app's he.js looks on
+var CMD_NAME = { 0x10: 'INFO', 0x13: 'LIGHTING', 0x14: 'KEY COLOURS' };
+
+var hex = function (b, n) { return Array.from(n ? b.slice(0, n) : b, function (x) { return x.toString(16).padStart(2, '0'); }).join(' '); };
+var h4 = function (n) { return (n || 0).toString(16).padStart(4, '0'); };
+var h2 = function (n) { return '0x' + (n || 0).toString(16).padStart(2, '0'); };
+var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+var toBytes = function (v) { return v instanceof Uint8Array ? v.slice() : new Uint8Array(v.buffer, v.byteOffset, v.byteLength).slice(); };
+
+function hexdump(b) {
+  var out = [];
+  for (var i = 0; i < b.length; i += 16) out.push('    ' + i.toString(16).padStart(4, '0') + '  ' + hex(b.subarray(i, i + 16)));
+  return out.join('\n');
+}
+
+/** The read frames for one table, one per page. Same bytes the app's he.js sends. Refuses anything that is not a read. */
+function hfdFrames(cmd, size) {
+  if (!READ_SET.has(cmd)) throw new Error('Refusing command ' + h2(cmd) + ': this probe only reads.');
+  var total = TABLE[cmd], page = size - HEAD, out = [];
+  for (var off = 0; off < total; off += page) {
+    var len = Math.min(page, total - off), f = new Uint8Array(size);
+    f[0] = MAGIC; f[1] = cmd; f[2] = len; f[3] = off & 255; f[4] = (off >> 8) & 255; f[6] = off + page >= total ? 1 : 0;
+    out.push({ off: off, len: len, frame: f });
+  }
+  return out;
+}
+
+/** The F75 / F75 Pro / F87 dongle's "battery status" read, 20 bytes with the report id (0x13) in front. */
+function f75StatusPacket() {
+  var p = new Uint8Array(20), s = 0;
+  p[0] = 0x13; p[1] = 0x4a; p[2] = 1;
+  for (var i = 0; i < 19; i++) s += p[i];
+  p[19] = s & 255;
+  return p;
+}
+
+/** The F75 / F75 Pro / F87 cable's "read the lighting block" request, 520 bytes with the report id (6) in front. */
+function f75FeaturePacket() {
+  var p = new Uint8Array(520);
+  p[0] = 6; p[1] = 0x84; p[4] = 1; p[6] = 0x80;
+  return p;
+}
+
+function parseInfo(p) {
+  if (!p || p.length < 20) return null;
+  var v = (p[8] & 0x0f) + (p[8] >> 4) * 10 + p[9] * 100;
+  return { vid: p[4] | (p[5] << 8), pid: p[6] | (p[7] << 8), version: v ? 'V' + (v / 100).toFixed(2) : '?', percent: p[17] >= 1 && p[17] <= 100 ? p[17] : null, charging: p[18] === 1 || p[18] === 2 };
+}
+
+function reportBytes(r) {
+  var bits = (r.items || []).reduce(function (n, i) { return n + (i.reportSize || 0) * (i.reportCount || 0); }, 0);
+  return Math.ceil(bits / 8);
+}
+
+function describeCollections(dev) {
+  return (dev.collections || []).map(function (c) {
+    var rep = function (label, list) { return (list || []).map(function (r) { return label + ' ' + h2(r.reportId) + ':' + reportBytes(r) + 'B'; }); };
+    var parts = rep('in', c.inputReports).concat(rep('out', c.outputReports), rep('feature', c.featureReports));
+    return { usagePage: c.usagePage, usage: c.usage, vendor: c.usagePage >= 0xff00, text: 'usage page 0x' + h4(c.usagePage) + ', usage 0x' + h4(c.usage) + (c.usagePage >= 0xff00 ? ' [vendor]' : '') + (parts.length ? '   ' + parts.join('  ') : '   (no report list given)'), c: c };
+  });
+}
+
+/** Opens a device and keeps every input report it sends. */
+function Port(dev, log, opts) {
+  var self = this;
+  this.dev = dev; this.log = log; this.waitMs = opts.waitMs; this.tries = opts.tries; this.inbox = []; this.waiters = new Set();
+  this.handler = function (e) {
+    var d = toBytes(e.data);
+    log('RX  id ' + h2(e.reportId) + '  ' + d.length + ' bytes  ' + hex(d, 64));
+    self.inbox.push({ id: e.reportId, data: d });
+    if (self.inbox.length > 64) self.inbox.shift();
+    Array.from(self.waiters).forEach(function (w) { w(); });
+  };
+}
+Port.prototype.open = async function () {
+  if (!this.dev.opened) await this.dev.open();
+  this.dev.addEventListener('inputreport', this.handler);
+};
+Port.prototype.close = async function () {
+  try { this.dev.removeEventListener('inputreport', this.handler); if (this.dev.opened) await this.dev.close(); } catch (_) { /* already gone */ }
+};
+/** Waits up to `ms` for an input report that `pred` accepts. Returns it, or null. */
+Port.prototype.wait = function (pred, ms) {
+  var self = this;
+  return new Promise(function (resolve) {
+    var timer, done = false;
+    var finish = function (v) { if (done) return; done = true; clearTimeout(timer); self.waiters.delete(check); resolve(v); };
+    var check = function () {
+      for (var i = 0; i < self.inbox.length; i++) {
+        var r = pred(self.inbox[i]);
+        if (r) { self.inbox.splice(0, i + 1); return finish(r); }
+      }
+    };
+    timer = setTimeout(function () { finish(null); }, ms);
+    self.waiters.add(check);
+    check();
+  });
+};
+/** Sends one output report and waits for the matching answer, up to `tries` times. */
+Port.prototype.ask = async function (id, data, pred, label) {
+  for (var a = 1; a <= this.tries; a++) {
+    this.inbox.length = 0;
+    this.log('TX  id ' + h2(id) + '  ' + data.length + ' bytes  ' + label + (a > 1 ? '  (try ' + a + ')' : '') + '\n        ' + hex(data, 64));
+    try { await this.dev.sendReport(id, data); } catch (err) { this.log('    send failed: ' + ((err && err.message) || err)); return { error: (err && err.message) || String(err) }; }
+    var r = await this.wait(pred, this.waitMs);
+    if (r) return { reply: r };
+    this.log('    (no answer in ' + this.waitMs + ' ms)');
+  }
+  return { reply: null };
+};
+
+async function readHfdTable(port, cmd, size) {
+  var out = new Uint8Array(TABLE[cmd]);
+  var frames = hfdFrames(cmd, size);
+  for (var i = 0; i < frames.length; i++) {
+    var q = frames[i];
+    var res = await port.ask(0, q.frame, function (r) {
+      var d = r.data;
+      if (d.length === size + 1 && d[0] === 0 && d[1] === REPLY) d = d.slice(1);
+      return d[0] === REPLY && d[1] === cmd && (d[3] | (d[4] << 8)) === q.off ? d : null;
+    }, CMD_NAME[cmd] + ' page ' + (i + 1) + '/' + frames.length);
+    if (!res.reply) return { ok: false, data: out, failedAt: q.off, error: res.error };
+    out.set(res.reply.subarray(HEAD, HEAD + q.len), q.off);
+  }
+  return { ok: true, data: out };
+}
+
+/** Probes one device. Returns { lines, findings }. Never throws. */
+async function probeDevice(dev, index, total, opts) {
+  var lines = [], findings = [], t0 = Date.now();
+  var log = function (s) { var l = '  +' + String(Date.now() - t0).padStart(5, ' ') + ' ms  ' + s; lines.push(l); if (opts.onLine) opts.onLine(l); };
+  var raw = function (s) { lines.push(s); if (opts.onLine) opts.onLine(s); };
+  var name = dev.productName || 'Unnamed device';
+  var who = '[' + index + '] ' + name + ' (' + h4(dev.vendorId) + ':' + h4(dev.productId) + ')';
+  raw('=== Device ' + index + ' of ' + total + ': "' + name + '"  USB id ' + h4(dev.vendorId) + ':' + h4(dev.productId) + ' ===');
+  var cols = describeCollections(dev);
+  raw('already open before the scan: ' + (dev.opened ? 'yes' : 'no'));
+  raw('interfaces the keyboard publishes:');
+  cols.forEach(function (c) { raw('  ' + c.text); });
+  var vendor = cols.filter(function (c) { return c.vendor; });
+  if (!vendor.length) {
+    raw('No vendor-defined interface here, so nothing was sent to this device.');
+    findings.push({ level: 'info', text: who + ': a plain input interface (no vendor channel). Nothing was sent to it.' });
+    return { lines: lines, findings: findings };
+  }
+  var outs = [], feats = [], declared = false;
+  vendor.forEach(function (c) {
+    if (Array.isArray(c.c.outputReports) || Array.isArray(c.c.featureReports)) declared = true;
+    (c.c.outputReports || []).forEach(function (r) { outs.push({ id: r.reportId || 0, bytes: reportBytes(r), page: c.usagePage }); });
+    (c.c.featureReports || []).forEach(function (r) { feats.push({ id: r.reportId || 0, bytes: reportBytes(r), page: c.usagePage }); });
+  });
+  var port = new Port(dev, log, opts);
+  try {
+    await port.open();
+  } catch (err) {
+    var msg = (err && err.message) || String(err);
+    raw('Could not open this interface: ' + msg);
+    findings.push({ level: 'warn', text: who + ': could not be opened (' + msg + '). Close the official AULA driver, Aula Control and other browser tabs that use the keyboard, unplug and replug it, and run again.' });
+    return { lines: lines, findings: findings };
+  }
+  try {
+    raw('opened. Listening for ' + opts.idleMs + ' ms before asking anything...');
+    await sleep(opts.idleMs);
+    var anything = false;
+
+    // 1) F75 HE style (the protocol the app's he.js speaks): report id 0, 32 or 64 byte frames.
+    var sizes = [];
+    var onHfdPage = vendor.some(function (c) { return HFD_PAGES.indexOf(c.usagePage) >= 0; });
+    outs.filter(function (o) { return o.id === 0 && o.bytes > HEAD && o.bytes <= 64 && HFD_PAGES.indexOf(o.page) >= 0; }).forEach(function (o) { if (sizes.indexOf(o.bytes) < 0) sizes.push(o.bytes); });
+    if (!declared && onHfdPage) sizes = [64, 32];
+    if (!sizes.length) {
+      raw('No report-id-0 output report of 9 to 64 bytes on a usage page the F75 HE is expected on (' + HFD_PAGES.map(function (x) { return '0x' + h4(x); }).join(', ') + ') is declared, so the F75 HE style requests were not sent.');
+      findings.push({ level: 'info', kind: 'skipped', text: who + ': has a vendor channel, but not one of the shape the F75 HE requests need, so they were not sent. The layout is in the report.' });
+    }
+    var gotInfo = false;
+    for (var s = 0; s < sizes.length && !gotInfo; s++) {
+      var size = sizes[s];
+      raw('--- F75 HE style requests, ' + size + '-byte frames ---');
+      var info = await readHfdTable(port, READ.INFO, size);
+      if (!info.ok) {
+        findings.push({ level: 'bad', text: who + ': no answer to the F75 HE info request at ' + size + ' bytes' + (info.error ? ' (' + info.error + ')' : '') + '.' });
+        continue;
+      }
+      gotInfo = true; anything = true;
+      raw('info block (' + info.data.length + ' bytes):\n' + hexdump(info.data));
+      var p = parseInfo(info.data);
+      var verdict = p.vid === EXPECTED.vid && p.pid === EXPECTED.pid ? 'he' : OTHER_HFD.some(function (o) { return o[0] === p.vid && o[1] === p.pid; }) ? 'other' : 'unknown';
+      raw('decoded: names itself ' + h4(p.vid) + ':' + h4(p.pid) + ', firmware ' + p.version + ', battery ' + (p.percent === null ? '?' : p.percent + '%') + (p.charging ? ' (charging)' : '') + '  -> ' + (verdict === 'he' ? 'matches the F75 HE ids the app expects' : verdict === 'other' ? 'another AULA Hall-effect model' : 'NOT one of the ids the app knows'));
+      findings.push({
+        level: verdict === 'he' ? 'good' : 'warn', kind: 'hfd-' + verdict,
+        text: who + ': answers the F75 HE info request (' + size + '-byte frames). It names itself ' + h4(p.vid) + ':' + h4(p.pid) + ', firmware ' + p.version + (p.percent !== null ? ', battery ' + p.percent + '%' : '') + (verdict === 'he' ? '.' : verdict === 'other' ? '. That is another model, not an F75 HE.' : '. The app does not know these ids.'),
+      });
+      var light = await readHfdTable(port, READ.LIGHT, size);
+      if (light.ok) {
+        raw('lighting block (16 bytes):\n' + hexdump(light.data));
+        raw('decoded: mode ' + light.data[0] + ', colour ' + light.data[1] + ',' + light.data[2] + ',' + light.data[3] + ', brightness ' + light.data[9] + ', speed ' + light.data[10] + ', trailer ' + hex(light.data.subarray(14, 16)) + '  (expected trailer aa 55)');
+        findings.push({ level: light.data[14] === 0xaa && light.data[15] === 0x55 ? 'good' : 'warn', text: 'Lighting block read: mode ' + light.data[0] + ', brightness ' + light.data[9] + (light.data[14] === 0xaa && light.data[15] === 0x55 ? ', trailer as expected.' : ', but the trailer is not aa 55, so the layout may differ.') });
+      } else {
+        findings.push({ level: 'bad', text: 'Lighting block: the keyboard stopped answering at byte ' + light.failedAt + '.' });
+      }
+      var keys = await readHfdTable(port, READ.KEYS, size);
+      if (keys.ok) {
+        var own = 0, lit = 0;
+        for (var k = 0; k < 126; k++) { if (keys.data[k * 4] === k) own++; if (keys.data[k * 4 + 1] || keys.data[k * 4 + 2] || keys.data[k * 4 + 3]) lit++; }
+        raw('per-key colour table (' + keys.data.length + ' bytes):\n' + hexdump(keys.data));
+        raw('decoded: ' + own + ' of 126 records carry their own key number, ' + lit + ' records are not black');
+        findings.push({ level: own === 126 ? 'good' : 'warn', text: 'Per-key table read: ' + own + ' of 126 records have the expected layout, ' + lit + ' keys lit.' });
+      } else {
+        findings.push({ level: 'bad', text: 'Per-key table: the keyboard stopped answering at byte ' + keys.failedAt + '.' });
+      }
+    }
+
+    // 2) F75 / F75 Pro / F87 dongle style: 19-byte output report 0x13.
+    if (outs.some(function (o) { return o.id === 0x13; })) {
+      raw('--- F75-family dongle style request (battery status) ---');
+      var pk = f75StatusPacket();
+      var st = await port.ask(0x13, pk.slice(1), function (r) { return r.id === 0x13 && (r.data[0] & 0x7f) === 0x4a ? r.data : null; }, 'GET_STATUS (0x4a)');
+      if (st.reply) {
+        anything = true;
+        raw('decoded: answered with the F75 family framing, first data byte ' + st.reply[4] + ' (battery percent if <= 100)');
+        findings.push({ level: 'good', kind: 'f75-dongle', text: who + ': answers the F75-family dongle protocol (battery byte ' + st.reply[4] + ').' });
+      } else findings.push({ level: 'info', text: who + ': no answer to the F75-family battery request.' });
+    }
+
+    // 3) F75 / F75 Pro / F87 cable style: 519-byte feature report 6.
+    var small6 = feats.filter(function (f) { return f.id === 6 && f.bytes < 136; })[0];
+    if (small6) {
+      raw('Feature report 6 here is only ' + small6.bytes + ' bytes, not the ~519 the F75-family cable uses, so the cable style request was not sent to it.');
+      findings.push({ level: 'info', kind: 'skipped', text: who + ': has a small feature report 6 (' + small6.bytes + ' bytes), a different thing from the F75 cable protocol. Nothing was sent to it.' });
+    }
+    if (feats.some(function (f) { return f.id === 6 && f.bytes >= 136; }) && typeof dev.sendFeatureReport === 'function' && typeof dev.receiveFeatureReport === 'function') {
+      raw('--- F75-family cable style request (read lighting block, feature report 6) ---');
+      var fp = f75FeaturePacket(), size6 = feats.filter(function (f) { return f.id === 6 && f.bytes >= 136; })[0].bytes;
+      var body = new Uint8Array(size6); body.set(fp.subarray(1, 1 + size6));
+      log('TX  feature id 0x06  ' + body.length + ' bytes  read lighting block (0x84)\n        ' + hex(body, 24) + ' ...');
+      try {
+        await dev.sendFeatureReport(6, body);
+        var got = null;
+        for (var q = 0; q < 60 && !got; q++) {
+          await sleep(15);
+          var v = toBytes(await dev.receiveFeatureReport(6));
+          if (v.some(function (x) { return x !== 0; })) got = v;
+        }
+        if (got) {
+          anything = true;
+          raw('feature report 6 answer (' + got.length + ' bytes, first 48 shown):\n' + hexdump(got.subarray(0, 48)));
+          findings.push({ level: 'good', kind: 'f75-cable', text: who + ': answers the F75-family cable protocol (feature report 6).' });
+        } else {
+          raw('    (feature report 6 stayed empty)');
+          findings.push({ level: 'info', text: who + ': feature report 6 stayed empty.' });
+        }
+      } catch (err) {
+        raw('    feature request failed: ' + ((err && err.message) || err));
+        findings.push({ level: 'info', text: who + ': feature report 6 request failed (' + ((err && err.message) || err) + ').' });
+      }
+    }
+    if (!anything) findings.push({ level: 'bad', text: who + ': opened fine but answered none of the requests. On 2.4G, press a key to wake the keyboard and run again.' });
+  } catch (err) {
+    raw('Stopped by an error: ' + ((err && err.message) || err));
+    findings.push({ level: 'warn', text: who + ': stopped by an error (' + ((err && err.message) || err) + ').' });
+  } finally {
+    await port.close();
+  }
+  return { lines: lines, findings: findings };
+}
+
+/** Runs the probe on a list of HID devices and returns { text, findings, overall }. */
+async function runProbe(devices, o) {
+  o = o || {};
+  var opts = { waitMs: o.waitMs || 600, tries: o.tries || 3, idleMs: o.idleMs === undefined ? 1200 : o.idleMs, onLine: o.onLine };
+  var head = [
+    'AULA F75 HE probe report (read-only)  tool version ' + PROBE_VERSION,
+    'date: ' + new Date().toISOString(),
+    'browser: ' + (o.ua || 'unknown'),
+    'platform: ' + (o.platform || 'unknown'),
+    'connection said by the person: ' + (o.label || 'not given'),
+    'notes from the person: ' + (o.notes ? String(o.notes).replace(/\s+/g, ' ').trim() : '-'),
+    'requests this tool can send: 0x10 info, 0x13 lighting, 0x14 key colours (F75 HE style); 0x4a status (F75 dongle style); 0x84 lighting read on feature report 6 (F75 cable style). Nothing else.',
+    '',
+  ];
+  var body = [], findings = [];
+  for (var i = 0; i < devices.length; i++) {
+    var r = await probeDevice(devices[i], i + 1, devices.length, opts);
+    body.push(r.lines.join('\n'), '');
+    findings = findings.concat(r.findings);
+  }
+  var overall = findings.some(function (f) { return f.kind === 'hfd-he'; }) ? 'he' : findings.some(function (f) { return /^hfd-/.test(f.kind || ''); }) ? 'answered' : findings.some(function (f) { return /^f75-/.test(f.kind || ''); }) ? 'f75' : 'silent';
+  var sum = ['SUMMARY (' + (overall === 'he' ? 'the keyboard answered the F75 HE requests and names the expected ids' : overall === 'answered' ? 'the keyboard answered the F75 HE requests, but not as the app expects' : overall === 'f75' ? 'the keyboard answered like an F75, F75 Pro or F87, not like an F75 HE' : 'no useful answer') + ')'];
+  findings.forEach(function (f) { sum.push('  [' + f.level + '] ' + f.text); });
+  var text = head.concat(sum, ['', 'DETAILS', ''], body).join('\n');
+  return { text: text, findings: findings, overall: overall };
+}
+// </probe-core>
+
+(function () {
+  if (typeof document === 'undefined') return;
+  var $ = function (s) { return document.querySelector(s); };
+  var chosen = [], lastText = '';
+  var AULA_FILTERS = [
+    { vendorId: 0x38a6 }, { vendorId: 0x0c45 }, { vendorId: 0x3554 }, { vendorId: 0x258a }, { vendorId: 0x05ac, productId: 0x024f },
+    { usagePage: 0xff68 }, { usagePage: 0xff60 }, { usagePage: 0xff80 }, { usagePage: 0xff00 }, { usagePage: 0xff01 }, { usagePage: 0xff02 }, { usagePage: 0xff5b },
+  ];
+  var hasHid = !!(navigator && navigator.hid);
+  if (!hasHid) { $('#noHid').hidden = false; $('#pick').disabled = true; $('#pickAll').disabled = true; }
+
+  function renderDevs() {
+    var box = $('#devs');
+    box.textContent = '';
+    if (!chosen.length) { var p = document.createElement('p'); p.className = 'sub'; p.textContent = 'Nothing chosen yet.'; box.append(p); }
+    chosen.forEach(function (d) {
+      var row = document.createElement('div'); row.className = 'dev';
+      var vend = describeCollections(d).some(function (c) { return c.vendor; });
+      row.textContent = (d.productName || 'Unnamed device') + '  ' + h4(d.vendorId) + ':' + h4(d.productId);
+      var t = document.createElement('span'); t.className = 'tag' + (vend ? ' v' : ''); t.textContent = vend ? 'vendor channel' : 'standard input';
+      row.append(t); box.append(row);
+    });
+    $('#run').disabled = !chosen.length;
+  }
+  function addDevices(list) { list.forEach(function (d) { if (chosen.indexOf(d) < 0) chosen.push(d); }); renderDevs(); }
+
+  async function pick(all) {
+    try { addDevices(await navigator.hid.requestDevice({ filters: all ? [] : AULA_FILTERS })); }
+    catch (err) { if (!err || err.name !== 'NotFoundError') $('#status').textContent = 'Could not open the chooser: ' + ((err && err.message) || err); }
+  }
+  $('#pick').addEventListener('click', function () { pick(false); });
+  $('#pickAll').addEventListener('click', function () { pick(true); });
+  if (hasHid) navigator.hid.getDevices().then(function (l) { addDevices(l.filter(function (d) { return describeCollections(d).some(function (c) { return c.vendor; }); })); }).catch(function () {});
+  renderDevs();
+
+  $('#run').addEventListener('click', async function () {
+    var btns = ['#run', '#pick', '#pickAll', '#save', '#copy'].map($);
+    btns.forEach(function (b) { b.disabled = true; });
+    $('#findings').textContent = ''; $('#log').textContent = '';
+    $('#status').textContent = 'Scanning... keep the keyboard awake and do not unplug it.';
+    var res;
+    try {
+      res = await runProbe(chosen, {
+        label: $('#conn').value, notes: $('#notes').value, ua: navigator.userAgent, platform: navigator.platform,
+        onLine: function (l) { var pre = $('#log'); pre.textContent += l + '\n'; pre.scrollTop = pre.scrollHeight; },
+      });
+    } catch (err) {
+      $('#status').textContent = 'The scan stopped: ' + ((err && err.message) || err);
+      $('#run').disabled = false; $('#pick').disabled = false; $('#pickAll').disabled = false;
+      return;
+    }
+    lastText = res.text;
+    $('#status').textContent = res.overall === 'f75' ? 'Done. This keyboard answered like a regular F75, F75 Pro or F87, not like an F75 HE. The tool works. To test an F75 HE, plug that one in and run it again.' : res.overall === 'he' ? 'Done. The keyboard answered. Save the report and send it.' : res.overall === 'answered' ? 'Done. It answered, but not exactly as expected. That is useful: save the report and send it.' : 'Done. No useful answer. Save the report anyway: it shows what the keyboard offers.';
+    res.findings.forEach(function (f) { var d = document.createElement('div'); d.className = 'f ' + (f.level === 'info' ? '' : f.level); d.textContent = f.text; $('#findings').append(d); });
+    btns.forEach(function (b) { b.disabled = false; });
+    $('#run').textContent = 'Run the scan again';
+  });
+
+  $('#save').addEventListener('click', function () {
+    if (!lastText) return;
+    var tag = $('#conn').value.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([lastText], { type: 'text/plain' }));
+    a.download = 'aula-f75he-probe-' + tag + '-' + new Date().toISOString().slice(0, 10) + '.txt';
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+  });
+  $('#copy').addEventListener('click', async function () {
+    try { await navigator.clipboard.writeText(lastText); $('#copy').textContent = 'Copied'; }
+    catch (_) { $('#copy').textContent = 'Copy failed: use Save'; }
+    setTimeout(function () { $('#copy').textContent = 'Copy report text'; }, 2500);
+  });
+})();
+</script>
+</body>
+</html>

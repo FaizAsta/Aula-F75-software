@@ -142,6 +142,19 @@ if (require.main === module) {
       await until(() => !A.session.dirty, 5000);
       check(!A.session.dirty, 'per-key paint applied');
       check(w.AulaProtocol.getMode(A.session.dev0.led) === w.AulaProtocol.MODE_CUSTOM, 'per-key mode on the keyboard');
+      // The Per-key page's brightness slider works now that Per-key is the effect: it sets the Per-key effect's level.
+      const pkBright = doc.getElementById('rngPkBright');
+      check(pkBright && !pkBright.disabled, 'per-key brightness slider is usable while Per-key is the effect');
+      if (pkBright) {
+        pkBright.value = '1';
+        pkBright.dispatchEvent(new doc.defaultView.Event('input', { bubbles: true }));
+        await wait(30);
+        const PP = w.AulaProtocol;
+        check(PP.getBrightness(A.session.cur.led, PP.effectOf(PP.MODE_CUSTOM)) === 1, 'per-key brightness slider sets the Per-key level');
+        doc.getElementById('btnApply').click();
+        await until(() => !A.session.dirty, 5000);
+        check(!A.session.dirty, 'per-key brightness applied');
+      }
 
       // Keys tab: load, pick a key, assign, apply, restore
       A.setTab('keys');

@@ -230,7 +230,7 @@
   bottom: 33.9%;
   border-radius: calc(var(--u) * 0.1);
   background: var(--c, transparent);
-  mix-blend-mode: hard-light;
+  mix-blend-mode: var(--blend, hard-light);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s;
@@ -241,6 +241,75 @@
   box-shadow: 0 0 calc(var(--u) * 0.1) calc(var(--u) * 0.015) color-mix(in srgb, var(--c) 42%, transparent), 0 calc(var(--u) * 0.04) calc(var(--u) * 0.3) color-mix(in srgb, var(--c) 34%, transparent);
 }
 .mx-photo .mx-key:hover { filter: brightness(1.18); }
+
+/* The under-key light of a board whose skin has `underlight` (the F75 HE; max-ui.js adds .mx-under, a lamp layer to the grid
+   with a lamp for each key, and a foot to each key). It is the F75 preview's light: a soft glow on the plate round the key and a thin line of light in the
+   gaps (.mx-lamp, in a layer that comes first in the grid, under every cap, so a cap covers all of it but the gaps), and a glow at the foot of the cap's
+   front wall (.mx-foot, over its cap). A key is its own stacking context, so the lamp cannot live inside it and still be under the
+   caps next to it. --hue is the key's colour at full strength and --b how bright it is (0..1), set by max-ui.js on both, so a dim
+   key glows dimly. */
+.mx-lamps, .mx-lamp, .mx-foot { display: none; }
+.mx-photo.mx-under .mx-lamps { display: block; position: absolute; inset: 0; pointer-events: none; }
+.mx-photo.mx-under .mx-lamp, .mx-photo.mx-under .mx-foot {
+  display: block;
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.mx-photo.mx-under .mx-lamp[data-on="1"], .mx-photo.mx-under .mx-key[data-on="1"] .mx-foot { opacity: 1; }
+.mx-photo.mx-under .mx-key[data-on="1"] { box-shadow: none; } /* the old halo paints over the next caps */
+.mx-photo.mx-under .mx-lamp {
+  --u: calc(100cqw / 16);
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border-radius: calc(var(--u) * 0.14);
+  border: calc(var(--u) * 0.05) solid color-mix(in srgb, var(--hue, transparent) calc(6% + var(--b, 0) * 40%), transparent);
+  box-shadow:
+    0 0 calc(var(--u) * 0.12) 0 color-mix(in srgb, var(--hue, transparent) calc(var(--b, 0) * 36%), transparent),
+    0 0 calc(var(--u) * 0.6) calc(var(--u) * 0.04) color-mix(in srgb, var(--hue, transparent) calc(var(--b, 0) * 20%), transparent);
+}
+.mx-photo.mx-under .mx-foot {
+  z-index: -1;
+  left: calc(var(--u) * 0.04);
+  right: calc(var(--u) * 0.04);
+  top: calc(var(--u) * 0.74);
+  height: calc(var(--u) * 0.36);
+  background: radial-gradient(ellipse closest-side,
+    color-mix(in srgb, var(--hue, transparent) calc(8% + var(--b, 0) * 34%), transparent) 0%,
+    color-mix(in srgb, var(--hue, transparent) calc(3% + var(--b, 0) * 12%), transparent) 55%,
+    transparent 100%);
+  mix-blend-mode: screen;
+}
+/* Lighting shows the light, not a painted cap: the face keeps its own colour with a hint of the light, and its print takes a little of
+   it. Painting (the Per-key page) still paints the face, so it is obvious at a glance which keys carry a colour. */
+.stage-max:not([data-paint="1"]) .mx-photo.mx-under .mx-key[data-on="1"]::after {
+  mix-blend-mode: screen; /* light only ever lightens a cap (a plain tint over white would darken it) */
+  background: var(--hue, transparent);
+  opacity: calc(var(--b, 0) * 0.1);
+}
+.stage-max:not([data-paint="1"]) .mx-photo.mx-under .mx-key[data-on="1"] {
+  color: color-mix(in srgb, var(--sk-ink, #f5f7f6) calc(100% - var(--b, 0) * 10%), var(--hue, transparent));
+}
+/* While a moving effect plays on the picture (max-ui.js sets data-play) every frame is already a small step, so the keys do not fade
+   on top of it: the fades keep the browser busy on all the keys at once and roughly halve the frame rate. */
+.stage-max[data-play="1"] .mx-key { transition: transform 0.08s; }
+.stage-max[data-play="1"] .mx-key::after,
+.stage-max[data-play="1"] .mx-lamp,
+.stage-max[data-play="1"] .mx-foot { transition: none; }
+
+/* Pointer and key motion (max-motion.js; the F75 preview's own, on the picture's keys): the board leans toward the pointer and drifts a
+   little, a spotlight and click ripples are drawn on one canvas over the keys, and the keys rise, sink and sweep on by a transform
+   the script sets every frame. A transition on top of that would only make them lag behind the pointer, so the keys' transform has none
+   while it runs (the Per-key page keeps its own: it is not moved). data-fx is set on the stage while the motion is running. */
+.mx-fx { position: absolute; z-index: 3; pointer-events: none; }
+.stage-max[data-fx="1"] .mx-board { will-change: transform; }
+.stage-max[data-fx="1"]:not([data-paint="1"]) .mx-key { transition: filter 0.15s, box-shadow 0.15s, border-color 0.15s; }
+/* Lights going off (or coming back) fade over about half a second, as on the F75's preview. A moving effect is one small step a frame already. */
+.stage-max[data-fx="1"]:not([data-paint="1"]):not([data-play="1"]) .mx-photo .mx-key::after,
+.stage-max[data-fx="1"]:not([data-paint="1"]):not([data-play="1"]) .mx-photo.mx-under .mx-lamp,
+.stage-max[data-fx="1"]:not([data-paint="1"]):not([data-play="1"]) .mx-photo.mx-under .mx-foot { transition: opacity 0.4s ease; }
 
 .mx-status { margin: 18px 2px 0; }
 .mx-status[data-s="ok"] { color: var(--ok); }

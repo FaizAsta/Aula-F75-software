@@ -169,7 +169,8 @@ test('a found update shows an icon in the header and on the start screens, and t
 test('the version in package.json is the one the README badge shows (the app reads its own version from package.json)', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
-  assert.ok(readme.includes(`badge/version-${pkg.version}-blue`), 'README badge and package.json version differ');
+  // shields.io writes a hyphen inside the value as two (1.5.3-beta.1 is version-1.5.3--beta.1-blue)
+  assert.ok(readme.includes(`badge/version-${pkg.version.replace(/-/g, '--')}-blue`), 'README badge and package.json version differ');
 });
 
 test('update dialog buttons do not use a class that the page layout already uses', () => {

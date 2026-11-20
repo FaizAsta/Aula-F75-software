@@ -181,6 +181,7 @@
         getView: () => prefs.view, // the Live / Picture switch on the keyboard picture
         animate: () => !!prefs.animate && !reduceMotion, // the effect cards' little keyboards play only when animation is on
         shown: () => windowShown, // false while the window is in the tray or minimised: nothing is drawn then
+        glow: (mean, force) => setGlow(mean, force), // the window takes the colour of the keyboard's light, as on the F75 screen
         // the F75 preview has nothing to draw while a Max is connected (the Max's own picture is in the stage), so it rests
         idlePreview: (on) => {
           if (on) view.stop();
@@ -276,9 +277,15 @@
     onPick: handlePick,
     onHover: () => {},
   });
-  view.onFrameColor = (mean) => {
+  /**
+   * Tints the whole window with the keyboard's colour. `mean` is the board's average light as [r, g, b] (0..255 each; a dark or
+   * switched-off board is [0, 0, 0] and gives the default light blue). The F75 preview reports it every frame; the F75 Max / F75 HE
+   * screen reports it from its own lighting (max-ui.js). Changes come at most every 140 ms, unless `force` is set (a change the
+   * person just made), and only when the colour has really moved.
+   */
+  const setGlow = (mean, force = false) => {
     const now = performance.now();
-    if (now - lastGlow < 140) return;
+    if (!force && now - lastGlow < 140) return;
     lastGlow = now;
     const m = Math.max(mean[0], mean[1], mean[2]);
     const c = m < 14 ? [124, 214, 255] : mean.map((v) => Math.min(255, (v * 255) / m));
@@ -287,6 +294,7 @@
     rootStyle.setProperty('--glow', c.map((v) => Math.round(v)).join(' '));
     applyGlowInk();
   };
+  view.onFrameColor = (mean) => setGlow(mean);
   if (prefs.animate && prefs.view !== 'picture') view.start(); // Picture (saved from last time) is a still image: no loop
 
   /** Picture: only a still image of the board in the colours it has now. Key editing always needs the live board. */
@@ -543,19 +551,30 @@
     const max = session.brightMax;
     if (brightBuilt === max) return;
     brightBuilt = max;
-    $('#rngBright').max = max;
-    const meter = $('#meterBright');
-    meter.replaceChildren();
-    for (let i = 0; i < max; i++) {
-      const tick = el('i');
-      if (max !== P.LEVEL_MAX) tick.style.height = `${Math.round(4 + (9 * i) / (max - 1))}px`;
-      meter.append(tick);
+    // The Lighting page and the Per-key page each have a slider and a meter for the same level.
+    for (const [rng, mtr] of [['#rngBright', '#meterBright'], ['#rngPkBright', '#meterPkBright']]) {
+      $(rng).max = max;
+      const meter = $(mtr);
+      meter.replaceChildren();
+      for (let i = 0; i < max; i++) {
+        const tick = el('i');
+        if (max !== P.LEVEL_MAX) tick.style.height = `${Math.round(4 + (9 * i) / (max - 1))}px`;
+        meter.append(tick);
+      }
     }
   }
+
+  /** True while Per-key is the effect in the settings being edited: the only time the Per-key page's brightness slider is usable. */
+  const perKeyEffectOn = () => !!session.cur && P.getMode(session.cur.led) === P.MODE_CUSTOM;
 
   function buildSegs() {
     buildBrightScale();
     $('#rngBright').addEventListener('input', (e) => session.setBrightness(+e.target.value));
+    // The Per-key page's slider is the same level, set only while Per-key is the effect (otherwise it would change another effect's).
+    $('#rngPkBright').addEventListener('input', (e) => {
+      if (perKeyEffectOn()) session.setBrightness(+e.target.value);
+      else scheduleRender();
+    });
     const speed = $('#segSpeed');
     ['1', '2', '3', '4', '5'].forEach((label, v) =>
       speed.append(el('button', { class: 'seg-btn', role: 'radio', 'aria-checked': 'false', type: 'button', 'data-v': v, 'aria-label': `Speed level ${v + 1}`, text: label, onclick: () => session.setSpeed(v) })),
@@ -1060,7 +1079,7 @@
     if (e) {
       if (e.off) notes.push('All lighting is switched off.');
       else if (e.unknown) notes.push(`The keyboard is set to a mode (${mode}) this app does not know. Choose an effect to replace it.`);
-      else if (e.custom) notes.push('Shows the colours you paint in the Per-key tab.');
+      else if (e.custom) notes.push('Shows the colours you paint in the Per-key tab, dimmed by the brightness level.');
       else if (e.colorful) notes.push('This effect always runs in multicolour.');
       if (hasSlot && P.getBrightness(cur.led, e) === 0) notes.push('Brightness is Off, so this effect shows nothing.');
       if (hasSlot && e.color) {
@@ -1152,6 +1171,25 @@
     for (const b of $$('#segDir .seg-btn, #pkPresets .pk-preset')) b.disabled = !ready;
     $('#pkPaintSel').disabled = !ready || sel.size === 0;
     $('#pkSelNone').disabled = !ready || sel.size === 0;
+    renderPerKeyBrightness(ready);
+  }
+
+  /** The brightness row on the Per-key page: the level of the Per-key effect, usable only while that effect is the one in use. */
+  function renderPerKeyBrightness(ready) {
+    if (!session.cur) return;
+    buildBrightScale();
+    const on = ready && perKeyEffectOn();
+    const b = P.getBrightness(session.cur.led, P.effectOf(P.MODE_CUSTOM));
+    const rng = $('#rngPkBright');
+    $('#pkBright').dataset.on = on ? 'true' : 'false';
+    if (+rng.value !== b) rng.value = b;
+    rng.style.setProperty('--pf', b / session.brightMax);
+    rng.disabled = !on;
+    rng.title = on ? '' : 'Available while the Per-key effect is on. Press Apply to keyboard first.';
+    const text = b === 0 ? 'Off' : `Level ${b} of ${session.brightMax}`;
+    rng.setAttribute('aria-valuetext', text);
+    setMeter('#meterPkBright', b);
+    $('#valPkBright').textContent = on || !ready ? text : 'Apply Per-key first';
   }
 
   function handlePick(k, e, phase) {
@@ -1712,7 +1750,7 @@
     $('#keepNow').disabled = !s.ready || prefs.demo || !snap || applying || s.restoring;
   }
 
-  // Reset keyboard (Settings > Keyboard). The F75 Max has its own session, so the button goes to whichever keyboard is connected.
+  // Reset keyboard (Settings > Keyboard). The F75 Max and the F75 HE have their own sessions, so the button goes to whichever keyboard is connected.
   const maxOn = () => !!(MXU && MXU.active());
   let resetArmed = false;
   let resetTimer = 0;
@@ -1738,6 +1776,7 @@
     let info = '';
     if (max) {
       if (!max.present) info = 'Connect the keyboard first.';
+      else if (MXU.family() === 'he') info = 'Sets the lighting back to its defaults and clears the per-key colours. The Hall-effect settings are not touched.';
       else if (!max.cable) info = 'On the 2.4G dongle the F75 Max resets its lighting, response and sleep. Plug in the USB-C cable to reset the per-key colours and key locks too.';
     } else if (!session.ready) info = 'Connect the keyboard first.';
     else {
@@ -1754,6 +1793,11 @@
     const box = $('#resetHotkey');
     if (!box) return;
     const real = !prefs.demo && (max ? max.present : session.connected);
+    if (max && MXU.family() === 'he') {
+      // the F75 HE's own hard reset is not documented anywhere this app was built from, so no keys are named for it
+      box.replaceChildren(el('b', { text: 'AULA F75 HE hard reset:' }), ' see the keyboard’s manual for its reset keys. This app does not send a reset to it.');
+      return;
+    }
     const hk = L.hardReset(max ? 'f75' : prefs.model); // every model uses the same keys; the Max is not in layout.js
     const name = max ? 'AULA F75 Max' : L.modelName(prefs.model);
     const keys = [];
@@ -2547,8 +2591,10 @@
     });
     $('#kbReset').addEventListener('blur', () => resetArmed && disarmReset());
     if (MXU) {
-      MXU.max.on('presence', scheduleRender);
-      MXU.max.on('busy', scheduleRender);
+      for (const sess of MXU.sessions) {
+        sess.on('presence', scheduleRender);
+        sess.on('busy', scheduleRender);
+      }
     }
 
     $('#bkExport').addEventListener('click', async () => {

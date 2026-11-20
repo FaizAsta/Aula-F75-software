@@ -1,0 +1,248 @@
+AULA keyboard auto capture v4 (passive logger)
+date: 2026-11-17T12:13:36.663Z
+browser: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36
+page: https://hub.aulacn.com/home
+format: "UI" lines are what was clicked in the page; "changed since last" lines list [byte index] old->new
++   41537 ms  UI      click   div.use-btn.absolute.item-center "Welcome to AULA Driver"
++   43148 ms  UI      click   div.check-device-btn.all-center "Select Device"
++   43149 ms  requestDevice filters: [{"vendorId":7333,"productId":1031,"usagePage":65440,"usage":1},{"vendorId":7333,"productId":1033,"usagePage":65440,"usage":1},{"vendorId":7330,"productId":6401,"usagePage":65440,"usage":1},{"vendorId":7330,"productId":6401,"usagePage":65440,"usage":1},{"vendorId":7330,"productId":6402,"usagePage":65440,"usage":1},{"vendorId":7330,"productId":6402,"usagePage":65440,"usage":1},{"vendorId":14502,"productId":10450,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10449,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10448,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10460,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10461,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10463,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10465,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10464,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10480,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10481,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10482,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10499,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10500,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10498,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10029,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10028,"usagePage":65456,"usage":1},{"vendorId":6790,"productId":65153,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10030,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10506,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10505,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10033,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10087,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10032,"usagePage":65456,"usage":1},{"vendorId":14502,"productId":10522,"usagePage":65280,"usage":1},{"vendorId":14502,"productId":10522,"usagePage":12,"usage":1},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4204,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":14126,"productId":4158,"usagePage":65376,"usage":97},{"vendorId":9610,"productId":268,"usagePage":65280,"usage":1},{"vendorId":13652,"productId":64009,"usagePage":65282,"usage":2},{"vendorId":9610,"productId":268,"usagePage":65280,"usage":1},{"vendorId":13652,"productId":64009,"usagePage":65280,"usage":1},{"vendorId":9610,"productId":268,"usagePage":65280,"usage":1},{"vendorId":13652,"productId":64009,"usagePage":65282,"usage":2},{"vendorId":9610,"productId":268,"usagePage":65280,"usage":1},{"vendorId":13652,"productId":64009,"usagePage":65282,"usage":2},{"vendorId":3141,"productId":32818,"usagePage":65384,"usage":97},{"vendorId":3141,"productId":32929,"usagePage":65384,"usage":97},{"vendorId":3141,"productId":65276,"usagePage":65408,"usage":1},{"vendorId":3141,"productId":32946,"usagePage":65384,"usage":97},{"vendorId":3141,"productId":32930,"usagePage":65384,"usage":97},{"vendorId":3141,"productId":65278,"usagePage":65376,"usage":97},{"vendorId":14502,"productId":10018,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10019,"usagePage":65384,"usage":97},{"vendorId":3141,"productId":65278,"usagePage":65376,"usage":97},{"vendorId":14502,"productId":10020,"usagePage":65384,"usage":97},{"vendorId":3141,"productId":65276,"usagePage":65408,"usage":1},{"vendorId":14502,"productId":10025,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10050,"usagePage":65384,"usage":97},{"vendorId":3141,"productId":65278,"usagePage":65376,"usage":97},{"vendorId":14502,"productId":10504,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10504,"usagePage":65383,"usage":97},{"vendorId":3141,"productId":65273,"usagePage":65376,"usage":97},{"vendorId":3141,"productId":65273,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10002,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10002,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10040,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10040,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10055,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10055,"usagePage":65383,"usage":97},{"vendorId":3141,"productId":65276,"usagePage":65384,"usage":97},{"vendorId":3141,"productId":65276,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10001,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10001,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10054,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10054,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10039,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10039,"usagePage":65383,"usage":97},{"vendorId":3141,"productId":65278,"usagePage":65384,"usage":97},{"vendorId":3141,"productId":65278,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10000,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10000,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10056,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10056,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10038,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10038,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10041,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10041,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10010,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10010,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10042,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10042,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10057,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10057,"usagePage":65383,"usage":97},{"vendorId":3141,"productId":65276,"usagePage":65384,"usage":97},{"vendorId":3141,"productId":65276,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10043,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10043,"usagePage":65383,"usage":97},{"vendorId":3141,"productId":65276,"usagePage":65408,"usage":113},{"vendorId":3141,"productId":65276,"usagePage":65392,"usage":113},{"vendorId":14502,"productId":10077,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10077,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10076,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10076,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10047,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10047,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10072,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10072,"usagePage":65383,"usage":97},{"vendorId":14502,"productId":10088,"usagePage":65384,"usage":97},{"vendorId":14502,"productId":10088,"usagePage":65383,"usage":97},{"vendorId":1452,"productId":591,"usagePage":65376,"usage":97},{"vendorId":3141,"productId":32778,"usagePage":65299,"usage":1},{"vendorId":3141,"productId":32778,"usagePage":65384,"usage":1},{"vendorId":3141,"productId":32778,"usagePage":65299,"usage":1},{"vendorId":3141,"productId":32778,"usagePage":65384,"usage":1},{"vendorId":11836,"productId":50021,"usagePage":65307,"usage":145},{"vendorId":11836,"productId":50021,"usagePage":65307,"usage":145},{"vendorId":7847,"productId":18564,"usagePage":65376,"usage":97},{"vendorId":28006,"productId":34162,"usagePage":65376,"usage":97},{"vendorId":23233,"productId":8449,"usagePage":12,"usage":1},{"vendorId":13058,"productId":4667,"usagePage":12,"usage":1},{"vendorId":13058,"productId":4666,"usagePage":12,"usage":1},{"vendorId":14412,"productId":4696,"usagePage":65448,"usage":2},{"vendorId":14412,"productId":8802,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":10487,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":10489,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":12058,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":10493,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":10491,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":12000,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":10473,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":10495,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":10471,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":12020,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":12030,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":12022,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":12056,"usagePage":65448,"usage":2},{"vendorId":6790,"productId":186,"usagePage":65448,"usage":2},{"vendorId":6790,"productId":187,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":12014,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":12018,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":12052,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":10472,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":12040,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":12044,"usagePage":65448,"usage":2},{"vendorId":14502,"productId":12048,"usagePage":65448,"usage":2},{"vendorId":12815,"productId":8887,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8890,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8888,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8890,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8887,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8890,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8888,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8890,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8888,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8887,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8890,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8888,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8887,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8886,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8864,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8886,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8890,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8886,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8890,"usagePage":65308,"usage":146},{"vendorId":12815,"productId":8886,"usagePage":65308,"usage":146},{"vendorId":13652,"productId":62737,"usagePage":65282,"usage":2},{"vendorId":13652,"productId":62933,"usagePage":65282,"usage":2},{"vendorId":13652,"productId":64310,"usagePage":65282,"usage":2},{"vendorId":13652,"productId":64309,"usagePage":65282,"usage":2},{"vendorId":13652,"productId":62741,"usagePage":65282,"usage":2},{"vendorId":13652,"productId":62743,"usagePage":65282,"usage":2},{"vendorId":46756,"productId":16576,"usagePage":65281,"usage":1},{"vendorId":46756,"productId":16577,"usagePage":65281,"usage":1},{"vendorId":43172,"productId":8789,"usagePage":65281,"usage":16},{"vendorId":43173,"productId":8789,"usagePage":65281,"usage":16},{"vendorId":6700,"productId":39170,"usagePage":65282,"usage":2},{"vendorId":14502,"productId":36}]
+# device 1: "AULA F75 HE" 38a6:2729  page 0xff68 usage 0x0061 in[0] out[0] feature[]
++   46684 ms  UI      click   img.relative
++   48038 ms  TX       dev #1  id 0x00  64 bytes  aa 10 38 00 00 00 01  | +57 zero bytes
++   48044 ms  RX       dev #1  id 0x00  64 bytes  55 10 38 00 00 00 01 00 00 00 00 12 a6 38 29 27 55 01 00 00 11 00 16 0a 22 10  | +38 zero bytes
++   48051 ms  TX       dev #1  id 0x00  64 bytes  aa 12 38  | +61 zero bytes
++   48055 ms  RX       dev #1  id 0x00  64 bytes  55 12 38 00 00 00 00 00 02 00 29  | +53 zero bytes
++   48056 ms  TX       dev #1  id 0x00  64 bytes  aa 12 38 38  | +60 zero bytes
+                         changed since last TX aa 12: [3] 00->38
++   48061 ms  RX       dev #1  id 0x00  64 bytes  55 12 38 38 00 00 00 00 00 00 00 00 03 e2 00 00 02 00 35 00 02 00 1e 00 02 00 1f 00 02 00 20 00 02 00 21 00 02 00 22 00 02 00 23 00 02 00 24 00 02 00 25 00 02 00 26 00 02 00 27 00 02 00 2d 00
+                         changed since last RX 55 12: [3] 00->38  [8] 02->00  [10] 29->00  [12] 00->03  [13] 00->e2  [16] 00->02  [18] 00->35  [20] 00->02  [22] 00->1e  [24] 00->02  [26] 00->1f  [28] 00->02  [30] 00->20  [32] 00->02  [34] 00->21  [36] 00->02  [38] 00->22  [40] 00->02  [42] 00->23  [44] 00->02  [46] 00->24  [48] 00->02  [50] 00->25  [52] 00->02  [54] 00->26  [56] 00->02  [58] 00->27  [60] 00->02  [62] 00->2d
++   48061 ms  TX       dev #1  id 0x00  64 bytes  aa 12 38 70  | +60 zero bytes
+                         changed since last TX aa 12: [3] 38->70
++   48066 ms  RX       dev #1  id 0x00  64 bytes  55 12 38 70 00 00 00 00 02 00 2e 00 02 00 53 00 02 00 54 00 02 00 55 00 02 00 2b 00 02 00 14 00 02 00 1a 00 02 00 08 00 02 00 15 00 02 00 17 00 02 00 1c 00 02 00 18 00 02 00 0c 00 02 00 12 00
+                         changed since last RX 55 12: [3] 38->70  [8] 00->02  [10] 00->2e  [12] 03->02  [13] e2->00  [14] 00->53  [18] 35->54  [22] 1e->55  [26] 1f->2b  [30] 20->14  [34] 21->1a  [38] 22->08  [42] 23->15  [46] 24->17  [50] 25->1c  [54] 26->18  [58] 27->0c  [62] 2d->12
++   48066 ms  TX       dev #1  id 0x00  64 bytes  aa 12 38 a8  | +60 zero bytes
+                         changed since last TX aa 12: [3] 70->a8
++   48072 ms  RX       dev #1  id 0x00  64 bytes  55 12 38 a8 00 00 00 00 02 00 13 00 02 00 2f 00 02 00 30 00 02 00 5f 00 02 00 60 00 02 00 61 00 02 00 39 00 02 00 04 00 02 00 16 00 02 00 07 00 02 00 09 00 02 00 0a 00 02 00 0b 00 02 00 0d 00
+                         changed since last RX 55 12: [3] 70->a8  [10] 2e->13  [14] 53->2f  [18] 54->30  [22] 55->5f  [26] 2b->60  [30] 14->61  [34] 1a->39  [38] 08->04  [42] 15->16  [46] 17->07  [50] 1c->09  [54] 18->0a  [58] 0c->0b  [62] 12->0d
++   48072 ms  TX       dev #1  id 0x00  64 bytes  aa 12 38 e0  | +60 zero bytes
+                         changed since last TX aa 12: [3] a8->e0
++   48079 ms  RX       dev #1  id 0x00  64 bytes  55 12 38 e0 00 00 00 00 02 00 0e 00 02 00 0f 00 02 00 33 00 02 00 34 00 02 00 31 00 02 00 5c 00 02 00 5d 00 02 00 5e 00 02 00 e1 00 02 00 1d 00 02 00 1b 00 02 00 06 00 02 00 19 00 02 00 05 00
+                         changed since last RX 55 12: [3] a8->e0  [10] 13->0e  [14] 2f->0f  [18] 30->33  [22] 5f->34  [26] 60->31  [30] 61->5c  [34] 39->5d  [38] 04->5e  [42] 16->e1  [46] 07->1d  [50] 09->1b  [54] 0a->06  [58] 0b->19  [62] 0d->05
++   48080 ms  TX       dev #1  id 0x00  64 bytes  aa 12 38 18 01  | +59 zero bytes
+                         changed since last TX aa 12: [3] e0->18  [4] 00->01
++   48084 ms  RX       dev #1  id 0x00  64 bytes  55 12 38 18 01 00 00 00 02 00 11 00 02 00 10 00 02 00 36 00 02 00 37 00 02 00 38 00 02 00 e5 00 02 00 28 00 02 00 59 00 02 00 5a 00 02 00 5b 00 02 00 e0 00 02 00 e3 00 02 00 e2 00 02 00 2c 00
+                         changed since last RX 55 12: [3] e0->18  [4] 00->01  [10] 0e->11  [14] 0f->10  [18] 33->36  [22] 34->37  [26] 31->38  [30] 5c->e5  [34] 5d->28  [38] 5e->59  [42] e1->5a  [46] 1d->5b  [50] 1b->e0  [54] 06->e3  [58] 19->e2  [62] 05->2c
++   48085 ms  TX       dev #1  id 0x00  64 bytes  aa 12 38 50 01  | +59 zero bytes
+                         changed since last TX aa 12: [3] 18->50
++   48089 ms  RX       dev #1  id 0x00  64 bytes  55 12 38 50 01 00 00 00 02 00 e6 00 02 00 af 00 02 00 65 00 02 00 e4 00 02 00 50 00 02 00 51 00 02 00 52 00 02 00 4f 00 02 00 2a 00 02 00 62 00 02 00 63 00 02 00 58 00 03 92 01 00 02 00 32 00
+                         changed since last RX 55 12: [3] 18->50  [10] 11->e6  [14] 10->af  [18] 36->65  [22] 37->e4  [26] 38->50  [30] e5->51  [34] 28->52  [38] 59->4f  [42] 5a->2a  [46] 5b->62  [50] e0->63  [54] e3->58  [56] 02->03  [57] 00->92  [58] e2->01  [62] 2c->32
++   48089 ms  TX       dev #1  id 0x00  64 bytes  aa 12 38 88 01  | +59 zero bytes
+                         changed since last TX aa 12: [3] 50->88
++   48095 ms  RX       dev #1  id 0x00  64 bytes  55 12 38 88 01 00 00 00 02 00 64 00 02 00 46 00 02 00 47 00 02 00 e7 00 02 00 48 00 02 00 49 00 02 00 4a 00 02 00 4b 00 02 00 4c 00 02 00 4d 00 02 00 4e 00 03 56 00 00 02 00 57 00 02 00 00 00
+                         changed since last RX 55 12: [3] 50->88  [10] e6->64  [14] af->46  [18] 65->47  [22] e4->e7  [26] 50->48  [30] 51->49  [34] 52->4a  [38] 4f->4b  [42] 2a->4c  [46] 62->4d  [50] 63->4e  [52] 02->03  [53] 00->56  [54] 58->00  [56] 03->02  [57] 92->00  [58] 01->57  [62] 32->00
++   48096 ms  TX       dev #1  id 0x00  64 bytes  aa 12 38 c0 01  | +59 zero bytes
+                         changed since last TX aa 12: [3] 88->c0
++   48099 ms  RX       dev #1  id 0x00  64 bytes  55 12 38 c0 01  | +59 zero bytes
+                         changed since last RX 55 12: [3] 88->c0  [8] 02->00  [10] 64->00  [12] 02->00  [14] 46->00  [16] 02->00  [18] 47->00  [20] 02->00  [22] e7->00  [24] 02->00  [26] 48->00  [28] 02->00  [30] 49->00  [32] 02->00  [34] 4a->00  [36] 02->00  [38] 4b->00  [40] 02->00  [42] 4c->00  [44] 02->00  [46] 4d->00  [48] 02->00  [50] 4e->00  [52] 03->00  [53] 56->00  [56] 02->00  [58] 57->00  [60] 02->00
++   48100 ms  TX       dev #1  id 0x00  64 bytes  aa 12 08 f8 01 00 01  | +57 zero bytes
+                         changed since last TX aa 12: [2] 38->08  [3] c0->f8  [6] 00->01
++   48105 ms  RX       dev #1  id 0x00  64 bytes  55 12 08 f8 01 00 01  | +57 zero bytes
+                         changed since last RX 55 12: [2] 38->08  [3] c0->f8  [6] 00->01
++   48180 ms  TX       dev #1  id 0x00  64 bytes  aa 13 10 00 00 00 01  | +57 zero bytes
++   48208 ms  RX       dev #1  id 0x00  64 bytes  55 13 10 00 00 00 01 00 0e ff ff ff 00 00 00 00 01 03 03  | +45 zero bytes
++   48221 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38  | +61 zero bytes
++   48233 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 00 00 00 00 00 00 00 00 00 01 00 00 00 02 00 00 00 03 00 00 00 04 00 00 00 05 00 00 00 06 00 00 00 07 00 00 00 08 00 00 00 09 00 00 00 0a 00 00 00 0b 00 00 00 0c 00 00 00 0d 00 00 00
++   48233 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 38  | +60 zero bytes
+                         changed since last TX aa 14: [3] 00->38
++   48241 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 38 00 00 00 00 0e 00 00 00 0f 00 00 00 10 00 00 00 11 00 00 00 12 00 00 00 13 00 00 00 14 00 00 00 15 00 00 00 16 00 00 00 17 00 00 00 18 00 00 00 19 00 00 00 1a 00 00 00 1b 00 00 00
+                         changed since last RX 55 14: [3] 00->38  [8] 00->0e  [12] 01->0f  [16] 02->10  [20] 03->11  [24] 04->12  [28] 05->13  [32] 06->14  [36] 07->15  [40] 08->16  [44] 09->17  [48] 0a->18  [52] 0b->19  [56] 0c->1a  [60] 0d->1b
++   48241 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 70  | +60 zero bytes
+                         changed since last TX aa 14: [3] 38->70
++   48244 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 70 00 00 00 00 1c 00 00 00 1d 00 00 00 1e 00 00 00 1f 00 00 00 20 59 18 e3 21 00 00 00 22 00 00 00 23 00 00 00 24 00 00 00 25 00 00 00 26 00 00 00 27 00 00 00 28 00 00 00 29 00 00 00
+                         changed since last RX 55 14: [3] 38->70  [8] 0e->1c  [12] 0f->1d  [16] 10->1e  [20] 11->1f  [24] 12->20  [25] 00->59  [26] 00->18  [27] 00->e3  [28] 13->21  [32] 14->22  [36] 15->23  [40] 16->24  [44] 17->25  [48] 18->26  [52] 19->27  [56] 1a->28  [60] 1b->29
++   48244 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 a8  | +60 zero bytes
+                         changed since last TX aa 14: [3] 70->a8
++   48248 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 a8 00 00 00 00 2a 00 00 00 2b 00 00 00 2c 00 00 00 2d 00 00 00 2e 00 00 00 2f 00 00 00 30 00 00 00 31 00 00 00 32 00 00 00 33 00 00 00 34 00 00 00 35 00 00 00 36 00 00 00 37 00 00 00
+                         changed since last RX 55 14: [3] 70->a8  [8] 1c->2a  [12] 1d->2b  [16] 1e->2c  [20] 1f->2d  [24] 20->2e  [25] 59->00  [26] 18->00  [27] e3->00  [28] 21->2f  [32] 22->30  [36] 23->31  [40] 24->32  [44] 25->33  [48] 26->34  [52] 27->35  [56] 28->36  [60] 29->37
++   48248 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 e0  | +60 zero bytes
+                         changed since last TX aa 14: [3] a8->e0
++   48252 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 e0 00 00 00 00 38 00 00 00 39 00 00 00 3a 00 00 00 3b 00 00 00 3c 00 00 00 3d 00 00 00 3e 00 00 00 3f 00 00 00 40 00 00 00 41 00 00 00 42 00 00 00 43 00 00 00 44 00 00 00 45 00 00 00
+                         changed since last RX 55 14: [3] a8->e0  [8] 2a->38  [12] 2b->39  [16] 2c->3a  [20] 2d->3b  [24] 2e->3c  [28] 2f->3d  [32] 30->3e  [36] 31->3f  [40] 32->40  [44] 33->41  [48] 34->42  [52] 35->43  [56] 36->44  [60] 37->45
++   48252 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 18 01  | +59 zero bytes
+                         changed since last TX aa 14: [3] e0->18  [4] 00->01
++   48258 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 18 01 00 00 00 46 00 00 00 47 00 00 00 48 00 00 00 49 00 00 00 4a 00 00 00 4b 00 00 00 4c 00 00 00 4d 00 00 00 4e 00 00 00 4f 00 00 00 50 00 00 00 51 00 00 00 52 00 00 00 53 00 00 00
+                         changed since last RX 55 14: [3] e0->18  [4] 00->01  [8] 38->46  [12] 39->47  [16] 3a->48  [20] 3b->49  [24] 3c->4a  [28] 3d->4b  [32] 3e->4c  [36] 3f->4d  [40] 40->4e  [44] 41->4f  [48] 42->50  [52] 43->51  [56] 44->52  [60] 45->53
++   48258 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 50 01  | +59 zero bytes
+                         changed since last TX aa 14: [3] 18->50
++   48262 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 50 01 00 00 00 54 00 00 00 55 00 00 00 56 00 00 00 57 00 00 00 58 00 00 00 59 00 00 00 5a 00 00 00 5b 00 00 00 5c 00 00 00 5d 00 00 00 5e 00 00 00 5f 00 00 00 60 00 00 00 61 00 00 00
+                         changed since last RX 55 14: [3] 18->50  [8] 46->54  [12] 47->55  [16] 48->56  [20] 49->57  [24] 4a->58  [28] 4b->59  [32] 4c->5a  [36] 4d->5b  [40] 4e->5c  [44] 4f->5d  [48] 50->5e  [52] 51->5f  [56] 52->60  [60] 53->61
++   48262 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 88 01  | +59 zero bytes
+                         changed since last TX aa 14: [3] 50->88
++   48266 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 88 01 00 00 00 62 00 00 00 63 00 00 00 64 00 00 00 65 00 00 00 66 00 00 00 67 00 00 00 68 00 00 00 69 00 00 00 6a 00 00 00 6b 00 00 00 6c 00 00 00 6d 00 00 00 6e 00 00 00 6f 00 00 00
+                         changed since last RX 55 14: [3] 50->88  [8] 54->62  [12] 55->63  [16] 56->64  [20] 57->65  [24] 58->66  [28] 59->67  [32] 5a->68  [36] 5b->69  [40] 5c->6a  [44] 5d->6b  [48] 5e->6c  [52] 5f->6d  [56] 60->6e  [60] 61->6f
++   48266 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 c0 01  | +59 zero bytes
+                         changed since last TX aa 14: [3] 88->c0
++   48273 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 c0 01 00 00 00 70 00 00 00 71 00 00 00 72 00 00 00 73 00 00 00 74 00 00 00 75 00 00 00 76 00 00 00 77 00 00 00 78 00 00 00 79 00 00 00 7a 00 00 00 7b 00 00 00 7c 00 00 00 7d 00 00 00
+                         changed since last RX 55 14: [3] 88->c0  [8] 62->70  [12] 63->71  [16] 64->72  [20] 65->73  [24] 66->74  [28] 67->75  [32] 68->76  [36] 69->77  [40] 6a->78  [44] 6b->79  [48] 6c->7a  [52] 6d->7b  [56] 6e->7c  [60] 6f->7d
++   48274 ms  TX       dev #1  id 0x00  64 bytes  aa 14 08 f8 01 00 01  | +57 zero bytes
+                         changed since last TX aa 14: [2] 38->08  [3] c0->f8  [6] 00->01
++   48278 ms  RX       dev #1  id 0x00  64 bytes  55 14 08 f8 01 00 01 00 7e 00 00 00 7f  | +51 zero bytes
+                         changed since last RX 55 14: [2] 38->08  [3] c0->f8  [6] 00->01  [8] 70->7e  [12] 71->7f  [16] 72->00  [20] 73->00  [24] 74->00  [28] 75->00  [32] 76->00  [36] 77->00  [40] 78->00  [44] 79->00  [48] 7a->00  [52] 7b->00  [56] 7c->00  [60] 7d->00
+# scan list 1 (19 items) like div.common-btn-item.common-text label="Static" "Static" : Static | Custom | Single Point On | Single Point Off | Starry Sky | Snowfall | Blooming | Dynamic Breathing | Spectrum Cycle | Colorful Spring | Colorful Cross | Drifting | Peak Return | Instant Trigger | Ripple Spread | Flowing Stream | Mountain Layers | Gentle Rain | Shuttle
+# scan list 2 (7 items) like div.menu-name.common-text "Lighting Settings" : Lighting Settings | Trigger Settings | Pro Settings | Key Mapping | Advanced Key Settings | Performance Settings | Version Settings
+# scan list 3 (6 items) like div.menu-item.h-full.all-center label="Trigger Settings" "Trigger Settings" : Trigger Settings | Pro Settings | Key Mapping | Advanced Key Settings | Performance Settings | Version Settings
+
+=== AUTO-CLICK start: 19 items: Static | Custom | Single Point On | Single Point Off | Starry Sky | Snowfall | Blooming | Dynamic Breathing | Spectrum Cycle | Colorful Spring | Colorful Cross | Drifting | Peak Return | Instant Trigger | Ripple Spread | Flowing Stream | Mountain Layers | Gentle Rain | Shuttle  (could not tell which one was on) ===
+=== AUTO-CLICK 1/19: Static ===
++   59809 ms  UI      click   div.common-btn-item.common-text label="Static" "Static"  (auto)
++   60117 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 01 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
++   60150 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 01 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+=== AUTO-CLICK 2/19: Custom ===
++   61338 ms  UI      click   div.common-btn-item.common-text label="Custom" "Custom"  (auto)
++   61649 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 14 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 01->14
++   61681 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 14 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 01->14
++   61681 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38  | +61 zero bytes
+                         changed since last TX aa 14: [2] 08->38  [3] f8->00  [4] 01->00  [6] 01->00
++   61702 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 00 00 00 00 00 00 00 00 00 01 00 00 00 02 00 00 00 03 00 00 00 04 00 00 00 05 00 00 00 06 00 00 00 07 00 00 00 08 00 00 00 09 00 00 00 0a 00 00 00 0b 00 00 00 0c 00 00 00 0d 00 00 00
+                         changed since last RX 55 14: [2] 08->38  [3] f8->00  [4] 01->00  [6] 01->00  [8] 7e->00  [12] 7f->01  [16] 00->02  [20] 00->03  [24] 00->04  [28] 00->05  [32] 00->06  [36] 00->07  [40] 00->08  [44] 00->09  [48] 00->0a  [52] 00->0b  [56] 00->0c  [60] 00->0d
++   61702 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 38  | +60 zero bytes
+                         changed since last TX aa 14: [3] 00->38
++   61709 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 38 00 00 00 00 0e 00 00 00 0f 00 00 00 10 00 00 00 11 00 00 00 12 00 00 00 13 00 00 00 14 00 00 00 15 00 00 00 16 00 00 00 17 00 00 00 18 00 00 00 19 00 00 00 1a 00 00 00 1b 00 00 00
+                         changed since last RX 55 14: [3] 00->38  [8] 00->0e  [12] 01->0f  [16] 02->10  [20] 03->11  [24] 04->12  [28] 05->13  [32] 06->14  [36] 07->15  [40] 08->16  [44] 09->17  [48] 0a->18  [52] 0b->19  [56] 0c->1a  [60] 0d->1b
++   61709 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 70  | +60 zero bytes
+                         changed since last TX aa 14: [3] 38->70
++   61716 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 70 00 00 00 00 1c 00 00 00 1d 00 00 00 1e 00 00 00 1f 00 00 00 20 59 18 e3 21 00 00 00 22 00 00 00 23 00 00 00 24 00 00 00 25 00 00 00 26 00 00 00 27 00 00 00 28 00 00 00 29 00 00 00
+                         changed since last RX 55 14: [3] 38->70  [8] 0e->1c  [12] 0f->1d  [16] 10->1e  [20] 11->1f  [24] 12->20  [25] 00->59  [26] 00->18  [27] 00->e3  [28] 13->21  [32] 14->22  [36] 15->23  [40] 16->24  [44] 17->25  [48] 18->26  [52] 19->27  [56] 1a->28  [60] 1b->29
++   61716 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 a8  | +60 zero bytes
+                         changed since last TX aa 14: [3] 70->a8
++   61722 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 a8 00 00 00 00 2a 00 00 00 2b 00 00 00 2c 00 00 00 2d 00 00 00 2e 00 00 00 2f 00 00 00 30 00 00 00 31 00 00 00 32 00 00 00 33 00 00 00 34 00 00 00 35 00 00 00 36 00 00 00 37 00 00 00
+                         changed since last RX 55 14: [3] 70->a8  [8] 1c->2a  [12] 1d->2b  [16] 1e->2c  [20] 1f->2d  [24] 20->2e  [25] 59->00  [26] 18->00  [27] e3->00  [28] 21->2f  [32] 22->30  [36] 23->31  [40] 24->32  [44] 25->33  [48] 26->34  [52] 27->35  [56] 28->36  [60] 29->37
++   61722 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 e0  | +60 zero bytes
+                         changed since last TX aa 14: [3] a8->e0
++   61727 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 e0 00 00 00 00 38 00 00 00 39 00 00 00 3a 00 00 00 3b 00 00 00 3c 00 00 00 3d 00 00 00 3e 00 00 00 3f 00 00 00 40 00 00 00 41 00 00 00 42 00 00 00 43 00 00 00 44 00 00 00 45 00 00 00
+                         changed since last RX 55 14: [3] a8->e0  [8] 2a->38  [12] 2b->39  [16] 2c->3a  [20] 2d->3b  [24] 2e->3c  [28] 2f->3d  [32] 30->3e  [36] 31->3f  [40] 32->40  [44] 33->41  [48] 34->42  [52] 35->43  [56] 36->44  [60] 37->45
++   61727 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 18 01  | +59 zero bytes
+                         changed since last TX aa 14: [3] e0->18  [4] 00->01
++   61733 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 18 01 00 00 00 46 00 00 00 47 00 00 00 48 00 00 00 49 00 00 00 4a 00 00 00 4b 00 00 00 4c 00 00 00 4d 00 00 00 4e 00 00 00 4f 00 00 00 50 00 00 00 51 00 00 00 52 00 00 00 53 00 00 00
+                         changed since last RX 55 14: [3] e0->18  [4] 00->01  [8] 38->46  [12] 39->47  [16] 3a->48  [20] 3b->49  [24] 3c->4a  [28] 3d->4b  [32] 3e->4c  [36] 3f->4d  [40] 40->4e  [44] 41->4f  [48] 42->50  [52] 43->51  [56] 44->52  [60] 45->53
++   61733 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 50 01  | +59 zero bytes
+                         changed since last TX aa 14: [3] 18->50
++   61737 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 50 01 00 00 00 54 00 00 00 55 00 00 00 56 00 00 00 57 00 00 00 58 00 00 00 59 00 00 00 5a 00 00 00 5b 00 00 00 5c 00 00 00 5d 00 00 00 5e 00 00 00 5f 00 00 00 60 00 00 00 61 00 00 00
+                         changed since last RX 55 14: [3] 18->50  [8] 46->54  [12] 47->55  [16] 48->56  [20] 49->57  [24] 4a->58  [28] 4b->59  [32] 4c->5a  [36] 4d->5b  [40] 4e->5c  [44] 4f->5d  [48] 50->5e  [52] 51->5f  [56] 52->60  [60] 53->61
++   61737 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 88 01  | +59 zero bytes
+                         changed since last TX aa 14: [3] 50->88
++   61745 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 88 01 00 00 00 62 00 00 00 63 00 00 00 64 00 00 00 65 00 00 00 66 00 00 00 67 00 00 00 68 00 00 00 69 00 00 00 6a 00 00 00 6b 00 00 00 6c 00 00 00 6d 00 00 00 6e 00 00 00 6f 00 00 00
+                         changed since last RX 55 14: [3] 50->88  [8] 54->62  [12] 55->63  [16] 56->64  [20] 57->65  [24] 58->66  [28] 59->67  [32] 5a->68  [36] 5b->69  [40] 5c->6a  [44] 5d->6b  [48] 5e->6c  [52] 5f->6d  [56] 60->6e  [60] 61->6f
++   61745 ms  TX       dev #1  id 0x00  64 bytes  aa 14 38 c0 01  | +59 zero bytes
+                         changed since last TX aa 14: [3] 88->c0
++   61750 ms  RX       dev #1  id 0x00  64 bytes  55 14 38 c0 01 00 00 00 70 00 00 00 71 00 00 00 72 00 00 00 73 00 00 00 74 00 00 00 75 00 00 00 76 00 00 00 77 00 00 00 78 00 00 00 79 00 00 00 7a 00 00 00 7b 00 00 00 7c 00 00 00 7d 00 00 00
+                         changed since last RX 55 14: [3] 88->c0  [8] 62->70  [12] 63->71  [16] 64->72  [20] 65->73  [24] 66->74  [28] 67->75  [32] 68->76  [36] 69->77  [40] 6a->78  [44] 6b->79  [48] 6c->7a  [52] 6d->7b  [56] 6e->7c  [60] 6f->7d
++   61750 ms  TX       dev #1  id 0x00  64 bytes  aa 14 08 f8 01 00 01  | +57 zero bytes
+                         changed since last TX aa 14: [2] 38->08  [3] c0->f8  [6] 00->01
++   61755 ms  RX       dev #1  id 0x00  64 bytes  55 14 08 f8 01 00 01 00 7e 00 00 00 7f  | +51 zero bytes
+                         changed since last RX 55 14: [2] 38->08  [3] c0->f8  [6] 00->01  [8] 70->7e  [12] 71->7f  [16] 72->00  [20] 73->00  [24] 74->00  [28] 75->00  [32] 76->00  [36] 77->00  [40] 78->00  [44] 79->00  [48] 7a->00  [52] 7b->00  [56] 7c->00  [60] 7d->00
+=== AUTO-CLICK 3/19: Single Point On ===
++   62868 ms  UI      click   div.common-btn-item.common-text label="Single Point On" "Single Point On"  (auto)
++   63181 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 02 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 14->02
++   63213 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 02 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 14->02
+=== AUTO-CLICK 4/19: Single Point Off ===
++   64397 ms  UI      click   div.common-btn-item.common-text label="Single Point Off" "Single Point Off"  (auto)
++   64708 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 03 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 02->03
++   64740 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 03 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 02->03
+=== AUTO-CLICK 5/19: Starry Sky ===
++   65917 ms  UI      click   div.common-btn-item.common-text label="Starry Sky" "Starry Sky"  (auto)
++   66230 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 04 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 03->04
++   66261 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 04 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 03->04
+=== AUTO-CLICK 6/19: Snowfall ===
++   67446 ms  UI      click   div.common-btn-item.common-text label="Snowfall" "Snowfall"  (auto)
++   67749 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 05 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 04->05
++   67780 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 05 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 04->05
+=== AUTO-CLICK 7/19: Blooming ===
++   68995 ms  UI      click   div.common-btn-item.common-text label="Blooming" "Blooming"  (auto)
++   69311 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 06 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 05->06
++   69342 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 06 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 05->06
+=== AUTO-CLICK 8/19: Dynamic Breathing ===
++   70518 ms  UI      click   div.common-btn-item.common-text label="Dynamic Breathing" "Dynamic Breathing"  (auto)
++   70828 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 07 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 06->07
++   70860 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 07 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 06->07
+=== AUTO-CLICK 9/19: Spectrum Cycle ===
++   72044 ms  UI      click   div.common-btn-item.common-text label="Spectrum Cycle" "Spectrum Cycle"  (auto)
++   72356 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 08 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 07->08
++   72388 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 08 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 07->08
+=== AUTO-CLICK 10/19: Colorful Spring ===
++   73571 ms  UI      click   div.common-btn-item.common-text label="Colorful Spring" "Colorful Spring"  (auto)
++   73876 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 09 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 08->09
++   73908 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 09 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 08->09
+=== AUTO-CLICK 11/19: Colorful Cross ===
++   75081 ms  UI      click   div.common-btn-item.common-text label="Colorful Cross" "Colorful Cross"  (auto)
++   75392 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 0a 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 09->0a
++   75426 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 0a 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 09->0a
+=== AUTO-CLICK 12/19: Drifting ===
++   76597 ms  UI      click   div.common-btn-item.common-text label="Drifting" "Drifting"  (auto)
++   76908 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 0b 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 0a->0b
++   76941 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 0b 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 0a->0b
+=== AUTO-CLICK 13/19: Peak Return ===
++   78124 ms  UI      click   div.common-btn-item.common-text label="Peak Return" "Peak Return"  (auto)
++   78439 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 0c 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 0b->0c
++   78470 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 0c 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 0b->0c
+=== AUTO-CLICK 14/19: Instant Trigger ===
++   79634 ms  UI      click   div.common-btn-item.common-text label="Instant Trigger" "Instant Trigger"  (auto)
++   79937 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 0d 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 0c->0d
++   79969 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 0d 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 0c->0d
+=== AUTO-CLICK 15/19: Ripple Spread ===
++   81150 ms  UI      click   div.common-btn-item.common-text label="Ripple Spread" "Ripple Spread"  (auto)
++   81456 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 0f 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 0d->0f
++   81487 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 0f 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 0d->0f
+=== AUTO-CLICK 16/19: Flowing Stream ===
++   82672 ms  UI      click   div.common-btn-item.common-text label="Flowing Stream" "Flowing Stream"  (auto)
++   82989 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 10 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 0f->10
++   83022 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 10 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 0f->10
+=== AUTO-CLICK 17/19: Mountain Layers ===
++   84198 ms  UI      click   div.common-btn-item.common-text label="Mountain Layers" "Mountain Layers"  (auto)
++   84505 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 11 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 10->11
++   84538 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 11 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 10->11
+=== AUTO-CLICK 18/19: Gentle Rain ===
++   85711 ms  UI      click   div.common-btn-item.common-text label="Gentle Rain" "Gentle Rain"  (auto)
++   86021 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 12 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 11->12
++   86054 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 12 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 11->12
+=== AUTO-CLICK 19/19: Shuttle ===
++   87232 ms  UI      click   div.common-btn-item.common-text label="Shuttle" "Shuttle"  (auto)
++   87536 ms  TX       dev #1  id 0x00  64 bytes  aa 23 10 00 00 00 01 00 13 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last TX aa 23: [8] 12->13
++   87567 ms  RX       dev #1  id 0x00  64 bytes  55 23 10 00 00 00 01 00 13 90 ee 90 ff 00 00 00 01 03 03 00 00 00 aa 55  | +40 zero bytes
+                         changed since last RX 55 23: [8] 12->13
+=== AUTO-CLICK end ===

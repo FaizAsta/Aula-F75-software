@@ -1,12 +1,16 @@
 'use strict';
 
 /*
- * Per-key colours must survive a lighting change made on another page.
+ * Per-key colours must survive a lighting change made on another page, and the brightness level must dim them.
  *
  * Reported on the F75: paint keys, Apply (they light), then change the brightness on the Lighting page (the Per-key page has no
  * brightness control) and Apply: the whole keyboard went dark and the colours were gone until the keys were painted again.
  * A config sent on its own while Per-key is the effect shows nothing, so the colours now go out with it. The same holds for
  * every model (F75, F75 Pro, F87 share the protocol) on the 2.4G dongle and the USB-C cable, and for a sleep-time change.
+ *
+ * Reported later: with Per-key as the effect the brightness level had no effect, the keys stayed at full strength at 0, 1 or any
+ * level. The firmware ignores the per-key effect's brightness byte, so the app applies the level to the colours it sends: the
+ * keyboard holds the colours dimmed, the app keeps (and shows, and remembers) the colours at full strength.
  */
 
 const test = require('node:test');
@@ -23,6 +27,8 @@ const { CableKeyboard } = require('./fake-cable.js');
 const RED = [255, 0, 0];
 const ledsOf = (model) => model.keys.slice(0, 3).map((k) => k.led);
 const planar = (colors, led) => [colors[led], colors[led + 126], colors[led + 252]];
+const LEVELS = 4; // the app starts with four brightness levels
+const dim = (rgb, level) => rgb.map((v) => Math.round((v * level) / LEVELS));
 
 async function withCable(model, kbOpts, body, storage = memoryStorage()) {
   const [hid, restore] = installFakeHid();
@@ -56,15 +62,22 @@ for (const m of L.MODELS) {
       assert.equal(P.getMode(kb.led), P.MODE_CUSTOM);
       assert.equal(P.getBrightness(kb.led, P.effectOf(P.MODE_CUSTOM)), 2);
       assert.equal(kb.perKeyLit, true, 'still lit after the brightness change');
-      for (const led of leds) assert.deepEqual(planar(kb.colors, led), RED, `LED ${led} keeps its colour`);
+      for (const led of leds) {
+        assert.deepEqual(planar(kb.colors, led), dim(RED, 2), `LED ${led} is at half strength on the keyboard`);
+        assert.deepEqual(planar(s.cur.colors, led), RED, `LED ${led} is still the painted colour in the app`);
+      }
       assert.equal(s.dirty, false);
 
-      // And again, in both directions: every change from the Lighting page keeps them.
+      // And again, in both directions: every change from the Lighting page keeps them lit, at the level chosen.
       for (const level of [4, 1, 3]) {
         s.setBrightness(level);
         assert.equal((await s.apply()).ok, true);
         assert.equal(kb.perKeyLit, true, `lit at level ${level}`);
         assert.equal(P.getBrightness(kb.led, P.effectOf(P.MODE_CUSTOM)), level);
+        for (const led of leds) {
+          assert.deepEqual(planar(kb.colors, led), dim(RED, level), `LED ${led} at level ${level}`);
+          assert.deepEqual(planar(s.cur.colors, led), RED, 'the app keeps the full colour, so going up again brings it back');
+        }
       }
     });
   });
@@ -97,7 +110,8 @@ for (const m of L.MODELS) {
       assert.equal(r.ok, true);
       assert.equal(r.colorsResent, true);
       assert.ok(kb.sent.some((p) => p[1] === P.CMD.SET_COLORS), 'the colour block is sent with the config');
-      assert.deepEqual(Array.from(kb.colors), Array.from(painted), 'the colours are unchanged');
+      assert.deepEqual(Array.from(kb.colors), Array.from(P.dimColors(painted, 0.5)), 'the colours go out at half strength');
+      assert.deepEqual(Array.from(s.cur.colors), Array.from(painted), 'the app keeps them at full strength');
       assert.equal(P.getMode(kb.led), P.MODE_CUSTOM);
       assert.equal(P.getBrightness(kb.led, P.effectOf(P.MODE_CUSTOM)), 2);
     } finally {
@@ -142,7 +156,7 @@ test('cable that cannot hand over the colours: the ones this app wrote are sent 
     assert.equal(r.colorsResent, true);
     assert.equal(r.colorsMissing, false);
     assert.equal(kb.perKeyLit, true);
-    for (const led of leds) assert.deepEqual(planar(kb.colors, led), RED);
+    for (const led of leds) assert.deepEqual(planar(kb.colors, led), dim(RED, 2), 'dimmed by the level even though they cannot be read back');
   });
 });
 
@@ -163,7 +177,7 @@ test('cable that cannot hand over the colours: after the app is closed and opene
     const r = await s.apply();
     assert.equal(r.colorsResent, true);
     assert.equal(kb.perKeyLit, true);
-    for (const led of leds) assert.deepEqual(planar(kb.colors, led), RED);
+    for (const led of leds) assert.deepEqual(planar(kb.colors, led), dim(RED, 2), 'the remembered full-strength colours, dimmed');
   }, storage);
 });
 
@@ -195,4 +209,122 @@ test('the demo keyboard never stores per-key colours for the real keyboard', asy
   } finally {
     s.disconnect();
   }
+});
+
+for (const m of L.MODELS) {
+  test(`${m.id}: at brightness 0 the per-key keys go dark, and the colours come back at a higher level`, async () => {
+    await withCable(m, {}, async ({ kb, s }) => {
+      const leds = ledsOf(m);
+      s.paintKeys(leds, RED);
+      await s.apply();
+      s.setBrightness(0);
+      assert.equal((await s.apply()).ok, true);
+      assert.equal(kb.colors.every((v) => v === 0), true, 'every key is dark at level 0');
+      for (const led of leds) assert.deepEqual(planar(s.cur.colors, led), RED, 'the painted colours are not lost');
+      s.setBrightness(4);
+      assert.equal((await s.apply()).ok, true);
+      for (const led of leds) assert.deepEqual(planar(kb.colors, led), RED, 'full strength again');
+    });
+  });
+}
+
+test('painting keys while the brightness is lowered sends them dimmed, and the app still holds what was painted', async () => {
+  await withCable(L.MODELS[0], {}, async ({ kb, s }) => {
+    const leds = ledsOf(L.MODELS[0]);
+    s.paintKeys(leds, RED);
+    await s.apply();
+    s.setBrightness(1);
+    await s.apply();
+    const more = L.MODELS[0].keys.slice(3, 5).map((k) => k.led);
+    s.paintKeys(more, [0, 200, 100]);
+    const r = await s.apply();
+    assert.equal(r.ok, true);
+    for (const led of leds) assert.deepEqual(planar(kb.colors, led), dim(RED, 1));
+    for (const led of more) {
+      assert.deepEqual(planar(kb.colors, led), dim([0, 200, 100], 1));
+      assert.deepEqual(planar(s.cur.colors, led), [0, 200, 100]);
+    }
+    assert.equal(s.dirty, false, 'nothing is left waiting to be applied');
+  });
+});
+
+test('after the app is opened again the colours show at full strength, not as the dimmed copy the keyboard holds', async () => {
+  const storage = memoryStorage();
+  const model = L.MODELS[0];
+  const leds = ledsOf(model);
+  let held;
+  await withCable(model, {}, async ({ kb, s }) => {
+    s.paintKeys(leds, RED);
+    await s.apply();
+    s.setBrightness(2);
+    await s.apply();
+    held = kb.colors.slice();
+  }, storage);
+
+  await withCable(model, {}, async ({ kb, s }) => {
+    kb.colors = held.slice();
+    kb.led[P.OFF.MODE] = P.MODE_CUSTOM;
+    P.setBrightness(kb.led, P.effectOf(P.MODE_CUSTOM), 2);
+    await s.refresh();
+    for (const led of leds) assert.deepEqual(planar(s.cur.colors, led), RED, 'the painted colour, not half of it');
+    assert.equal(s.dirty, false);
+    // Raising the level from here reaches full strength: the dimmed copy has not become the colour.
+    s.setBrightness(4);
+    assert.equal((await s.apply()).ok, true);
+    for (const led of leds) assert.deepEqual(planar(kb.colors, led), RED);
+  }, storage);
+});
+
+test('colours that something else put on the keyboard are taken as they are', async () => {
+  const storage = memoryStorage();
+  const model = L.MODELS[0];
+  const leds = ledsOf(model);
+  await withCable(model, {}, async ({ kb, s }) => {
+    s.paintKeys(leds, RED);
+    await s.apply();
+    s.setBrightness(2);
+    await s.apply();
+    const other = kb.colors.slice();
+    for (const led of leds) {
+      other[led] = 10;
+      other[led + 126] = 20;
+      other[led + 252] = 30;
+    }
+    kb.colors = other;
+    await s.refresh();
+    for (const led of leds) assert.deepEqual(planar(s.cur.colors, led), [10, 20, 30], 'not replaced by the red the app remembers');
+  }, storage);
+});
+
+test('a brightness change on the Lighting page for another effect leaves the per-key colours alone', async () => {
+  await withCable(L.MODELS[0], {}, async ({ kb, s }) => {
+    const leds = ledsOf(L.MODELS[0]);
+    s.paintKeys(leds, RED);
+    await s.apply();
+    s.setBrightness(2);
+    await s.apply();
+    const held = kb.colors.slice();
+    assert.ok(s.setEffect(3));
+    s.setBrightness(1);
+    const r = await s.apply();
+    assert.equal(r.ok, true);
+    assert.equal(r.colorsResent, false);
+    assert.deepEqual(Array.from(kb.colors), Array.from(held), 'the colours on the keyboard are untouched');
+    for (const led of leds) assert.deepEqual(planar(s.cur.colors, led), RED, 'and the app still has them at full strength');
+  });
+});
+
+test('protocol: levelShare and dimColors', () => {
+  assert.equal(P.levelShare(0, 4), 0);
+  assert.equal(P.levelShare(2, 4), 0.5);
+  assert.equal(P.levelShare(4, 4), 1);
+  assert.equal(P.levelShare(9, 4), 1, 'never brighter than full');
+  assert.equal(P.levelShare(-1, 4), 0);
+  assert.equal(P.levelShare(3, 6), 0.5, 'follows the number of levels the keyboard has');
+  const src = Uint8Array.from([0, 100, 255]);
+  assert.deepEqual(Array.from(P.dimColors(src, 0.5)), [0, 50, 128]);
+  assert.deepEqual(Array.from(P.dimColors(src, 0)), [0, 0, 0]);
+  const full = P.dimColors(src, 1);
+  assert.deepEqual(Array.from(full), Array.from(src));
+  assert.notEqual(full, src, 'always a copy');
 });

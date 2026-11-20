@@ -16,3 +16,7 @@ KERNEL=="hidraw*", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="010c", TAG+="uacc
 KERNEL=="hidraw*", ATTRS{idVendor}=="0c45", ATTRS{idProduct}=="800a", TAG+="uaccess"
 # Other AULA 2.4G dongle
 KERNEL=="hidraw*", ATTRS{idVendor}=="05ac", ATTRS{idProduct}=="024f", TAG+="uaccess"
+# F75 HE (Hall effect) over USB-C
+KERNEL=="hidraw*", ATTRS{idVendor}=="38a6", ATTRS{idProduct}=="2729", TAG+="uaccess"
+# F75 HE 2.4G dongle (shared with other AULA Hall-effect keyboards)
+KERNEL=="hidraw*", ATTRS{idVendor}=="0c45", ATTRS{idProduct}=="fefe", TAG+="uaccess"

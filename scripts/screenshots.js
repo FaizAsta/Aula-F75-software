@@ -17,7 +17,8 @@
  * for it is installed before the page starts (settings, window buttons, updates). Keyboards are simulated:
  *   - the built-in Demo keyboard,
  *   - the 2.4G dongle, the USB-C cable and a sleeping keyboard, built from the same fakes the tests use (test/fake-*.js),
- *   - an F75 Max (fake-max.js).
+ *   - an F75 Max (fake-max.js),
+ *   - an F75 HE on its 2.4G dongle (the simulated keyboard in src/js/he.js, behind the same HID surface a real one has).
  * No keyboard, no Electron and no Windows are needed. The pictures show a simulated keyboard, never real hardware.
  *
  * Environment: CHROMIUM_PATH = a Chromium / Chrome executable to use instead of Playwright's own browser.
@@ -176,6 +177,10 @@ function pageSetup(cfg, fakes) {
       const list = [new FakeCable(), new FakeDongle({ percent: 77 })];
       return { getDevices: async () => list.slice(), addEventListener() {}, removeEventListener() {}, requestDevice: async () => [] };
     }
+    if (cfg.scenario === 'he') {
+      const list = [new window.AulaHe.SimKeyboard({ frame: 32, percent: 64 })];
+      return { getDevices: async () => list.slice(), addEventListener() {}, removeEventListener() {}, requestDevice: async () => [] };
+    }
     const { FakeHid, SilentBackend, DONGLE, CABLE } = load('fake-hid');
     const { CableKeyboard } = load('fake-cable');
     const h = new FakeHid();
@@ -251,8 +256,15 @@ async function open(scenario = 'demo', { theme = 'dark', model = 'f75', demo, ex
 /** Start -> device list -> pick the card whose text matches -> the main screen. */
 async function enter(page, card = /Demo keyboard/, { ready = true } = {}) {
   await page.click('#hmStart');
-  await page.waitForSelector('#hmList .hm-dev');
+  const wantsDemo = /demo/i.test(card instanceof RegExp ? card.source : String(card));
+  await page.waitForSelector(wantsDemo ? '#hmDemos' : '#hmList .hm-dev');
   await wait(500);
+  // The simulated keyboards sit behind the small "Demo keyboards" button beside Search again: it is pressed first.
+  if (wantsDemo) {
+    await page.click('#hmDemos');
+    await page.waitForFunction(() => document.getElementById('hmTitle').textContent === 'Demo keyboards');
+    await wait(400);
+  }
   await page.locator('#hmList .hm-dev', { hasText: card }).first().click();
   await page.waitForFunction(() => document.querySelector('.shell').dataset.screen === 'app');
   if (ready) await page.waitForFunction(() => window.aulaApp.session.ready || (window.aulaApp.max && window.aulaApp.max.active()), null, { timeout: 15000 });
@@ -328,10 +340,24 @@ const SHOTS = {
     const page = await open('charging');
     await page.click('#hmStart');
     await page.waitForSelector('#hmList .hm-dev');
-    await page.waitForFunction(() => document.querySelectorAll('#hmList .hm-dev').length >= 3, null, { timeout: 15000 });
+    await page.waitForFunction(() => document.querySelectorAll('#hmList .hm-dev').length >= 2, null, { timeout: 15000 });
     await wait(1800);
     await snap(page, 'devices');
     check(page, 'devices');
+    await page.ctx.close();
+  },
+
+  // The small Demo keyboards button beside Search again opens a list of the simulated keyboards.
+  async 'demo-keyboards'() {
+    const page = await open('charging');
+    await page.click('#hmStart');
+    await page.waitForSelector('#hmDemos');
+    await wait(500);
+    await page.click('#hmDemos');
+    await page.waitForFunction(() => document.querySelectorAll('#hmList .hm-dev').length === 3 && document.getElementById('hmTitle').textContent === 'Demo keyboards');
+    await wait(1800);
+    await snap(page, 'demo-keyboards');
+    check(page, 'demo-keyboards');
     await page.ctx.close();
   },
 
@@ -580,6 +606,24 @@ const SHOTS = {
     // Known and harmless: while the Max screen is up, the hidden F75 preview is resized to nothing and boardart.js's
     // roundRect() is given a negative radius (arcTo throws). Nothing on screen is affected.
     check(page, 'max', /arcTo/);
+    await page.ctx.close();
+  },
+
+  // The F75 HE (experimental): a simulated one on its 2.4G dongle, found and opened the way a real one is.
+  async he() {
+    const page = await open('he');
+    await enter(page, /F75 HE/i);
+    await wait(800);
+    await snap(page, 'he');
+    await tab(page, 'perkey');
+    await page.click('#mxFillAll');
+    await wait(700);
+    await snap(page, 'he-perkey');
+    await tab(page, 'keys');
+    await wait(500);
+    await snap(page, 'he-keyboard');
+    // Known and harmless: see the max scene (the hidden F75 preview's roundRect() is given a negative radius).
+    check(page, 'he', /arcTo/);
     await page.ctx.close();
   },
 

@@ -148,6 +148,11 @@
     { id: 'wired', vid: 0x258a, pid: 0x010c, label: 'USB-C cable', link: 'wired', family: 'f75', supported: true },
     { id: 'max-wired', vid: 0x0c45, pid: 0x800a, label: 'AULA F75 Max, USB-C (0c45:800a)', link: 'wired', family: 'max', supported: true },
     { id: 'max-dongle', vid: 0x05ac, pid: 0x024f, label: 'AULA F75 Max, 2.4G dongle (05ac:024f)', link: 'dongle', family: 'max', supported: true },
+    // The F75 HE (Hall effect) is a third family: AULA's "HFD" boards, whose protocol lives in he.js. Its USB-C ids are its own;
+    // the 2.4G receiver is shared with the MINI 60 / 68 HE Pro, so a device on 0c45:fefe is only treated as an F75 HE after its
+    // USB product name says so (see heModel) or the keyboard itself says so (it names its own USB ids in its first reply).
+    { id: 'he-wired', vid: 0x38a6, pid: 0x2729, label: 'AULA F75 HE, USB-C (38a6:2729)', link: 'wired', family: 'he', supported: true },
+    { id: 'he-dongle', vid: 0x0c45, pid: 0xfefe, label: 'AULA F75 HE, 2.4G dongle (0c45:fefe)', link: 'dongle', family: 'he', supported: true },
   ];
 
   const MAX_NAME = /f75\s*-?\s*max/i;
@@ -161,6 +166,19 @@
   const maxModel = (name) => {
     const n = String(name || '');
     return MAX_NAME.test(n) ? 'max' : OTHER_NAME.test(n) ? 'other' : 'unknown';
+  };
+
+  const HE_NAME = /f75\s*-?\s*he/i;
+  const OTHER_HE_NAME = /mini\s*-?\s*\d+|win\s*-?\s*\d+|hero\s*-?\s*\d+|\b(60|68|84)\s*-?\s*he\b/i;
+
+  /**
+   * What a device on the F75 HE's shared 2.4G receiver ids says it is: 'he' (its product name is the F75 HE), 'other' (the
+   * name of a MINI / WIN / HERO Hall-effect model that shares the receiver ids and is not driven by this app) or 'unknown'
+   * (a name that says neither way: the app asks the person before it writes anything).
+   */
+  const heModel = (name) => {
+    const n = String(name || '');
+    return HE_NAME.test(n) ? 'he' : OTHER_HE_NAME.test(n) ? 'other' : 'unknown';
   };
 
   const deviceFor = (vid, pid) => DEVICES.find((d) => d.vid === vid && d.pid === pid) || null;
@@ -306,6 +324,26 @@
     if (!effect || effect.slot < 0) return;
     const o = slotByte(effect.slot, 1);
     led[o] = (clamp(Math.round(v), 0, LEVEL_MAX) << 4) | (led[o] & 0x0f);
+  }
+
+  /**
+   * The per-key effect has a brightness byte like every other effect (slot 18), but the firmware does not apply it to the per-key
+   * colours: whatever level is stored, the keys show their colours at full strength. So the app applies the level itself, to the
+   * colours it sends. `levelShare` is the part of full brightness a level stands for (level 0 is dark, the top level is full),
+   * and `dimColors` returns a copy of a colour block with every byte scaled by it. The block is planar (all red, all green, all
+   * blue), but a scale is the same for every byte, so the layout does not matter.
+   */
+  function levelShare(level, levels) {
+    const n = Math.max(1, Math.round(Number(levels) || LEVEL_MAX));
+    const v = Number(level);
+    return Number.isFinite(v) ? clamp(v / n, 0, 1) : 1;
+  }
+
+  function dimColors(colors, share) {
+    const out = new Uint8Array(colors.length);
+    const k = clamp(Number.isFinite(share) ? share : 1, 0, 1);
+    for (let i = 0; i < colors.length; i++) out[i] = k >= 1 ? colors[i] : clamp(Math.round(colors[i] * k), 0, 255);
+    return out;
   }
 
   /** 0..6 selects a palette entry, 7 means multicolour. */
@@ -542,9 +580,9 @@
     FEATURE_ID, FEATURE_LEN, FEATURE_HEAD, WIRE, buildFeature, parseFeature, DEFAULT_PALETTE, defaultRgb, defaultColors,
     FACTORY, factoryLed, factoryRgb,
     REPORT_ID, PACKET_LEN, CHUNK, LED_SIZE, CMD, OFF, MODE_CUSTOM, MODE_OFF, LEVEL_MAX, BRIGHT_CAP, PALETTE_SLOTS, MULTICOLOR,
-    DEVICES, deviceFor, maxModel, EFFECTS, EFFECT_OFF, effectOf, SLEEP_OPTIONS,
+    DEVICES, deviceFor, maxModel, heModel, EFFECTS, EFFECT_OFF, effectOf, SLEEP_OPTIONS,
     checksum, buildPacket, normalizeInput, parseFragment, splitChunks, joinParts,
-    isValidLed, slotByte, getMode, setMode, getBrightness, setBrightness, getSpeed, setSpeed,
+    isValidLed, slotByte, getMode, setMode, getBrightness, setBrightness, levelShare, dimColors, getSpeed, setSpeed,
     getColorIndex, setColorIndex, effectiveColorIndex, settleColor, prepareLedForWrite, editsColour, keepLedFor, sameLed, buildSave,
     getSleepValue, setSleepValue,
     palOffset, getPaletteColor, setPaletteColor, ledCount, getKeyColor, setKeyColor,

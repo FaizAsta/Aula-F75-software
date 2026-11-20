@@ -1,0 +1,159 @@
+AULA F75 HE probe report (read-only)  tool version 1
+date: 2026-11-17T09:07:26.383Z
+browser: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36
+platform: Win32
+connection said by the person: 2.4G dongle
+notes from the person: -
+requests this tool can send: 0x10 info, 0x13 lighting, 0x14 key colours (F75 HE style); 0x4a status (F75 dongle style); 0x84 lighting read on feature report 6 (F75 cable style). Nothing else.
+
+SUMMARY (the keyboard answered the F75 HE requests and names the expected ids)
+  [good] [1] AULA F75 HE Dongle (0c45:fefe): answers the F75 HE info request (32-byte frames). It names itself 38a6:2729, firmware V1.55, battery 100%.
+  [warn] Lighting block read: mode 19, brightness 5, but the trailer is not aa 55, so the layout may differ.
+  [good] Per-key table read: 126 of 126 records have the expected layout, 1 keys lit.
+  [info] [2] AULA F75 HE Dongle (0c45:fefe): has a vendor channel, but not one of the shape the F75 HE requests need, so they were not sent. The layout is in the report.
+  [bad] [2] AULA F75 HE Dongle (0c45:fefe): opened fine but answered none of the requests. On 2.4G, press a key to wake the keyboard and run again.
+  [info] [3] AULA F75 HE Dongle (0c45:fefe): has a vendor channel, but not one of the shape the F75 HE requests need, so they were not sent. The layout is in the report.
+  [bad] [3] AULA F75 HE Dongle (0c45:fefe): opened fine but answered none of the requests. On 2.4G, press a key to wake the keyboard and run again.
+
+DETAILS
+
+=== Device 1 of 3: "AULA F75 HE Dongle"  USB id 0c45:fefe ===
+already open before the scan: no
+interfaces the keyboard publishes:
+  usage page 0xff60, usage 0x0061 [vendor]   in 0x00:32B  out 0x00:32B
+opened. Listening for 1200 ms before asking anything...
+--- F75 HE style requests, 32-byte frames ---
+  + 1225 ms  TX  id 0x00  32 bytes  INFO page 1/3
+        aa 10 18 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1675 ms  RX  id 0x00  32 bytes  55 10 18 00 00 00 00 00 00 00 00 12 a6 38 29 27 55 01 00 00 11 00 0f 00 02 64 00 00 00 00 00 00
+  + 1676 ms  TX  id 0x00  32 bytes  INFO page 2/3
+        aa 10 18 18 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1688 ms  RX  id 0x00  32 bytes  55 10 18 18 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1688 ms  TX  id 0x00  32 bytes  INFO page 3/3
+        aa 10 08 30 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1700 ms  RX  id 0x00  32 bytes  55 10 08 30 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+info block (56 bytes):
+    0000  00 00 00 12 a6 38 29 27 55 01 00 00 11 00 0f 00
+    0010  02 64 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    0020  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+    0030  00 00 00 00 00 00 00 00
+decoded: names itself 38a6:2729, firmware V1.55, battery 100%  -> matches the F75 HE ids the app expects
+  + 1701 ms  TX  id 0x00  32 bytes  LIGHTING page 1/1
+        aa 13 10 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1715 ms  RX  id 0x00  32 bytes  55 13 10 00 00 00 01 00 13 ff ff ff 00 00 00 00 01 05 04 00 00 00 00 00 00 00 00 00 00 00 00 00
+lighting block (16 bytes):
+    0000  13 ff ff ff 00 00 00 00 01 05 04 00 00 00 00 00
+decoded: mode 19, colour 255,255,255, brightness 5, speed 4, trailer 00 00  (expected trailer aa 55)
+  + 1716 ms  TX  id 0x00  32 bytes  KEY COLOURS page 1/21
+        aa 14 18 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1728 ms  RX  id 0x00  32 bytes  55 14 18 00 00 00 00 00 00 00 00 00 01 00 00 00 02 00 00 00 03 00 00 00 04 00 00 00 05 00 00 00
+  + 1728 ms  TX  id 0x00  32 bytes  KEY COLOURS page 2/21
+        aa 14 18 18 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1742 ms  RX  id 0x00  32 bytes  55 14 18 18 00 00 00 00 06 00 00 00 07 00 00 00 08 00 00 00 09 00 00 00 0a 00 00 00 0b 00 00 00
+  + 1743 ms  TX  id 0x00  32 bytes  KEY COLOURS page 3/21
+        aa 14 18 30 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1756 ms  RX  id 0x00  32 bytes  55 14 18 30 00 00 00 00 0c 00 00 00 0d 00 00 00 0e 00 00 00 0f 00 00 00 10 00 00 00 11 00 00 00
+  + 1757 ms  TX  id 0x00  32 bytes  KEY COLOURS page 4/21
+        aa 14 18 48 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1770 ms  RX  id 0x00  32 bytes  55 14 18 48 00 00 00 00 12 00 00 00 13 00 00 00 14 00 00 00 15 00 00 00 16 00 00 00 17 00 00 00
+  + 1770 ms  TX  id 0x00  32 bytes  KEY COLOURS page 5/21
+        aa 14 18 60 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1783 ms  RX  id 0x00  32 bytes  55 14 18 60 00 00 00 00 18 00 00 00 19 00 00 00 1a 00 00 00 1b 00 00 00 1c 00 00 00 1d 00 00 00
+  + 1784 ms  TX  id 0x00  32 bytes  KEY COLOURS page 6/21
+        aa 14 18 78 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1800 ms  RX  id 0x00  32 bytes  55 14 18 78 00 00 00 00 1e 00 00 00 1f 00 00 00 20 59 18 e3 21 00 00 00 22 00 00 00 23 00 00 00
+  + 1800 ms  TX  id 0x00  32 bytes  KEY COLOURS page 7/21
+        aa 14 18 90 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1815 ms  RX  id 0x00  32 bytes  55 14 18 90 00 00 00 00 24 00 00 00 25 00 00 00 26 00 00 00 27 00 00 00 28 00 00 00 29 00 00 00
+  + 1816 ms  TX  id 0x00  32 bytes  KEY COLOURS page 8/21
+        aa 14 18 a8 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1828 ms  RX  id 0x00  32 bytes  55 14 18 a8 00 00 00 00 2a 00 00 00 2b 00 00 00 2c 00 00 00 2d 00 00 00 2e 00 00 00 2f 00 00 00
+  + 1829 ms  TX  id 0x00  32 bytes  KEY COLOURS page 9/21
+        aa 14 18 c0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1842 ms  RX  id 0x00  32 bytes  55 14 18 c0 00 00 00 00 30 00 00 00 31 00 00 00 32 00 00 00 33 00 00 00 34 00 00 00 35 00 00 00
+  + 1842 ms  TX  id 0x00  32 bytes  KEY COLOURS page 10/21
+        aa 14 18 d8 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1856 ms  RX  id 0x00  32 bytes  55 14 18 d8 00 00 00 00 36 00 00 00 37 00 00 00 38 00 00 00 39 00 00 00 3a 00 00 00 3b 00 00 00
+  + 1857 ms  TX  id 0x00  32 bytes  KEY COLOURS page 11/21
+        aa 14 18 f0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1870 ms  RX  id 0x00  32 bytes  55 14 18 f0 00 00 00 00 3c 00 00 00 3d 00 00 00 3e 00 00 00 3f 00 00 00 40 00 00 00 41 00 00 00
+  + 1871 ms  TX  id 0x00  32 bytes  KEY COLOURS page 12/21
+        aa 14 18 08 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1884 ms  RX  id 0x00  32 bytes  55 14 18 08 01 00 00 00 42 00 00 00 43 00 00 00 44 00 00 00 45 00 00 00 46 00 00 00 47 00 00 00
+  + 1885 ms  TX  id 0x00  32 bytes  KEY COLOURS page 13/21
+        aa 14 18 20 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1899 ms  RX  id 0x00  32 bytes  55 14 18 20 01 00 00 00 48 00 00 00 49 00 00 00 4a 00 00 00 4b 00 00 00 4c 00 00 00 4d 00 00 00
+  + 1900 ms  TX  id 0x00  32 bytes  KEY COLOURS page 14/21
+        aa 14 18 38 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1911 ms  RX  id 0x00  32 bytes  55 14 18 38 01 00 00 00 4e 00 00 00 4f 00 00 00 50 00 00 00 51 00 00 00 52 00 00 00 53 00 00 00
+  + 1912 ms  TX  id 0x00  32 bytes  KEY COLOURS page 15/21
+        aa 14 18 50 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1928 ms  RX  id 0x00  32 bytes  55 14 18 50 01 00 00 00 54 00 00 00 55 00 00 00 56 00 00 00 57 00 00 00 58 00 00 00 59 00 00 00
+  + 1929 ms  TX  id 0x00  32 bytes  KEY COLOURS page 16/21
+        aa 14 18 68 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1944 ms  RX  id 0x00  32 bytes  55 14 18 68 01 00 00 00 5a 00 00 00 5b 00 00 00 5c 00 00 00 5d 00 00 00 5e 00 00 00 5f 00 00 00
+  + 1945 ms  TX  id 0x00  32 bytes  KEY COLOURS page 17/21
+        aa 14 18 80 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1958 ms  RX  id 0x00  32 bytes  55 14 18 80 01 00 00 00 60 00 00 00 61 00 00 00 62 00 00 00 63 00 00 00 64 00 00 00 65 00 00 00
+  + 1959 ms  TX  id 0x00  32 bytes  KEY COLOURS page 18/21
+        aa 14 18 98 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1972 ms  RX  id 0x00  32 bytes  55 14 18 98 01 00 00 00 66 00 00 00 67 00 00 00 68 00 00 00 69 00 00 00 6a 00 00 00 6b 00 00 00
+  + 1973 ms  TX  id 0x00  32 bytes  KEY COLOURS page 19/21
+        aa 14 18 b0 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 1985 ms  RX  id 0x00  32 bytes  55 14 18 b0 01 00 00 00 6c 00 00 00 6d 00 00 00 6e 00 00 00 6f 00 00 00 70 00 00 00 71 00 00 00
+  + 1986 ms  TX  id 0x00  32 bytes  KEY COLOURS page 20/21
+        aa 14 18 c8 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 2001 ms  RX  id 0x00  32 bytes  55 14 18 c8 01 00 00 00 72 00 00 00 73 00 00 00 74 00 00 00 75 00 00 00 76 00 00 00 77 00 00 00
+  + 2002 ms  TX  id 0x00  32 bytes  KEY COLOURS page 21/21
+        aa 14 18 e0 01 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  + 2019 ms  RX  id 0x00  32 bytes  55 14 18 e0 01 00 01 00 78 00 00 00 79 00 00 00 7a 00 00 00 7b 00 00 00 7c 00 00 00 7d 00 00 00
+per-key colour table (504 bytes):
+    0000  00 00 00 00 01 00 00 00 02 00 00 00 03 00 00 00
+    0010  04 00 00 00 05 00 00 00 06 00 00 00 07 00 00 00
+    0020  08 00 00 00 09 00 00 00 0a 00 00 00 0b 00 00 00
+    0030  0c 00 00 00 0d 00 00 00 0e 00 00 00 0f 00 00 00
+    0040  10 00 00 00 11 00 00 00 12 00 00 00 13 00 00 00
+    0050  14 00 00 00 15 00 00 00 16 00 00 00 17 00 00 00
+    0060  18 00 00 00 19 00 00 00 1a 00 00 00 1b 00 00 00
+    0070  1c 00 00 00 1d 00 00 00 1e 00 00 00 1f 00 00 00
+    0080  20 59 18 e3 21 00 00 00 22 00 00 00 23 00 00 00
+    0090  24 00 00 00 25 00 00 00 26 00 00 00 27 00 00 00
+    00a0  28 00 00 00 29 00 00 00 2a 00 00 00 2b 00 00 00
+    00b0  2c 00 00 00 2d 00 00 00 2e 00 00 00 2f 00 00 00
+    00c0  30 00 00 00 31 00 00 00 32 00 00 00 33 00 00 00
+    00d0  34 00 00 00 35 00 00 00 36 00 00 00 37 00 00 00
+    00e0  38 00 00 00 39 00 00 00 3a 00 00 00 3b 00 00 00
+    00f0  3c 00 00 00 3d 00 00 00 3e 00 00 00 3f 00 00 00
+    0100  40 00 00 00 41 00 00 00 42 00 00 00 43 00 00 00
+    0110  44 00 00 00 45 00 00 00 46 00 00 00 47 00 00 00
+    0120  48 00 00 00 49 00 00 00 4a 00 00 00 4b 00 00 00
+    0130  4c 00 00 00 4d 00 00 00 4e 00 00 00 4f 00 00 00
+    0140  50 00 00 00 51 00 00 00 52 00 00 00 53 00 00 00
+    0150  54 00 00 00 55 00 00 00 56 00 00 00 57 00 00 00
+    0160  58 00 00 00 59 00 00 00 5a 00 00 00 5b 00 00 00
+    0170  5c 00 00 00 5d 00 00 00 5e 00 00 00 5f 00 00 00
+    0180  60 00 00 00 61 00 00 00 62 00 00 00 63 00 00 00
+    0190  64 00 00 00 65 00 00 00 66 00 00 00 67 00 00 00
+    01a0  68 00 00 00 69 00 00 00 6a 00 00 00 6b 00 00 00
+    01b0  6c 00 00 00 6d 00 00 00 6e 00 00 00 6f 00 00 00
+    01c0  70 00 00 00 71 00 00 00 72 00 00 00 73 00 00 00
+    01d0  74 00 00 00 75 00 00 00 76 00 00 00 77 00 00 00
+    01e0  78 00 00 00 79 00 00 00 7a 00 00 00 7b 00 00 00
+    01f0  7c 00 00 00 7d 00 00 00
+decoded: 126 of 126 records carry their own key number, 1 records are not black
+
+=== Device 2 of 3: "AULA F75 HE Dongle"  USB id 0c45:fefe ===
+already open before the scan: no
+interfaces the keyboard publishes:
+  usage page 0xff59, usage 0x0061 [vendor]   in 0x00:64B  out 0x00:64B
+opened. Listening for 1200 ms before asking anything...
+No report-id-0 output report of 9 to 64 bytes on a usage page the F75 HE is expected on (0xff68, 0xff80, 0xff60, 0xff00, 0xff01, 0xff5b) is declared, so the F75 HE style requests were not sent.
+
+=== Device 3 of 3: "AULA F75 HE Dongle"  USB id 0c45:fefe ===
+already open before the scan: no
+interfaces the keyboard publishes:
+  usage page 0x0001, usage 0x000e   in 0x06:8B
+  usage page 0xffff, usage 0x0001 [vendor]   in 0x05:3B
+  usage page 0x000c, usage 0x0001   in 0x01:2B
+opened. Listening for 1200 ms before asking anything...
+No report-id-0 output report of 9 to 64 bytes on a usage page the F75 HE is expected on (0xff68, 0xff80, 0xff60, 0xff00, 0xff01, 0xff5b) is declared, so the F75 HE style requests were not sent.

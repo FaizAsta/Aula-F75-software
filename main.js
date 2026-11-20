@@ -19,6 +19,8 @@ const KNOWN_IDS = [
   [0x258a, 0x010c], // F75, F75 Pro and F87 over USB-C (same ids, same protocol)
   [0x0c45, 0x800a], // other AULA keyboards over USB-C, different protocol (detected only)
   [0x05ac, 0x024f], // other AULA 2.4G dongle, different protocol (detected only)
+  [0x38a6, 0x2729], // F75 HE (Hall effect) over USB-C: the HFD protocol, driven by he.js
+  [0x0c45, 0xfefe], // 2.4G receiver of the F75 HE, MINI 60 HE Pro and MINI 68 HE Pro (told apart by name and by the keyboard's own reply)
 ];
 const NAME_RE = /aula|f75|f87/i;
 const isAulaHid = (d) =>

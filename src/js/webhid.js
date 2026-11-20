@@ -135,9 +135,11 @@
     const known = P.deviceFor(d.vendorId, d.productId);
     // A device that is only recognised by its name has to show it takes our report before it is ever sent one.
     const declared = known ? null : declaresReport(d);
-    // The F75 Max's ids are shared with other AULA models, so the product name decides what the device is.
-    const model = known && known.family === 'max' ? P.maxModel(d.productName) : null;
+    // The F75 Max's ids are shared with other AULA models, and so are the F75 HE's receiver ids: the product name decides.
+    const model = known && known.family === 'max' ? P.maxModel(d.productName) : known && known.family === 'he' && known.link === 'dongle' ? P.heModel(d.productName) : null;
     const other = model === 'other';
+    // An F75 HE that has ids this app does not know (a newer hardware revision): never offered the F75 protocol.
+    const heUnknownIds = !known && P.heModel(d.productName) === 'he';
     return {
       vid: d.vendorId,
       pid: d.productId,
@@ -147,10 +149,10 @@
       family: known ? known.family : 'f75',
       label: other ? `AULA keyboard (${hex4(d.vendorId)}:${hex4(d.productId)})` : known ? known.label : d.productName || 'Keyboard',
       mode: known ? known.link : 'unknown',
-      confirm: model === 'unknown', // on the F75 Max's ids with a name that does not say which model: ask before writing
+      confirm: model === 'unknown', // on shared ids with a name that does not say which model: ask before writing
       feature: declaresFeature(d, P.FEATURE_ID),
-      supported: known ? known.supported && !other : declared !== false,
-      why: other ? 'another AULA model that shares these USB ids and speaks a different protocol' : !known && declared === false ? 'its descriptor has no 0x13 output report, so it speaks a different protocol' : '',
+      supported: known ? known.supported && !other : !heUnknownIds && declared !== false,
+      why: other ? 'another AULA model that shares these USB ids and speaks a different protocol' : heUnknownIds ? 'an AULA F75 HE with USB ids this app does not know yet: Settings, Connection help, Save compatibility report records them' : !known && declared === false ? 'its descriptor has no 0x13 output report, so it speaks a different protocol' : '',
       vendor: isVendor(d),
       opened: !!d.opened,
       collections: (d.collections || []).map((c) => ({
@@ -191,6 +193,7 @@
       const known = P.deviceFor(d.vendorId, d.productId);
       if (known && known.family !== 'f75') continue; // another family (the F75 Max): max.js drives it, never this protocol
       if (!known && !NAME_RE.test(d.productName || '')) continue;
+      if (!known && P.heModel(d.productName) === 'he') continue; // an F75 HE on ids not known yet: the F75 protocol is never tried on it
       const meta = describe(d);
       // The cable's vendor interface declares feature report 0x06 and no 0x13 reports: the dongle's 20-byte packets are
       // refused by it on the spot. Where the descriptor says nothing, the 20-byte protocol is used as before.

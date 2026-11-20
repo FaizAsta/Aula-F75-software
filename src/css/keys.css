@@ -87,6 +87,7 @@
   --pk-ctl: 38px; /* height of a pill button inside the card */
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr);
+  grid-template-rows: 1fr auto; /* the three columns take any spare height; the brightness row keeps its own */
   padding: 0;
   min-height: 268px; /* the same height in Solid, Gradient and Rainbow, so the page does not jump when the paint changes */
   border-radius: max(var(--r-group), 26px);
@@ -210,6 +211,25 @@
 .pk-act { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: auto; padding-top: 14px; }
 .pk-card .pk-act .btn { height: 42px; padding: 0 8px; font-size: 14.5px; font-weight: 600; }
 
+/* Brightness: one row across the foot of the card, under all three columns. Heading, slider, meter and value sit on one line. It is
+   dimmed and cannot be used while Per-key is not the effect on the keyboard (data-on="false"), because the level it sets belongs to
+   the Per-key effect only. */
+.pk-bright {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(150px, auto);
+  align-items: center;
+  gap: 22px;
+  padding: 10px var(--pk-pad);
+  border-top: 1px solid var(--line);
+}
+.pk-bright h3 { display: flex; align-items: center; gap: 8px; }
+.pk-bright .range-wrap { padding: 0 4px; min-width: 0; }
+.pk-bright .fh-right { display: inline-flex; align-items: center; justify-content: flex-end; gap: 10px; text-align: right; }
+.pk-bright .val { font-size: 12.5px; }
+.pk-bright[data-on="false"] h3,
+.pk-bright[data-on="false"] .meter { opacity: 0.5; }
+
 /* The two lines of help under the card. */
 .pk-foot { margin: 10px 6px 0; }
 .pk-foot .hint { margin-top: 4px; }
@@ -221,7 +241,9 @@
   .pk-card .pk-act .btn { font-size: 14px; }
 }
 @media (max-width: 880px) {
-  .pk-card { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .pk-card { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; min-height: 0; }
   .pk-card > .pk-col + .pk-col { border-left: 0; border-top: 1px solid var(--line); }
   .pk-act { margin-top: 18px; }
+  .pk-bright { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; padding-top: 14px; padding-bottom: 14px; }
+  .pk-bright .range-wrap { grid-column: 1 / -1; grid-row: 2; }
 }

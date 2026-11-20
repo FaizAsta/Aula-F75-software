@@ -144,9 +144,10 @@ test('main.js lists the folder, the page can ask for it, and the Theme page has 
 test('the README version badge shows the version in package.json', () => {
   const root = path.join(__dirname, '..');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  const badge = fs.readFileSync(path.join(root, 'README.md'), 'utf8').match(/badge\/version-(\d+\.\d+\.\d+)-blue/);
+  // shields.io writes a hyphen inside the value as two, so 1.5.3-beta.1 is badge/version-1.5.3--beta.1-blue
+  const badge = fs.readFileSync(path.join(root, 'README.md'), 'utf8').match(/badge\/version-(\d+\.\d+\.\d+(?:--[0-9A-Za-z.]+)*)-blue/);
   assert.ok(badge, 'the README has a version badge');
-  assert.equal(badge[1], pkg.version);
+  assert.equal(badge[1].replace(/--/g, '-'), pkg.version);
 });
 
 test('every picture shipped in the presets folder is a name the app accepts', () => {

@@ -17,7 +17,7 @@
     colors: { get: P.CMD.GET_COLORS, set: P.CMD.SET_COLORS },
   };
   const ORDER = ['led', 'rgb', 'colors'];
-  const KEY = { backup: 'aula.backup.first', history: 'aula.battery.history', keep: 'aula.keep.settings', keepOn: 'aula.keep.optin', brightMax: 'aula.bright.max', lowLight: 'aula.lowlight.saved', lastColors: 'aula.perkey.last' };
+  const KEY = { backup: 'aula.backup.first', history: 'aula.battery.history', keep: 'aula.keep.settings', keepOn: 'aula.keep.optin', brightMax: 'aula.bright.max', lowLight: 'aula.lowlight.saved', lastColors: 'aula.perkey.last', lastSent: 'aula.perkey.sent' };
   // The low-battery light: the Breathing effect, first palette colour set to red, at half of the keyboard's brightness levels.
   const LOW_LIGHT = { mode: 2, colour: [255, 0, 0], brightness: 0.5, speed: 2 };
   const WAKE_HINT = 'Waking the keyboard. Press any key on it if it stays asleep.';
@@ -146,7 +146,12 @@
       // Which blocks were really read from the keyboard on this link. The USB-C cable may not hand over the palette or the
       // per-key colours; those are then stand-ins (never written unless the user edits them, never remembered, never verified).
       this.readable = { led: true, rgb: true, colors: true };
-      this._lastColors = null; // the per-key colours this app last wrote (the cable may not let it read them back)
+      // The per-key colours as the person painted them (full strength) and the dimmed copy that went to the keyboard with them. The
+      // keyboard ignores the per-key brightness byte, so the app dims the colours it sends (see _perKeyShare). The cable may also not
+      // let the app read the colours back; then these are all it has. A read that equals `_lastSent` is the app's own write, so the
+      // full-strength colours behind it are known.
+      this._lastColors = null;
+      this._lastSent = null;
       this.link = null; // 'feature' for the USB-C cable's feature reports, 'output' for the 20-byte reports, 'demo'
 
       this.battery = { percent: null, at: 0, source: null };
@@ -797,6 +802,7 @@
         if (!readable.rgb) got.rgb = P.defaultRgb();
         if (readable.colors && (!got.colors.length || got.colors.length % 3)) throw new CommError('The per-key colour block has an unexpected size.');
         if (!readable.colors) got.colors = P.defaultColors();
+        else got.colors = this._toMaster(got.colors); // what is on the keys may be a dimmed copy of the person's colours
         this.readable = readable;
         this.dev0 = clone(got);
         this.cur = clone(got);
@@ -1561,24 +1567,56 @@
       if (this.readable.colors) return this.cur.colors.slice();
       if (this._lastColors && this._lastColors.length === want) return this._lastColors.slice();
       if (this.mode === 'demo') return null;
-      try {
-        const raw = this.storage.getItem(KEY.lastColors);
-        const arr = raw ? JSON.parse(raw) : null;
-        if (Array.isArray(arr) && arr.length === want) return (this._lastColors = Uint8Array.from(arr)).slice();
-      } catch (_) {
-        /* unreadable: nothing to send */
-      }
+      const arr = this._readStored(KEY.lastColors);
+      if (arr && arr.length === want) return (this._lastColors = arr).slice();
       return null;
     }
 
-    _rememberColours(bytes) {
-      this._lastColors = Uint8Array.from(bytes);
+    _readStored(key) {
+      try {
+        const raw = this.storage.getItem(key);
+        const arr = raw ? JSON.parse(raw) : null;
+        return Array.isArray(arr) ? Uint8Array.from(arr) : null;
+      } catch (_) {
+        return null; // unreadable: nothing remembered
+      }
+    }
+
+    /**
+     * Remembers a per-key write: `master` is the colours as the person has them (full strength), `sent` what went to the keyboard
+     * (the same colours at the brightness level in force). Never kept for the demo keyboard.
+     */
+    _rememberColours(master, sent) {
+      this._lastColors = Uint8Array.from(master);
+      this._lastSent = Uint8Array.from(sent || master);
       if (this.mode === 'demo') return; // playing with the demo keyboard never touches what belongs to the real one
       try {
-        this.storage.setItem(KEY.lastColors, JSON.stringify(Array.from(bytes)));
+        this.storage.setItem(KEY.lastColors, JSON.stringify(Array.from(this._lastColors)));
+        this.storage.setItem(KEY.lastSent, JSON.stringify(Array.from(this._lastSent)));
       } catch (_) {
         /* storage full or unavailable: the copy in memory still serves this session */
       }
+    }
+
+    /** How much of full strength the per-key colours go out at: the per-key effect's own brightness level, as a share of the levels. */
+    _perKeyShare(led) {
+      return P.levelShare(P.getBrightness(led, P.effectOf(P.MODE_CUSTOM)), this.brightMax);
+    }
+
+    /**
+     * What the keyboard holds for the keys, turned back into the colours the person painted. When it is exactly what this app
+     * last sent (dimmed), the full-strength colours kept with it are returned; anything else (another program, the keyboard
+     * itself, another keyboard) is taken as it is, because then nothing is known about a stronger version of it.
+     */
+    _toMaster(held) {
+      if (this.mode !== 'demo') {
+        if (!this._lastColors) this._lastColors = this._readStored(KEY.lastColors);
+        if (!this._lastSent) this._lastSent = this._readStored(KEY.lastSent);
+      }
+      const m = this._lastColors;
+      const sent = this._lastSent;
+      if (m && sent && m.length === held.length && sent.length === held.length && P.same(sent, held)) return m.slice();
+      return held.slice();
     }
 
     dirtyKeys() {
@@ -1644,7 +1682,7 @@
           if (k === 'colors' && resend && !dirty.includes('colors')) {
             // Sent again as the app holds them: what the keyboard answers now may already be blank.
             base[k] = resend;
-            pre[k] = this.dev0[k];
+            pre[k] = this._lastSent && this._lastSent.length === resend.length ? this._lastSent : this.dev0[k];
             continue;
           }
           let fresh = null;
@@ -1653,9 +1691,11 @@
           } catch (_) {
             fresh = null; // could not re-read: fall back to writing our copy as it is
           }
-          const usable = fresh && fresh.length === this.cur[k].length && (k !== 'led' || P.isValidLed(fresh));
-          base[k] = usable ? mergeEdits(fresh, this.dev0[k], this.cur[k]) : this.cur[k].slice();
-          pre[k] = usable ? fresh : this.dev0[k];
+          // The person's edits are laid over the keyboard's colours at full strength, so what it holds dimmed is brought back first.
+          const full = k === 'colors' && fresh ? this._toMaster(fresh) : fresh;
+          const usable = full && full.length === this.cur[k].length && (k !== 'led' || P.isValidLed(full));
+          base[k] = usable ? mergeEdits(full, this.dev0[k], this.cur[k]) : this.cur[k].slice();
+          pre[k] = usable ? fresh : k === 'colors' && this._lastSent && this._lastSent.length === this.dev0[k].length ? this._lastSent : this.dev0[k];
         }
 
         const out = { led: this.cur.led, rgb: this.cur.rgb, colors: this.cur.colors };
@@ -1665,6 +1705,14 @@
           // own lighting back byte for byte, including a colour-mode byte the red light had to change.
           const colour = !opts.exactLed && (!!opts.restore || dirty.includes('rgb') || dirty.includes('colors') || P.editsColour(this.dev0.led, this.cur.led));
           out.led = P.prepareLedForWrite(out.led, P.effectOf(P.getMode(out.led)) || this.effect(), { colour, wired });
+        }
+
+        // The keyboard shows the per-key colours at full strength whatever the per-key brightness byte says, so the level is applied
+        // here: the colours go out dimmed by it, and the app keeps (and shows, and remembers) them at full strength.
+        let fullColors = null;
+        if (keys.includes('colors')) {
+          fullColors = out.colors;
+          out.colors = P.dimColors(fullColors, this._perKeyShare(out.led));
         }
 
         // Only the bytes this write changes have to come back as sent. The firmware rewrites some bytes of its own (a counter,
@@ -1690,7 +1738,7 @@
             this._note(`${k} block: no acknowledgement, but the keyboard holds what was sent`);
             if (onProgress) onProgress(Math.min(1, ++done / totalPackets));
           }
-          if (k === 'colors') this._rememberColours(out[k]);
+          if (k === 'colors') this._rememberColours(fullColors, out.colors);
           wroteBefore = true;
           await sleep(40);
         }
@@ -1717,11 +1765,11 @@
           }
           if (!back[k]) {
             unverified.push(k);
-            this.dev0[k] = out[k].slice();
+            this.dev0[k] = (k === 'colors' ? fullColors : out[k]).slice();
             continue;
           }
           if (!holdsChanges(back[k], out[k], intended[k])) allOk = false;
-          this.dev0[k] = back[k];
+          this.dev0[k] = k === 'colors' ? this._toMaster(back[k]) : back[k];
         }
         const modeOk = !back.led || back.led[P.OFF.MODE] === out.led[P.OFF.MODE];
         this.cur = clone(this.dev0);

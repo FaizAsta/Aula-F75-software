@@ -33,7 +33,7 @@
 **An unofficial Windows and Linux app for AULA F75 keyboards.**<br>
 Battery, lighting effects, per-key RGB and a live preview.
 
-[![Version](https://img.shields.io/badge/version-1.5.2-blue)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.5.3--beta.1-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20%7C%20Linux-0078d4)](#download)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20server-5865F2?logo=discord&logoColor=white)](https://discord.gg/BdeQygyRwN)
 
@@ -67,7 +67,7 @@ I don't even know coding, so **use it at your own risk**, or leave if you have a
 AI. If you have a personal problem with that, you're free to leave. I'm not earning anything from it, so I don't need to
 worry about it. I just want to share.
 
-**Tested only on the AULA F75.** Every other model (F75 Pro, F87, F75 Max) is untested, so I don't know if it works.
+**Tested only on the AULA F75.** Every other model (F75 Pro, F87, F75 Max, F75 HE) is untested, so I don't know if it works.
 If you get an error, comment on the release.
 
 Not affiliated with AULA.
@@ -81,7 +81,7 @@ Everything is on the [Releases](../../releases) page.
 1. Download **Aula-Control-Setup.exe** and run it. No admin needed. (Or **Aula-Control-Portable.exe**, which needs no install.)
 2. If Windows warns about an unknown publisher (the app isn't code-signed), choose **More info**, then **Run anyway**.
 
-No keyboard? Try the demo: **Settings, Demo keyboard**, or click the Aula logo and choose **Demo F75 Max**.
+No keyboard? Try the demo: **Settings, Demo keyboard**, or click the Aula logo, choose **Demo keyboards**, then **Demo keyboard** (an F75), **Demo F75 Max** or **Demo F75 HE**.
 
 To uninstall, use Windows Settings, Apps. That also deletes the app's data (your settings and what it remembers);
 updating keeps it. The portable build has no uninstaller, so delete its data folder yourself.
@@ -108,15 +108,25 @@ In the app, press **Support** (on the start screen and in the top bar) for the D
 
 **By keyboard model**
 
-| Feature | F75 | F75 Pro | F87 | F75 Max |
-| :-- | :-: | :-: | :-: | :-: |
-| Lighting effects (15; 20 on the F75 Max) | ✅ | ✅ | ✅ | ✅ |
-| Per-key RGB | ✅ | ✅ | ✅ | ✅ |
-| Live preview, a rendered picture of your model | ✅ | ✅ | ✅ | ✅ |
-| Battery level | ✅ | ✅ | ✅ | ✅ |
-| Key assignment (experimental) | ✅ | ✅ | ✅ | ❌ |
-| Own Keyboard section, in place of the Keys tab | ❌ | ❌ | ❌ | ✅ |
-| Tested by the author | ✅ | ❌ | ❌ | ❌ |
+| Feature | F75 | F75 Pro | F87 | F75 Max | F75 HE |
+| :-- | :-: | :-: | :-: | :-: | :-: |
+| Lighting effects (15; 20 on the F75 Max, 19 on the F75 HE) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Per-key RGB | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Live preview, a rendered picture of your model | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Battery level | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Key assignment (experimental) | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Own Keyboard section, in place of the Keys tab | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Tested by the author | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+The **F75 HE** (the Hall-effect F75) is experimental. It does not speak the F75's protocol: it belongs to AULA's "HFD" family,
+and this app follows that protocol as another project decoded it from AULA's own driver. Reading from a real F75 HE (who it is,
+its lighting and its per-key colours, over USB-C and over the 2.4G dongle) has been checked. The effects are the ones AULA's own
+web driver offers, with its names and mode numbers, and the lighting bytes the app writes for each are the ones that driver was
+seen to write to a real F75 HE (a capture of it clicking every effect is in `test/fixtures`). That driver has no Off, so the app's
+Off sends Static in black. The app's own writes have not been confirmed on a real F75 HE yet. The app asks the keyboard who it is before it writes anything, only ever sends the
+lighting and per-key colour commands (never a reset, calibration or firmware command), and does not touch the Hall-effect
+settings, so what you set in AULA's own driver stays as it is. The picture and the key layout of the F75 HE are provisional. If
+a key lights the wrong cap, or anything else misbehaves, please say what you saw.
 
 **By connection**
 
@@ -167,7 +177,12 @@ simulated dongle). Click a picture to see it full size.
 <tr>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/connecting.png"><img src="docs/screenshots/connecting.png" alt="Reading your keyboard, waking it up" width="260"></a><br><sub>Reading the keyboard</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/asleep.png"><img src="docs/screenshots/asleep.png" alt="Keyboard is asleep" width="260"></a><br><sub>Keyboard asleep</sub></td>
-<td width="33%"></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/he.png"><img src="docs/screenshots/he.png" alt="The Lighting tab of an F75 HE on its 2.4G dongle" width="260"></a><br><sub>F75 HE (experimental): Lighting</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/he-perkey.png"><img src="docs/screenshots/he-perkey.png" alt="The Per-key tab of an F75 HE with every key painted" width="260"></a><br><sub>F75 HE: Per-key</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/he-keyboard.png"><img src="docs/screenshots/he-keyboard.png" alt="The Keyboard page of an F75 HE: what the keyboard reports about itself" width="260"></a><br><sub>F75 HE: Keyboard</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/demo-keyboards.png"><img src="docs/screenshots/demo-keyboards.png" alt="The list of demo keyboards, opened from the Demo keyboards button" width="260"></a><br><sub>Demo keyboards</sub></td>
 </tr>
 </table>
 
@@ -176,6 +191,7 @@ simulated dongle). Click a picture to see it full size.
 - Close the official AULA driver. Only one program can use the keyboard at a time.
 - Lighting works over the 2.4G dongle (best) or USB-C cable. Bluetooth only gives the battery level.
 - The red low-battery light is written by the app, so it only works while Aula Control is running. Hidden in the tray is fine; if you quit the app, nothing watches the battery. Turn on **Start with Windows** in Settings, App to keep it running. Hover the tray icon to see what the app uses right now (CPU and memory, measured by Electron).
+- **F75 HE (experimental) not working, or showing an error?** Open `tools/he-probe.html` in Chrome or Edge. It only reads from the keyboard (it cannot write, reset or flash anything) and saves a report of what your keyboard answers. Send that file along with your comment so support can be fixed against a real F75 HE.
 - Still stuck? Open **Settings, Connection help** and save a log.
 
 ---
