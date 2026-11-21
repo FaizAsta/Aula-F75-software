@@ -1,8 +1,10 @@
 name: Build and release
 
 # Run it by hand: Actions > Build and release > Run workflow (use the main branch). It asks for two things:
-#   - Version: the version to release, for example 1.5.3 (or 1.5.3-beta.1). It is written into package.json on main, so the app,
-#     the file names and the release tag v<version> all say the same thing.
+#   - Version: the version to release, for example 1.5.3 (or 1.5.3-beta.1). It is written into package.json on main (and into the
+#     README's Version badge, which the tests compare with it), so the version the app shows, the update the app looks for on
+#     GitHub and the release tag v<version> all say the same thing. A version with a "-" part (1.5.3-beta.1) is a beta and must
+#     be run as pre-release: a beta published as "stable" would hide the real latest release from everyone who runs a stable app.
 #   - Release type: stable (published as the latest release, so the app's updater offers it) or pre-release (marked as a
 #     pre-release and never "latest"; the app's updater ignores it).
 # Nothing starts by itself any more: uploading a zip to main does not build anything. After you upload a zip, run this.
@@ -102,6 +104,8 @@ jobs:
         id: version
         env:
           INPUT_VERSION: ${{ inputs.version }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           # "v1.5.3" and " 1.5.3 " are accepted; anything that is not a version stops the run before anything is built.
@@ -111,6 +115,22 @@ jobs:
             echo "\"$INPUT_VERSION\" is not a version. Use something like 1.5.3 or 1.5.3-beta.1."
             exit 1
           fi
+          # A beta (anything after a "-") has to be a pre-release. As "stable" it would become GitHub's "latest" release, which the
+          # app's updater hands to everyone running a stable version, and it never offers a beta to them: nobody would be offered
+          # an update until the next stable release. Stopped here, before anything is built or published.
+          case "$VERSION" in
+            *-*)
+              if [ "$RELEASE_TYPE" = "stable" ]; then
+                echo "$VERSION is a beta, so the release type must be pre-release. Run it again with Release type: pre-release (or leave the \"-\" part out for a stable release)."
+                exit 1
+              fi
+              ;;
+            *)
+              if [ "$RELEASE_TYPE" = "pre-release" ]; then
+                echo "::warning::$VERSION has no beta part but is published as a pre-release, so only people already running a beta are offered it."
+              fi
+              ;;
+          esac
           CURRENT=$(node -p "require('./package.json').version")
           if [ "$CURRENT" = "$VERSION" ]; then
             echo "package.json already says $VERSION."
@@ -119,11 +139,27 @@ jobs:
             # Only the version line changes (the rest of package.json keeps its layout). $VERSION was checked above.
             sed -i -E '0,/"version": *"[^"]*"/s//"version": "'"$VERSION"'"/' package.json
             [ "$(node -p "require('./package.json').version")" = "$VERSION" ] || { echo "Could not set the version in package.json."; exit 1; }
+          fi
+          # The README's Version badge shows the same number (shields.io writes a "-" inside the value as "--"), and a test fails
+          # when the two differ. Only the number in the badge changes.
+          if [ -f README.md ]; then
+            BADGE="${VERSION//-/--}"
+            sed -i -E "s#(badge/version-)[^)]*(-blue)#\1${BADGE}\2#" README.md
+          fi
+          if ! git diff --quiet -- package.json README.md; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add package.json
+            git add package.json README.md
             git commit -q -m "Set version $VERSION"
             git push origin HEAD:main
+          fi
+          # A stable release only reaches people if it is newer than the latest one (the app compares this version with the tag of
+          # the latest release). Not a stop: running the same version again to replace its files is fine.
+          if [ "$RELEASE_TYPE" = "stable" ] && [ -f updater.js ]; then
+            LATEST_TAG="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name 2>/dev/null || true)"
+            if [ -n "$LATEST_TAG" ] && ! node -e "process.exit(require('./updater.js').isNewer(process.argv[1], process.argv[2]) ? 0 : 1)" "$VERSION" "$LATEST_TAG"; then
+              echo "::warning::$VERSION is not newer than the latest release ($LATEST_TAG), so people who already have $LATEST_TAG will not be offered it as an update."
+            fi
           fi
           if ! grep -qxF "## What's new in $VERSION" RELEASE_NOTES.md 2>/dev/null; then
             echo "::warning::RELEASE_NOTES.md has no \"## What's new in $VERSION\" header, so the app's What's new window will have nothing to show for this version."
