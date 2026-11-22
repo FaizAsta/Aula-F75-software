@@ -88,6 +88,72 @@ test('checking GitHub: available, current, and the ways it can fail', async () =
   assert.match((await U.checkForUpdate({ ...args, fetch: async () => json(release({ tag_name: 'v1.4' })) })).message, /not a version/);
 });
 
+test('beta versions keep their beta part and compare by it', () => {
+  assert.deepEqual(U.parseVersion('v1.5.3-beta.2'), { nums: [1, 5, 3], pre: ['beta', 2] });
+  assert.equal(U.formatVersion(U.parseVersion('v1.5.3-beta.2')), '1.5.3-beta.2');
+  assert.equal(U.formatVersion(U.parseVersion('v1.5.3')), '1.5.3');
+  // beta2, beta.2, beta-2 and "beta 2" are the same beta
+  for (const t of ['1.5.3-beta2', '1.5.3-beta.2', '1.5.3-beta-2', '1.5.3 beta 2']) assert.equal(U.formatVersion(U.parseVersion(t)), '1.5.3-beta.2', t);
+  assert.equal(U.isNewer('1.5.3-beta.2', '1.5.3-beta.1'), true, 'beta 2 is an update for beta 1');
+  assert.equal(U.isNewer('1.5.3-beta.1', '1.5.3-beta.2'), false);
+  assert.equal(U.isNewer('1.5.3-beta.1', '1.5.3-beta.1'), false);
+  assert.equal(U.isNewer('1.5.3-beta.10', '1.5.3-beta.2'), true, 'by number, not as text');
+  assert.equal(U.isNewer('1.5.3-beta10', '1.5.3-beta2'), true, 'also without the dot');
+  assert.equal(U.isNewer('1.5.3', '1.5.3-beta.9'), true, 'the final release beats its betas');
+  assert.equal(U.isNewer('1.5.3-beta.9', '1.5.3'), false, 'a beta is not an update for the final release');
+  assert.equal(U.isNewer('1.5.3-rc.1', '1.5.3-beta.4'), true);
+  assert.equal(U.isNewer('1.5.4-beta.1', '1.5.3'), true);
+  assert.equal(U.isNewer('1.5.2', '1.5.3-beta.1'), false);
+});
+
+test('someone on a beta is offered the next beta, named with its beta part; someone on a stable version is not', () => {
+  const beta2 = release({ tag_name: 'v1.5.3-beta.2', prerelease: true, html_url: 'https://github.com/someone/aula-control/releases/tag/v1.5.3-beta.2' });
+  const onBeta = U.pickRelease(beta2, { repo: REPO, current: '1.5.3-beta.1', installable: true });
+  assert.equal(onBeta.version, '1.5.3-beta.2');
+  assert.equal(onBeta.current, '1.5.3-beta.1');
+  assert.equal(onBeta.mode, 'install');
+  assert.equal(U.pickRelease(beta2, { repo: REPO, current: '1.5.3-beta.2', installable: true }), null, 'already on it');
+  assert.equal(U.pickRelease(beta2, { repo: REPO, current: '1.5.2', installable: true }), null, 'a stable version never gets a beta');
+  // a beta that was not marked as a pre-release on GitHub is still a beta
+  const unflagged = release({ tag_name: 'v1.5.3-beta.2', prerelease: false });
+  assert.equal(U.pickRelease(unflagged, { repo: REPO, current: '1.5.2', installable: true }), null);
+  assert.equal(U.pickRelease(unflagged, { repo: REPO, current: '1.5.3-beta.1', installable: true }).version, '1.5.3-beta.2');
+  // the final release is offered to a beta
+  assert.equal(U.pickRelease(release({ tag_name: 'v1.5.3' }), { repo: REPO, current: '1.5.3-beta.4', installable: true }).version, '1.5.3');
+  assert.equal(U.pickRelease(release({ tag_name: 'v1.5.3-beta.2', draft: true }), { repo: REPO, current: '1.5.3-beta.1', installable: true }), null, 'drafts are never offered');
+});
+
+test('checking GitHub from a beta looks at all releases (betas are not in "latest") and takes the highest version', async () => {
+  const args = { repo: REPO, current: '1.5.3-beta.1', installable: true };
+  const tag = (t, over = {}) => release({ tag_name: t, prerelease: /-/.test(t), ...over });
+  let asked = '';
+  const list = [tag('v1.5.3-beta.2'), tag('v1.5.2'), tag('v1.5.3-beta.1'), tag('v1.5.3-beta.3', { draft: true })];
+  const a = await U.checkForUpdate({ ...args, fetch: async (u) => ((asked = u), json(list)) });
+  assert.match(asked, new RegExp(`^https://api\\.github\\.com/repos/${REPO}/releases\\?per_page=\\d+$`));
+  assert.equal(a.status, 'available');
+  assert.equal(a.info.version, '1.5.3-beta.2', 'shown as a beta, the draft beta 3 is skipped');
+  // the list is in date order: an older beta listed first must not win over a newer one
+  const mixed = await U.checkForUpdate({ ...args, fetch: async () => json([tag('v1.5.3-beta.2'), tag('v1.5.3-beta.5'), tag('v1.5.3-beta.3')]) });
+  assert.equal(mixed.info.version, '1.5.3-beta.5');
+  // the final release wins over the betas of it
+  const fin = await U.checkForUpdate({ ...args, fetch: async () => json([tag('v1.5.3'), tag('v1.5.3-beta.2')]) });
+  assert.equal(fin.info.version, '1.5.3');
+  // nothing newer than the installed beta
+  assert.equal((await U.checkForUpdate({ ...args, fetch: async () => json([tag('v1.5.3-beta.1'), tag('v1.5.2')]) })).status, 'current');
+  assert.match((await U.checkForUpdate({ ...args, fetch: async () => json([]) })).message, /No release/);
+  // a stable version still asks for "latest" and is never offered a beta
+  let stableAsked = '';
+  const s = await U.checkForUpdate({ repo: REPO, current: '1.5.2', installable: true, fetch: async (u) => ((stableAsked = u), json(tag('v1.5.3-beta.2'))) });
+  assert.equal(stableAsked, `https://api.github.com/repos/${REPO}/releases/latest`);
+  assert.equal(s.status, 'current');
+});
+
+test('the update dialog and notification show the version exactly as the update is named (beta part included)', () => {
+  const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+  assert.match(read('src/js/update.js'), /Aula Control \$\{info\.version\} is available\. You have \$\{info\.current\}/);
+  assert.match(read('main.js'), /Version \$\{r\.info\.version\} is available/);
+});
+
 // A fake download: the body arrives in two chunks.
 const body = (...parts) => new ReadableStream({ start(c) { parts.forEach((p) => c.enqueue(Buffer.from(p))); c.close(); } });
 const reply = (parts, over = {}) => async () => ({ ok: true, status: 200, url: SETUP, headers: { get: () => null }, body: body(...parts), ...over });

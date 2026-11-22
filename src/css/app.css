@@ -180,6 +180,9 @@ b { font-weight: 600; }
   transition: opacity 0.4s;
 }
 .shell:not([data-screen="app"]) .app-bg { opacity: 0; }
+/* The video background (Settings > Theme > Video or live wallpaper): the same layer as the picture, with a <video> instead of an image. */
+.app-bg-video { width: 100%; height: 100%; object-fit: cover; }
+.app-bg-video[hidden] { display: none; }
 
 /* While a background picture is chosen (app.js puts class "has-picture" on <html>) the panels are see-through, so the picture
    shows through them instead of being hidden behind solid boxes. --glass is how much of the panel's own colour is kept:
@@ -795,6 +798,8 @@ html.frost, html.frost body { background: transparent; }
 .bg-opacity .range { flex: 1; min-width: 0; }
 .bg-opacity output { flex: none; min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12.5px; }
 .bg-thumb { flex: none; width: 64px; height: 40px; border-radius: 8px; background: center / cover no-repeat; box-shadow: inset 0 0 0 1px var(--line-2); }
+.bg-thumb { overflow: hidden; }
+.bg-thumb-video { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .srow { display: flex; align-items: center; gap: 8px 20px; flex-wrap: wrap; padding: 16px 0; }
 .srow + .srow { border-top: 1px solid var(--line); }
 .srow-text { flex: 1 1 260px; min-width: 0; }
@@ -1082,8 +1087,8 @@ html.frost, html.frost body { background: transparent; }
 
 .seg-3 { grid-template-columns: repeat(3, 1fr); }
 .seg-theme { width: 252px; }
-/* Liquid glass look picker (Settings > Theme): three longer names, so wider than the theme switcher; it wraps under the text on a narrow window. */
-.seg-glass { width: 372px; max-width: 100%; }
+/* Liquid glass look picker (Settings > Theme): four looks with long names, so wider than the theme switcher; it wraps under the text on a narrow window. */
+.seg-glass { width: 440px; max-width: 100%; }
 .seg-glass::before { transition: transform 0.3s var(--spring), opacity 0.2s; }
 .seg-glass.seg-none::before { opacity: 0; } /* the sliders hold a mix of their own: no look is lit */
 /* The four sliders behind the Customise button. They are rows of the same box, so the line above them is drawn here (a row inside a wrapper is not the next sibling of the one before it). */

@@ -265,10 +265,10 @@
   margin: 0;
   padding: 0;
   border-radius: calc(var(--u) * 0.14);
-  border: calc(var(--u) * 0.05) solid color-mix(in srgb, var(--hue, transparent) calc(6% + var(--b, 0) * 40%), transparent);
+  border: calc(var(--u) * 0.06) solid color-mix(in srgb, var(--hue, transparent) calc(5% + var(--b, 0) * var(--gl, 1) * 22%), transparent); /* the F75 preview's thin line in the gaps: at most 28% (--gl: the same visibility for every colour, max-ui.js) */
   box-shadow:
-    0 0 calc(var(--u) * 0.12) 0 color-mix(in srgb, var(--hue, transparent) calc(var(--b, 0) * 36%), transparent),
-    0 0 calc(var(--u) * 0.6) calc(var(--u) * 0.04) color-mix(in srgb, var(--hue, transparent) calc(var(--b, 0) * 20%), transparent);
+    0 0 0 calc(var(--u) * 0.05) color-mix(in srgb, var(--hue, transparent) calc(var(--b, 0) * var(--gl, 1) * 5%), transparent),
+    0 0 calc(var(--u) * 0.7) calc(var(--u) * 0.04) color-mix(in srgb, var(--hue, transparent) calc(var(--b, 0) * var(--gl, 1) * 20%), transparent); /* the soft light on the plate: 20% at most, as on the F75 */
 }
 .mx-photo.mx-under .mx-foot {
   z-index: -1;
@@ -277,17 +277,24 @@
   top: calc(var(--u) * 0.74);
   height: calc(var(--u) * 0.36);
   background: radial-gradient(ellipse closest-side,
-    color-mix(in srgb, var(--hue, transparent) calc(8% + var(--b, 0) * 34%), transparent) 0%,
-    color-mix(in srgb, var(--hue, transparent) calc(3% + var(--b, 0) * 12%), transparent) 55%,
+    color-mix(in srgb, var(--hue, transparent) calc(8% + var(--b, 0) * var(--gl, 1) * 34%), transparent) 0%,
+    color-mix(in srgb, var(--hue, transparent) calc(3% + var(--b, 0) * var(--gl, 1) * 12%), transparent) 55%,
     transparent 100%);
   mix-blend-mode: screen;
 }
-/* Lighting shows the light, not a painted cap: the face keeps its own colour with a hint of the light, and its print takes a little of
-   it. Painting (the Per-key page) still paints the face, so it is obvious at a glance which keys carry a colour. */
+/* Lighting shows the light, not a painted cap: the face keeps its own colour with a clear tint of the light, and its print takes a little of
+   it. Painting (the Per-key page) still paints the face, so it is obvious at a glance which keys carry a colour.
+   A grey or black cap is lightened by the light (screen). A white cap cannot be: screen over white stays white, so the light would not
+   show on it at all. It gets a soft wash of the light's colour instead (multiply, about 26% at full strength, so it stays a pale,
+   light cap and never goes dark; data-tint is set on those caps by max-ui.js). */
 .stage-max:not([data-paint="1"]) .mx-photo.mx-under .mx-key[data-on="1"]::after {
-  mix-blend-mode: screen; /* light only ever lightens a cap (a plain tint over white would darken it) */
+  mix-blend-mode: screen;
   background: var(--hue, transparent);
-  opacity: calc(var(--b, 0) * 0.1);
+  opacity: calc(var(--b, 0) * var(--gl, 1) * 0.12);
+}
+.stage-max:not([data-paint="1"]) .mx-photo.mx-under .mx-key[data-on="1"][data-tint="1"]::after {
+  mix-blend-mode: multiply;
+  opacity: calc(var(--b, 0) * var(--g, 1) * 0.26);
 }
 .stage-max:not([data-paint="1"]) .mx-photo.mx-under .mx-key[data-on="1"] {
   color: color-mix(in srgb, var(--sk-ink, #f5f7f6) calc(100% - var(--b, 0) * 10%), var(--hue, transparent));

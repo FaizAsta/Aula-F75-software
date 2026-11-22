@@ -115,25 +115,42 @@
 
 .hm-back { position: absolute; top: calc(var(--top) + 6px); left: 22px; z-index: 4; display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.4s, background 0.15s, color 0.15s, transform 0.18s var(--spring); }
 .hm-back .ico { width: 14px; height: 14px; }
-.hd-title { font-size: clamp(26px, 4vw, 36px); font-weight: 700; }
-.hd-sub { margin: 8px 0 22px; max-width: 440px; color: var(--muted); font-size: 13.5px; }
+/* Device screen heading: pinned to the top, on the same row as the Back button (30px tall, 6px below the top bar), centred
+   across the window. The side padding keeps it clear of Back on the left and the window buttons on the right. */
+.scr-devices { padding-top: 70px; } /* room for the pinned heading above the cards */
+.hd-head { position: absolute; top: 6px; left: 0; right: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; padding: 0 clamp(96px, 12vw, 150px); pointer-events: none; }
+.hd-title { margin: 0; height: 30px; line-height: 30px; font-size: clamp(22px, 3vw, 28px); font-weight: 700; white-space: nowrap; }
+.hd-sub { margin: 10px 0 0; max-width: 440px; color: var(--muted); font-size: 13.5px; }
 .hm-radar { position: relative; width: 64px; height: 64px; margin: 4px 0 22px; }
 .hm-radar i { position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid hsl(var(--hue) 100% 65% / 0.7); animation: rgbPulse 2.4s var(--ease) infinite; }
 .hm-radar i:nth-child(2) { animation-delay: 0.8s; }
 .hm-radar i:nth-child(3) { animation-delay: 1.6s; }
 .hm-radar::after { content: ""; position: absolute; inset: 27px; border-radius: 50%; background: hsl(var(--hue) 100% 65%); box-shadow: 0 0 14px hsl(var(--hue) 100% 65%); }
-.hm-list { width: min(560px, 100%); display: grid; gap: 10px; min-height: 0; padding: 6px; overflow-y: auto; scrollbar-width: none; }
+/* The big box (home.js): one keyboard picture at a time, with an arrow on each side and a dot for each keyboard. The arrows and
+   the dots are only shown when there are two or more keyboards. The keyboards (.hm-dev) lie on top of each other in one cell of
+   the list; the one that is not showing waits at the side, invisible, and slides in when an arrow is pressed. */
+.hm-stage { width: min(920px, 100%); display: grid; grid-template-columns: 52px minmax(0, 1fr) 52px; grid-template-rows: auto auto; align-items: center; column-gap: 14px; min-height: 0; }
+.hm-stage[hidden] { display: none; }
+.hm-list { grid-column: 2; grid-row: 1; display: grid; min-width: 0; padding: 6px; }
+.hm-list > .hm-dev { grid-area: 1 / 1; }
+.hm-nav { grid-row: 1; justify-self: center; display: inline-grid; place-items: center; width: 48px; height: 48px; padding: 0; border-radius: 50%; }
+.hm-nav[hidden] { display: none; }
+.hm-nav .ico { width: 20px; height: 20px; }
+.hm-prev { grid-column: 1; }
+.hm-next { grid-column: 3; }
+.hm-dots { grid-column: 2; grid-row: 2; display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+.hm-dots[hidden] { display: none; }
+.hm-dots i { width: 7px; height: 7px; border-radius: 4px; background: rgb(var(--ink) / 0.24); transition: width 0.3s var(--ease), background 0.25s; }
+.hm-dots i[data-on="1"] { width: 22px; background: hsl(var(--hue) 100% 68%); }
 .hm-actions { margin-top: 18px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 
 .hm-dev {
   display: grid;
-  grid-template-columns: 46px 1fr auto;
-  align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
-  padding: 14px 16px;
+  padding: 24px 26px 18px;
   border: 0;
-  border-radius: var(--r-tile);
+  border-radius: calc(var(--r-tile) + 10px);
   background: rgb(var(--tile) / 0.78);
   box-shadow: inset 0 0 0 1px var(--line-2);
   color: var(--text);
@@ -141,14 +158,30 @@
   font: inherit;
   animation: hmIn 0.55s var(--ease) backwards;
   animation-delay: calc(var(--i) * 70ms);
-  transition: background 0.2s, box-shadow 0.25s, transform 0.25s var(--spring);
+  transition: opacity 0.3s ease, background 0.2s, box-shadow 0.25s, transform 0.42s var(--ease), visibility 0s;
 }
 .hm-dev:hover { background: rgb(var(--tile-hover) / 0.92); transform: translateY(-2px); box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.26), 0 14px 28px -16px rgb(var(--shade) / 0.75); }
-.hm-dev:active { transform: scale(0.985); }
+.hm-dev:active { transform: scale(0.992); }
 .hm-dev.shake { animation: hmShake 0.4s; }
 @keyframes hmShake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
-.hm-dev-ico { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; background: rgb(var(--ink) / 0.07); color: hsl(var(--hue) 100% 75%); }
-.hm-dev-ico .ico { width: 24px; height: 24px; }
+/* the keyboards that are not showing wait at the side (see .hm-list) */
+.hm-list > .hm-dev[data-pos="before"], .hm-list > .hm-dev[data-pos="after"] { opacity: 0; visibility: hidden; pointer-events: none; transition-delay: 0s, 0s, 0s, 0s, 0.42s; }
+.hm-list > .hm-dev[data-pos="before"] { transform: translateX(-72px) scale(0.96); }
+.hm-list > .hm-dev[data-pos="after"] { transform: translateX(72px) scale(0.96); }
+.hm-list > .hm-dev.no-tr { transition: none; }
+/* the picture: as wide as the box, but never so tall that the box no longer fits a short window.
+   --hm-pic-scale makes it a little smaller than that (1 = full size of the box). At 0.884 the keyboard itself is 77% as wide as
+   the box (the picture has a little empty margin round the keyboard); at 1 it was about 87%. */
+.hm-dev-pic { position: relative; display: grid; place-items: center; min-width: 0; }
+.hm-pic { display: block; width: calc(min(100%, calc((100vh - 400px) * 2.05)) * var(--hm-pic-scale, 0.884)); height: auto; aspect-ratio: 2.05; transition: transform 0.4s var(--ease), opacity 0.3s, filter 0.3s; }
+.hm-dev:hover .hm-pic { transform: scale(1.012); }
+.hm-pic-ph { position: absolute; width: 56px; height: 56px; color: var(--faint); opacity: 0.5; }
+.hm-dev-pic[data-ready="1"] .hm-pic-ph { display: none; }
+.hm-dev[data-off="1"] .hm-pic { filter: grayscale(0.85); opacity: 0.5; }
+/* under the picture: how it is connected, its name and its state */
+.hm-dev-foot { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 14px; }
+.hm-dev-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: rgb(var(--ink) / 0.07); color: hsl(var(--hue) 100% 75%); }
+.hm-dev-ico .ico { width: 22px; height: 22px; }
 .hm-dev-txt { min-width: 0; }
 .hm-dev-txt b { display: block; font: 600 15px var(--font-display); }
 .hm-dev-txt small { display: block; margin-top: 2px; color: var(--muted); font: 12px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -162,6 +195,9 @@
 .hm-dev-st .bat { margin-left: 4px; padding: 2px 8px; border-radius: 999px; background: rgb(var(--ink) / 0.08); color: var(--text); font: 600 12px var(--font); }
 .hm-dev-st .bat.chg { display: inline-flex; align-items: center; gap: 5px; color: var(--ok); }
 .hm-dev-st .bat.chg svg { width: 11px; height: 11px; fill: currentColor; animation: chgBolt 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hm-dev, .hm-pic, .hm-dots i { transition: none !important; }
+}
 
 /* -------------------------------------------------------------- crosshair */
 

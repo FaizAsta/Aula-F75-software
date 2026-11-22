@@ -1,7 +1,7 @@
 {
   "name": "aula-control",
   "productName": "Aula Control",
-  "version": "1.5.3-beta-1",
+  "version": "1.5.3-beta.1",
   "description": "Unofficial companion app for AULA F75, F75 Pro and F87 keyboards: battery, lighting effects and per-key RGB.",
   "main": "main.js",
   "author": "",
@@ -25,7 +25,7 @@
     "appId": "com.aulacontrol.app",
     "productName": "Aula Control",
     "directories": { "output": "dist" },
-    "files": ["main.js", "preload.js", "login-item.js", "updater.js", "usage.js", "RELEASE_NOTES.md", "src/**/*", "assets/**/*", "package.json"],
+    "files": ["main.js", "preload.js", "login-item.js", "updater.js", "usage.js", "bgvideo.js", "RELEASE_NOTES.md", "src/**/*", "assets/**/*", "package.json"],
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }],
       "icon": "assets/icon.ico"

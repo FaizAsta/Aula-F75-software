@@ -1,0 +1,158 @@
+/* =====================================================================================================================
+   Liquid glass motion. Loaded after glass.css, so it is the last word; every rule starts with html.glass, and the
+   Classic UI never sees any of it. The behaviour that needs script lives in js/glass-motion.js, which adds
+   html.ag-fx while it is running (glass on, motion allowed). Without it (reduced motion, no Web Animations) the
+   plain CSS below still works and the old glass.css behaviour stays in place.
+
+   What is where, by the names of the iOS 26/27 Liquid Glass API it follows:
+
+   springs                         .bouncy / .snappy / .smooth / .interactiveSpring   -> --ag-spring-* below
+   .glassEffect(.interactive())    press swell, light under the pointer, springy rebound -> .ag-lit, js (press)
+   .buttonStyle(.glass)            the same, for every button, pill and tile            -> js (press)
+   .glassEffectID / morphing       menus grow out of their button and fold back in      -> js (menus)
+   GlassEffectContainer            the tab pill and segmented highlight stretch like a drop while they travel,
+                                   the toast stack flows into the gap a toast leaves      -> js (liquid, toasts)
+   .tabBarMinimizeBehavior         the tab bar shrinks to the active tab on scroll down   -> .is-min
+   .navigationTransition(.zoom)    a keyboard opens into the app: the app's own glide     -> js/glide.js (not touched here)
+   thumbs and switches             spring easing on the lens and the thumb
+
+   Not touched on purpose: lists and backgrounds. The iOS guidance keeps Liquid Glass on the floating control layer,
+   and the panels of this app keep the glass they already have (nothing new is added to them).
+   ===================================================================================================================== */
+
+/* A registered number, so the tab lens can swell smoothly while a finger is on the bar. */
+@property --ag-pr {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
+/* ---------------------------------------------------------------------------------------------------- springs
+   Real damped springs, sampled into linear(): SwiftUI's spring(duration:, bounce:) with w = 2*pi / duration and a
+   damping ratio of 1 - bounce. --ag-t-* is the time each one takes to settle.
+     bouncy   duration .5, bounce .30   (.bouncy)
+     snappy   duration .5, bounce .15   (.snappy)
+     smooth   duration .5, bounce 0     (.smooth)
+     press    response .15, damping .86 (.interactiveSpring: carries the finger's pace)
+     wobble   duration .5, bounce .50   (livelier: the rebound after a press, the lens of a slider)            */
+html.glass {
+  --ag-spring-bouncy: linear(0, 0.033, 0.114, 0.224, 0.347, 0.47, 0.587, 0.693, 0.783, 0.859, 0.919, 0.965, 0.998, 1.021, 1.036, 1.043, 1.046, 1.045, 1.041, 1.037, 1.031, 1.025, 1.02, 1.015, 1.011, 1.007, 1.004, 1.002, 1, 0.999, 1);
+  --ag-t-bouncy: 0.65s;
+  --ag-spring-snappy: linear(0, 0.031, 0.108, 0.208, 0.318, 0.426, 0.529, 0.621, 0.701, 0.769, 0.826, 0.871, 0.908, 0.936, 0.958, 0.974, 0.986, 0.994, 0.999, 1.003, 1.005, 1.006, 1.006, 1.006, 1.006, 1.005, 1);
+  --ag-t-snappy: 0.56s;
+  --ag-spring-smooth: linear(0, 0.04, 0.131, 0.243, 0.358, 0.466, 0.562, 0.645, 0.715, 0.774, 0.821, 0.859, 0.89, 0.914, 0.934, 0.949, 0.96, 0.97, 0.977, 0.982, 0.986, 0.99, 0.992, 0.994, 1);
+  --ag-t-smooth: 0.6s;
+  --ag-spring-press: linear(0, 0.127, 0.362, 0.584, 0.754, 0.868, 0.938, 0.976, 0.995, 1.003, 1.005, 1.005, 1.004, 1.002, 1);
+  --ag-t-press: 0.2s;
+  --ag-spring-wobble: linear(0, 0.039, 0.14, 0.279, 0.437, 0.596, 0.745, 0.875, 0.981, 1.061, 1.117, 1.149, 1.162, 1.16, 1.146, 1.125, 1.1, 1.074, 1.049, 1.027, 1.008, 0.994, 0.983, 0.977, 0.974, 0.974, 0.975, 0.978, 0.982, 0.987, 0.991, 0.995, 1);
+  --ag-t-wobble: 0.75s;
+
+  interpolate-size: allow-keywords; /* lets the collapsing tabs animate from width: auto */
+}
+@supports not (transition-timing-function: linear(0, 1)) {
+  html.glass {
+    --ag-spring-bouncy: cubic-bezier(0.3, 1.4, 0.5, 1);
+    --ag-spring-snappy: cubic-bezier(0.3, 1.2, 0.5, 1);
+    --ag-spring-smooth: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --ag-spring-press: cubic-bezier(0.2, 0.9, 0.3, 1.1);
+    --ag-spring-wobble: cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
+}
+
+/* ------------------------------------------------------------------------------- interactive glass (press)
+   js/glass-motion.js plays the swell and the rebound (Web Animations, on the scale property) and lays a light under
+   the pointer. The old CSS squeeze or swell of :active would pile on top of it, so it steps aside while the script runs. */
+html.glass.ag-fx .ag:is(.btn, .pill-btn, .win-btn, .day, .ka-chip, .ka-key, .sp-card, .effect):active:not(:disabled) {
+  transform: none;
+}
+/* the ink ripple gives way to the light under the finger */
+html.glass.ag-fx .ag > .rip { display: none; }
+
+html.glass .ag-lit {
+  position: absolute;
+  inset: 0;
+  z-index: -1; /* above the glass, under the label (every .ag is a stacking context) */
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle var(--lr, 90px) at var(--lx, 50%) var(--ly, 50%), rgb(255 255 255 / 0.24), rgb(255 255 255 / 0.08) 46%, rgb(255 255 255 / 0) 100%);
+}
+html.glass[data-theme="light"] .ag-lit {
+  background: radial-gradient(circle var(--lr, 90px) at var(--lx, 50%) var(--ly, 50%), rgb(255 255 255 / 0.7), rgb(255 255 255 / 0.28) 46%, rgb(255 255 255 / 0) 100%);
+}
+
+/* Thumbs and switches: the same springs, so a lens swells and settles like the rest. */
+html.glass .switch i {
+  transition: transform var(--ag-t-bouncy) var(--ag-spring-bouncy), width var(--ag-t-snappy) var(--ag-spring-snappy), background 0.25s, box-shadow 0.25s;
+}
+html.glass .range-lens {
+  transition: scale var(--ag-t-wobble) var(--ag-spring-wobble), background 0.3s, box-shadow 0.3s; /* translate is moved every frame by js/glass.js (a transition on it would lag behind) */
+}
+
+/* ----------------------------------------------------------------------- the tab pill: a drop of glass
+   The pill and the highlight of every segmented control are placed with translate (not transform), because the
+   scale property is applied after transform and would stretch the distance too. js/glass-motion.js writes --lv, how
+   fast the highlight is travelling (-1..1): it stretches along the way and squashes across, then settles. */
+html.glass .tab-ind {
+  transform: none;
+  translate: var(--x, 0px) 0;
+  scale: calc((1 + abs(var(--lv, 0)) * 0.32) * var(--ag-pr)) calc((1 - abs(var(--lv, 0)) * 0.2) * var(--ag-pr));
+  transition: translate var(--ag-t-snappy) var(--ag-spring-snappy), width var(--ag-t-snappy) var(--ag-spring-snappy), --ag-pr var(--ag-t-wobble) var(--ag-spring-wobble), background 0.3s;
+}
+html.glass .tabs.is-dragging.is-grab .tab-ind { transition: translate 0.12s var(--ease), width 0.12s var(--ease); }
+html.glass .tabs.is-morph .tab-ind { transition: none; }
+/* a finger on the bar: the lens swells and clears, as a held slider thumb does */
+html.glass .tabs:active { --ag-pr: 1.1; }
+html.glass .tabs:active .tab-ind.ag { background: rgb(255 255 255 / 0.07); }
+
+html.glass .seg::before {
+  transform: none;
+  translate: calc(var(--i) * (100% + 4px)) 0;
+  scale: calc(1 + abs(var(--lv, 0)) * 0.22) calc(1 - abs(var(--lv, 0)) * 0.14);
+  transition: translate var(--ag-t-snappy) var(--ag-spring-snappy), opacity 0.2s;
+}
+html.glass .seg.is-dragging::before { translate: calc(var(--di, var(--i)) * (100% + 4px)) 0; transition: none; }
+html.glass .seg.is-dragging.is-grab::before { transition: translate 0.12s var(--ease); }
+
+/* ----------------------------------------------------------- the tab bar folds to the active tab on scroll down
+   Scrolling down collapses the other tabs into the active one (is-min); scrolling up, or pointing at the bar, opens it
+   again. is-morph is on while it moves: the lens is kept on the active tab frame by frame. */
+html.glass .tabs { transition: gap var(--ag-t-snappy) var(--ag-spring-snappy); }
+html.glass .tab-btn {
+  transition: color 0.15s, background 0.15s, transform 0.15s var(--spring), width var(--ag-t-snappy) var(--ag-spring-snappy), padding var(--ag-t-snappy) var(--ag-spring-snappy), opacity 0.25s;
+}
+html.glass .tabs.is-morph .tab-btn { overflow: hidden; }
+html.glass .tabs.is-min { gap: 0; }
+html.glass .tabs.is-min .tab-btn:not([aria-selected="true"]) {
+  width: 0;
+  padding-inline: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------------- menus grow out of their button
+   The script animates the menu itself (position, size and corner radius from the button to the menu); this takes the
+   old drop-in out of the way and staggers the rows in once the glass has opened. */
+html.glass.ag-fx :is(.sel-pop, .sup-pop) { animation: none; }
+html.glass .ag-ghost { pointer-events: none; }
+@keyframes glassRowIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+}
+html.glass.ag-fx :is(.sel-item, .sup-head, .sup-item) {
+  animation: glassRowIn var(--ag-t-bouncy) var(--ag-spring-bouncy) backwards;
+  animation-delay: calc(min(var(--i, 0), 9) * 24ms + 110ms);
+}
+html.glass .ag-ghost :is(.sel-item, .sup-head, .sup-item) { animation: none; }
+
+/* ------------------------------------------------- toasts, the apply bar and cards: the bouncy spring on the way in */
+html.glass .toast:not(.out),
+html.glass .applybar,
+html.glass .overlay-card {
+  animation-duration: var(--ag-t-bouncy);
+  animation-timing-function: var(--ag-spring-bouncy);
+}
+
+/* ------------------------------------------------------------------------------------- accessibility */
+@media (prefers-reduced-motion: reduce) {
+  html.glass .ag-lit { display: none; }
+}

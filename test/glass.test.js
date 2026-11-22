@@ -95,6 +95,35 @@ test('glass.css and glass.js: the slider thumb is a glass lens that swells while
   assert.ok(js.includes('unmountRanges()'), 'switching back to Classic must remove the lenses');
 });
 
+test('glass.css and glass.js: the slider lens and the filled bar glide with the pointer instead of jumping from step to step', () => {
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '');
+  const css = strip(src('css', 'glass.css'));
+  const motion = strip(src('css', 'glass-motion.css'));
+  const js = src('js', 'glass.js');
+  // the bar is filled up to where the lens is drawn (--vf), and falls back to the value's own position (--pf)
+  assert.ok(/::-webkit-slider-runnable-track\s*\{[^}]*\*\s*var\(--vf,\s*var\(--pf\)\)/.test(css), 'the glass track fills up to --vf');
+  // js/glass.js moves the lens every frame: a CSS transition on translate would only make it chase its own tail
+  for (const [name, text] of [['glass.css', css], ['glass-motion.css', motion]]) {
+    for (const m of text.matchAll(/html\.glass \.range-lens\s*\{([^}]*)\}/g)) {
+      const t = m[1].match(/transition:\s*([^;]*);/);
+      assert.ok(!t || !/\btranslate\b/.test(t[1]), `${name}: the lens must not have a transition on translate`);
+    }
+  }
+  const mount = js.slice(js.indexOf('function mountRange'), js.indexOf('function unmountRanges'));
+  assert.ok(/rng\.style\.setProperty\('--vf'/.test(mount) && /lens\.style\.setProperty\('--lx'/.test(mount), 'the lens and the bar are drawn from the same position');
+  // held: the drawn position is the pointer's, not the value's
+  assert.ok(/cont = contFrom\(e\.clientX\)/.test(mount), 'while held the lens follows the pointer');
+  // let go, a key, the wheel or the page changing the value: glide to the step
+  assert.ok(/const goal = cont != null \? cont : target/.test(mount) && /Math\.exp\(-dt/.test(mount), 'it eases to the step by elapsed time');
+  const letGo = mount.slice(mount.indexOf('const letGo'), mount.indexOf('const onDown'));
+  assert.ok(/cont = null/.test(letGo) && /place\(\)/.test(letGo), 'letting go hands the lens back to the value');
+  // painting writes --vf on the slider's own style: the style watcher must not take that for a change of the value
+  assert.ok(/const sigOf = /.test(mount) && /sigOf\(\) !== sig/.test(mount), 'the style watcher ignores its own --vf writes');
+  assert.ok(/prefers-reduced-motion: reduce/.test(mount), 'reduced motion: no glide');
+  // switching back to Classic leaves nothing behind
+  assert.ok(/removeProperty\('--vf'\)/.test(mount) && /cancelAnimationFrame\(glide\)/.test(mount));
+});
+
 // ---- Liquid glass on panels, cards and pills ------------------------------------------------------------------------
 
 const surfaces = () => {
@@ -353,10 +382,10 @@ test('glass.js: the reflection reaches a few pixels in, and a surface too small 
 test('glass.js: every filter ends with the reflection: the bent picture at the rim, or on a small surface the frosted picture fetched from inside', () => {
   const js = src('js', 'glass.js');
   const fn = js.slice(js.indexOf('function makeFilter'), js.indexOf('// Gives `el` the filter'));
-  assert.ok(/body \+= rimPass\(w, h, r, s === 0 \? 'b' : 'o', s !== 0, lens\)/.test(fn), 'the reflection is added to every filter, bent or not');
+  assert.ok(/body \+= rimPass\(w, h, r, s === 0 \? src : 'o', s !== 0, lens\)/.test(fn), 'the reflection is added to every filter, bent or not');
   const pass = js.slice(js.indexOf('function rimPass'), js.indexOf('function makeFilter'));
   assert.ok(/in="\$\{bent \? 'o' : 'rr'\}"/.test(pass), 'a surface that bends reflects the bent picture; a small one the picture fetched again');
-  assert.ok(/in="b" in2="rm"/.test(pass), 'the small surface fetches from inside along the direction of each edge');
+  assert.ok(/in="\$\{base\}" in2="rm"/.test(pass), 'the small surface fetches from inside along the direction of each edge');
   assert.ok(/operator="in"/.test(pass) && /operator="over"/.test(pass), 'the reflection is cut to the band, then laid over the finished glass');
   assert.ok(/values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 1 0 0"/.test(pass), 'the blue channel of the rim map is the strength of the reflection');
   const code = (pass + js.slice(js.indexOf('function rimBoost'), js.indexOf('function rimPass'))).replace(/\/\/.*$/gm, ''); // the code, without its comments
@@ -477,11 +506,11 @@ test('glass.js: filters made ahead of time are made again, in idle time, after t
   assert.ok(/run !== warmRun/.test(js), 'a newer run replaces one that is in progress');
 });
 
-// ---- Liquid glass looks: Clear glass, Blur glass, Frosted glass, and the Customise button --------------------------------
+// ---- Liquid glass looks: Clear glass, Blur glass, Frosted glass, Default, and the Customise button --------------------------------
 
-test('glass.js: Clear, Blur and Frosted are ready-made looks, each inside the slider limits, and Blur is the default', () => {
+test('glass.js: Clear, Blur, Frosted and Default are ready-made looks, each inside the slider limits, and Blur is the default', () => {
   const { G } = loadGlass(null);
-  assert.deepStrictEqual(Object.keys(G.PRESETS), ['clear', 'blur', 'frosted']);
+  assert.deepStrictEqual(Object.keys(G.PRESETS), ['clear', 'blur', 'frosted', 'default']);
   for (const [name, look] of Object.entries(G.PRESETS)) {
     assert.deepStrictEqual({ ...G.clean(look) }, { ...look }, `${name} is changed by clean(), so a slider could not hold it`);
   }
@@ -490,18 +519,22 @@ test('glass.js: Clear, Blur and Frosted are ready-made looks, each inside the sl
   assert.ok(G.PRESETS.frosted.blur > G.PRESETS.blur.blur, 'Frosted glass is blurrier than Blur glass');
   assert.ok(G.PRESETS.frosted.blur > G.PRESETS.clear.blur);
   assert.strictEqual(G.PRESETS.frosted.chroma, 0, 'Frosted glass has no colour fringe');
-  // the three looks differ from each other, or one button would light for two of them
+  // Default: the numbers of the Default button in Settings (Blur 2.5 px, Edge width 14 px, Refraction 60 px, Colour fringe 0%)
+  assert.deepStrictEqual({ ...G.PRESETS.default }, { blur: 2.5, bezel: 14, amount: 60, chroma: 0 });
+  // the four looks differ from each other, or one button would light for two of them
   const keys = Object.values(G.PRESETS).map((l) => JSON.stringify([l.blur, l.bezel, l.amount, l.chroma]));
-  assert.strictEqual(new Set(keys).size, 3);
+  assert.strictEqual(new Set(keys).size, 4);
 });
 
 test('glass.js: presetOf names the look the four numbers make, and says custom for any other mix', () => {
   const { G } = loadGlass(null);
-  for (const name of ['clear', 'blur', 'frosted']) assert.strictEqual(G.presetOf(G.PRESETS[name]), name);
+  for (const name of ['clear', 'blur', 'frosted', 'default']) assert.strictEqual(G.presetOf(G.PRESETS[name]), name);
   assert.strictEqual(G.presetOf(null), 'blur', 'nothing saved is the default look, Blur glass');
   assert.strictEqual(G.presetOf(G.DEFAULTS), 'blur');
   assert.strictEqual(G.presetOf({ ...G.PRESETS.clear, blur: 1 }), 'custom');
   assert.strictEqual(G.presetOf({ ...G.PRESETS.frosted, amount: 13 }), 'custom');
+  assert.strictEqual(G.presetOf({ ...G.PRESETS.default, amount: 59 }), 'custom');
+  assert.strictEqual(G.presetOf({ blur: '2.5', bezel: '14', amount: '60', chroma: '0' }), 'default');
   // values the page keeps as text (from a slider) still count, and values past a limit are held to it first
   assert.strictEqual(G.presetOf({ blur: '0', bezel: '16', amount: '40', chroma: '35' }), 'clear');
   assert.strictEqual(G.presetOf({ blur: 99, bezel: 10, amount: 12, chroma: 0 }), 'custom');
@@ -511,12 +544,13 @@ test('glass.js: presetOf names the look the four numbers make, and says custom f
   assert.strictEqual(old.presetOf(old.params()), 'custom');
 });
 
-test('index.html: the glass section has the three looks, a Customise button, and the sliders hidden behind it', () => {
+test('index.html: the glass section has the four looks, a Customise button, and the sliders hidden behind it', () => {
   const html = src('index.html');
   const sec = html.slice(html.indexOf('id="glassSection"'), html.indexOf('<h2>Background</h2>'));
-  for (const v of ['clear', 'blur', 'frosted']) assert.ok(sec.includes(`data-glass-preset="${v}"`), `no button for ${v}`);
-  for (const label of ['Clear glass', 'Blur glass', 'Frosted glass']) assert.ok(sec.includes(`>${label}</button>`), `${label} is not a label`);
+  for (const v of ['clear', 'blur', 'frosted', 'default']) assert.ok(sec.includes(`data-glass-preset="${v}"`), `no button for ${v}`);
+  for (const label of ['Clear glass', 'Blur glass', 'Frosted glass', 'Default']) assert.ok(sec.includes(`>${label}</button>`), `${label} is not a label`);
   assert.ok(/id="segGlass"[^>]*role="radiogroup"/.test(sec));
+  assert.ok(/class="seg seg-4 seg-glass" id="segGlass" style="--n:4"/.test(sec), 'the looks are four columns');
   assert.ok(/id="glassCustomBtn"[^>]*aria-expanded="false"[^>]*aria-controls="glassCustom"/.test(sec));
   const custom = sec.match(/<div id="glassCustom"[^>]*>/);
   assert.ok(custom && /\bhidden\b/.test(custom[0]), 'the sliders must start hidden');
@@ -552,13 +586,30 @@ test('app.js: a look sets the four numbers and saves, Customise only shows or hi
   const style = js.match(/function renderStyle\(\) \{[\s\S]*?\n  \}\n/);
   assert.ok(style && /renderGlassPreset\(\)/.test(style[0]), 'renderStyle must refresh the looks');
   // the hint has a line for every look and for custom
-  for (const k of ['clear', 'blur', 'frosted', 'custom']) assert.ok(new RegExp(`\\b${k}: '`).test(js.slice(js.indexOf('GLASS_PRESET_HINT'))), `no hint for ${k}`);
+  for (const k of ['clear', 'blur', 'frosted', 'default', 'custom']) assert.ok(new RegExp(`\\b${k}: '`).test(js.slice(js.indexOf('GLASS_PRESET_HINT'))), `no hint for ${k}`);
 });
 
 test('app.css: the look switcher is wider than the theme one, hides its highlight for a custom mix, and the Customise panel is hidden with the attribute', () => {
   const css = src('css', 'app.css').replace(/\/\*[\s\S]*?\*\//g, '');
-  assert.ok(/\.seg-glass \{[^}]*width: 372px/.test(css));
+  assert.ok(/\.seg-glass \{[^}]*width: 440px/.test(css));
   assert.ok(/\.seg-glass\.seg-none::before \{ opacity: 0; \}/.test(css));
   assert.ok(/\.glass-custom\[hidden\] \{ display: none; \}/.test(css), 'a rule that sets display on the panel must not beat the hidden attribute');
   assert.ok(/\.glass-custom \{ border-top: 1px solid var\(--line\); \}/.test(css));
+});
+
+test('glass.css: the keyboard stage has no lighting glow in Liquid glass, and Classic keeps its own', () => {
+  const glass = src('css', 'glass.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  // no tinted radial on the glass layer, dark or light
+  for (const sel of ['html.glass .stage.ag-panel::after', 'html.glass[data-theme="light"] .stage.ag-panel::after']) {
+    const rule = glass.split('}').find((r) => r.trim().startsWith(sel));
+    assert.ok(rule, `${sel} is missing`);
+    assert.ok(!/radial-gradient/.test(rule) && !/--glow/.test(rule), `${sel} still paints the lighting glow`);
+  }
+  // the stage's own desk light and the two ambient blobs are switched off, under html.glass only
+  assert.ok(/html\.glass \.stage \{ background: none; \}/.test(glass), 'the stage background glow is not switched off');
+  assert.ok(/html\.glass \.stage::before \{ content: none; \}/.test(glass), 'the ambient blobs are not switched off');
+  // Classic (app.css) still has all of them
+  const app = src('css', 'app.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(/\.stage \{[^}]*radial-gradient\(52% 56% at 50% 56%, rgb\(var\(--glow\)/.test(app));
+  assert.ok(/\.stage::before \{[^}]*radial-gradient\(40% 45% at 35% 45%/.test(app));
 });

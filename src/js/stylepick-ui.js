@@ -24,7 +24,7 @@
 
   let opened = false;
   let pick = 'classic';
-  let draftState = null; // { blur, stageBgOn, glass: { blur, bezel, amount, chroma } }
+  let draftState = null; // { blur, stageBgOn, glass: { blur, bezel, amount, chroma }, glassType } (the type is only read: Settings has its switch)
   const frames = new Map(); // style -> { frame, shot, ready }
   let pushQueued = false;
 
@@ -47,6 +47,8 @@
       const out = document.getElementById(`${rng.id}Val`);
       if (out) out.textContent = `${v}${UNITS[k]}`;
     }
+    // Normal glass only blurs, so edge width, refraction and colour fringe have nothing to do: they show only for Realistic
+    for (const row of $$('[data-glass-real]')) row.hidden = draftState.glassType !== 'realistic';
   }
 
   // ------------------------------------------------------------------- the live picture
@@ -57,6 +59,7 @@
     blur: draftState.blur,
     stageBgOn: draftState.stageBgOn,
     glass: draftState.glass,
+    glassType: draftState.glassType,
     bg: A().previewBg(),
     bgOpacity: 0.5, // the same picture and strength as the two screenshots
   });
@@ -106,7 +109,7 @@
       pushQueued = false;
       const entry = frames.get(pick);
       if (!entry || !entry.ready || !draftState || !entry.frame.contentWindow) return;
-      entry.frame.contentWindow.postMessage({ aulaPreview: 'set', style: pick, blur: draftState.blur, stageBgOn: draftState.stageBgOn, glass: draftState.glass }, '*');
+      entry.frame.contentWindow.postMessage({ aulaPreview: 'set', style: pick, blur: draftState.blur, stageBgOn: draftState.stageBgOn, glass: draftState.glass, glassType: draftState.glassType }, '*');
     });
   }
 

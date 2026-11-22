@@ -128,6 +128,29 @@
   :root:not(.glass):not(.frost):not(.no-blur):not(.no-stage-bg) .stage-card { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 }
 
+/* ---- 4e. Keyboard box on the device screen (Classic only) --------------------------------------------------------
+   The big box of the "Connected devices" screen (home.js, home.css .hm-dev) is frosted, not solid: a see-through tint over a
+   blurred copy of whatever is behind it (the page's glow and grid, or the background picture), so the keyboard picture sits
+   on glass. It is one big, static box, so the one blur costs nothing while idle, like the cards in 4c. The tint is lighter
+   than the cards' on purpose (--dev-frost: the blur is the point), but the name and the state under the picture stay
+   readable. Without the blur (Settings > Theme > Blur off, Windows' own frosted window) the box keeps the plain colour of
+   home.css; Liquid glass paints its own glass on it (glass.css). */
+:root:not(.glass) { --dev-frost: 0.4; --dev-blur: calc(var(--frost-blur) * 1.5); }
+:root[data-theme="light"]:not(.glass) { --dev-frost: 0.55; }
+:root:not(.glass):not(.frost):not(.no-blur) .hm-dev {
+  background: color-mix(in srgb, rgb(var(--tile)) calc(var(--dev-frost) * 100%), transparent);
+  -webkit-backdrop-filter: blur(var(--dev-blur)) saturate(1.5) !important;
+          backdrop-filter: blur(var(--dev-blur)) saturate(1.5) !important;
+}
+:root:not(.glass):not(.frost):not(.no-blur) .hm-dev:hover {
+  background: color-mix(in srgb, rgb(var(--tile-hover)) calc(var(--dev-frost) * 100% + 12%), transparent);
+}
+/* "Reduce transparency" in the OS: the plain colour of home.css, no blur */
+@media (prefers-reduced-transparency: reduce) {
+  :root:not(.glass):not(.frost):not(.no-blur) .hm-dev { background: rgb(var(--tile) / 0.97); -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  :root:not(.glass):not(.frost):not(.no-blur) .hm-dev:hover { background: rgb(var(--tile-hover) / 0.97); }
+}
+
 /* The heading of the Effect page (its title, the line under it and the chips) sat straight on the page, so over a bright picture it
    washed out while the cards beside it stayed dark. It is a card of its own now (.eff-top, one wrapper in index.html): same colour,
    edge and blur as the others. Liquid glass keeps the plain heading, so this is Classic only. */

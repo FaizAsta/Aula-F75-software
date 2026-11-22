@@ -20,17 +20,18 @@
   color-scheme:light dark;
   --bg:#fbfbfd; --ink:#1d1d1f; --muted:#555b6b; --line:#e3e5ec; --soft:#f2f4f8;
   --card:#fff; --line2:#c9ccd6; --header:rgba(251,251,253,.86); --link:#0043c4;
-  --blue:#0053f1; --blue-dark:#0043c4; --case:#15181f; --code:#f2f4f8; --shadow:rgba(21,24,31,.6);
+  --blue:#0053f1; --blue-dark:#0043c4; --case:#15181f; --code:#f2f4f8; --shadow:rgba(21,24,31,.6); --glow:rgba(0,83,241,.14);
   --font:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
 @media(prefers-color-scheme:dark){:root{
   --bg:#0c0e13; --ink:#f2f3f7; --muted:#a4abbd; --line:#252a36; --soft:#161a23;
   --card:#12151c; --line2:#3a4152; --header:rgba(12,14,19,.82); --link:#8db0ff;
-  --blue-dark:#2f6dff; --case:#1a1f2b; --code:#1f2432; --shadow:rgba(0,0,0,.75);
+  --blue-dark:#2f6dff; --case:#1a1f2b; --code:#1f2432; --shadow:rgba(0,0,0,.75); --glow:rgba(47,109,255,.26);
 }}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;scroll-padding-top:76px}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 1rem/1.65 var(--font);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:absolute;inset:0 0 auto;height:720px;z-index:-1;pointer-events:none;background:radial-gradient(60% 80% at 50% 0,var(--glow),transparent 72%)}
 img{max-width:100%;height:auto;display:block}
 a{color:var(--link)}
 a:focus-visible{outline:3px solid var(--blue);outline-offset:3px;border-radius:6px}
@@ -51,7 +52,7 @@ header .wrap{display:flex;align-items:center;justify-content:space-between;gap:2
 .brand svg{width:30px;height:30px}
 nav{display:flex;align-items:center;gap:26px}
 nav a{display:flex;align-items:center;height:40px;line-height:1;color:var(--muted);text-decoration:none;font-weight:500;font-size:.92rem}
-nav a:hover{color:var(--ink)}
+nav a:hover,nav a.on{color:var(--ink)}
 
 /* buttons */
 .btns{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
@@ -99,10 +100,11 @@ tr:last-child>*{border-bottom:0}
 thead th{font-weight:600;color:var(--muted);font-size:.85rem}
 tbody th{font-weight:600;position:sticky;left:0;background:var(--card)}
 td.no{color:var(--muted)}
-.small{font-size:.92rem;color:var(--muted);margin-top:18px;max-width:72ch}
+td.y::before{content:"✓ ";color:var(--link);font-weight:700}
+.note{font-size:.92rem;color:var(--muted);margin-top:18px;max-width:72ch}
 
 /* gallery */
-.shots{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px}
+.shots{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:36px}
 figure{margin:0}
 figure a{display:block;background:var(--case);padding:6px;border-radius:14px;transition:transform .15s}
 figure a:hover{transform:translateY(-3px)}
@@ -126,6 +128,20 @@ footer{margin-top:112px;padding:32px 0 56px;border-top:1px solid var(--line);col
 footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .how>*,.row>*,.more>*{min-width:0}
 
+.chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;list-style:none;margin:28px 0 0;padding:0}
+.chips li{padding:5px 14px;border:1px solid var(--line2);border-radius:999px;background:var(--card);font-size:.88rem;font-weight:500;color:var(--muted)}
+.cmd{position:relative}.cmd pre{padding-right:84px}
+.copy{position:absolute;top:50%;right:10px;transform:translateY(-50%);padding:5px 13px;border-radius:999px;border:1px solid #3a4152;background:#242a38;color:#dfe6ff;font:600 .8rem var(--font);cursor:pointer}
+.copy:hover{background:#2f3748}
+dialog{border:0;padding:0;background:transparent;color:#fff;width:min(94vw,1180px);max-height:96vh;overflow:visible}
+dialog::backdrop{background:rgba(5,7,12,.88);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+dialog img{margin:0 auto;border-radius:12px;max-height:78vh;width:auto;box-shadow:0 30px 80px -30px #000}
+.lb-bar{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:16px}
+.lb-cap{min-width:0;text-align:center;font-weight:500}
+.lb-bar button,.lb-x{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font:400 1.5rem/1 var(--font);cursor:pointer}
+.lb-bar button:hover,.lb-x:hover{background:rgba(255,255,255,.22)}
+.lb-x{position:absolute;top:-56px;right:0}
+@media(max-width:560px){.hero .btns .btn{flex:1 1 auto;text-align:center}.chips{margin-top:22px}}
 @media(max-width:860px){
   nav{display:none}
   header .wrap{justify-content:space-between}
@@ -174,12 +190,13 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       <a class="btn primary" href="https://github.com/FaizAsta/Aula-F75-software/releases">Download</a>
       <a class="btn" href="#screenshots">See screenshots</a>
     </div>
+    <ul class="chips"><li>Windows 10 and 11</li><li>Linux, 64-bit</li></ul>
     <div class="case">
-      <img src="screenshots/lighting-glass.png" width="2400" height="1600" alt="The Lighting tab of Aula Control, showing a live preview of an AULA F75 and the list of lighting effects">
+      <img src="screenshots/lighting-glass.png" width="1196" height="771" fetchpriority="high" alt="The Lighting tab of Aula Control, showing a live preview of an AULA F75 and the list of lighting effects">
     </div>
     <div class="notice">
       <strong>Made for myself, shared for anyone.</strong>
-      <p>I built this because AULA's official software is hard to use. It was made with the help of AI, it is free, and you use it at your own risk. It has only been tested on the AULA F75. The F75 Pro, F87, F75 Max and F75 HE are untested. Not affiliated with AULA.</p>
+      <p>I built this because AULA’s official software is hard to use. It was made with the help of AI, it is free, and you use it at your own risk. It has only been tested on the AULA F75. The F75 Pro, F87, F75 Max and F75 HE are untested. Not affiliated with AULA.</p>
     </div>
   </div>
 
@@ -193,7 +210,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
         <div><strong>15 effects</strong><p>Colour, speed and brightness.</p></div>
         <div><strong>Per-key RGB</strong><p>Every key its own colour.</p></div>
         <div><strong>Battery alerts</strong><p>Low and fully charged.</p></div>
-        <div><strong>Free</strong><p>No account, no cost.</p></div>
+        <div><strong>Free</strong></div>
       </div>
 
       <div class="row">
@@ -225,15 +242,15 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
         <table>
           <thead><tr><th>Keyboard</th><th>Lighting and per-key</th><th>Battery</th><th>Key assignment</th><th>Tested</th></tr></thead>
           <tbody>
-            <tr><th>F75</th><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-            <tr><th>F75 Pro</th><td>Yes</td><td>Yes</td><td>Yes</td><td class="no">Not yet</td></tr>
-            <tr><th>F87</th><td>Yes</td><td>Yes</td><td>Yes</td><td class="no">Not yet</td></tr>
-            <tr><th>F75 Max</th><td>Yes</td><td>Yes</td><td class="no">No</td><td class="no">Not yet</td></tr>
-            <tr><th>F75 HE</th><td>Yes</td><td>Yes</td><td class="no">No</td><td class="no">Not yet</td></tr>
+            <tr><th>F75</th><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td></tr>
+            <tr><th>F75 Pro</th><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td><td class="no">Not yet</td></tr>
+            <tr><th>F87</th><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td><td class="no">Not yet</td></tr>
+            <tr><th>F75 Max</th><td class="y">Yes</td><td class="y">Yes</td><td class="no">No</td><td class="no">Not yet</td></tr>
+            <tr><th>F75 HE</th><td class="y">Yes</td><td class="y">Yes</td><td class="no">No</td><td class="no">Not yet</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="small">The F75 HE is experimental. Its lighting commands match what AULA's own web driver sends to a real F75 HE, but the app's own writes have not been confirmed on one yet. If a key lights the wrong cap, tell us on Discord.</p>
+      <p class="note">The F75 HE is experimental. Its lighting commands match what AULA’s own web driver sends to a real F75 HE, but the app’s own writes have not been confirmed on one yet. If a key lights the wrong cap, tell us on Discord.</p>
     </div>
   </section>
 
@@ -247,9 +264,8 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
         <figure><a href="screenshots/start.png"><img loading="lazy" width="2400" height="1600" src="screenshots/start.png" alt="The start screen"></a><figcaption>Start screen</figcaption></figure>
         <figure><a href="screenshots/light-theme.png"><img loading="lazy" width="2400" height="1600" src="screenshots/light-theme.png" alt="The Lighting tab in the light theme"></a><figcaption>Light theme</figcaption></figure>
         <figure><a href="screenshots/keys.png"><img loading="lazy" width="2400" height="1600" src="screenshots/keys.png" alt="The Keys tab with Caps Lock changed to F13"></a><figcaption>Key assignment</figcaption></figure>
-        <figure><a href="screenshots/he.png"><img loading="lazy" width="2400" height="1600" src="screenshots/he.png" alt="The Lighting tab of an F75 HE"></a><figcaption>F75 HE lighting (experimental)</figcaption></figure>
+        <figure><a href="screenshots/he-perkey.png"><img loading="lazy" width="2400" height="1600" src="screenshots/he-perkey.png" alt="The Per-key tab of an F75 HE"></a><figcaption>F75 HE per-key (experimental)</figcaption></figure>
         <figure><a href="screenshots/settings-theme.png"><img loading="lazy" width="2400" height="1600" src="screenshots/settings-theme.png" alt="Settings, Theme page with background pictures"></a><figcaption>Themes and backgrounds</figcaption></figure>
-        <figure><a href="screenshots/devices.png"><img loading="lazy" width="2400" height="1600" src="screenshots/devices.png" alt="The list of connected devices"></a><figcaption>Connected devices</figcaption></figure>
         <figure><a href="screenshots/demo-keyboards.png"><img loading="lazy" width="2400" height="1600" src="screenshots/demo-keyboards.png" alt="The list of demo keyboards"></a><figcaption>Demo keyboards</figcaption></figure>
         <figure><a href="screenshots/settings.png"><img loading="lazy" width="2400" height="1600" src="screenshots/settings.png" alt="Settings, Keyboard page"></a><figcaption>Settings</figcaption></figure>
         <figure><a href="screenshots/sending.png"><img loading="lazy" width="2400" height="1600" src="screenshots/sending.png" alt="Sending settings to the keyboard with the transfer animation"></a><figcaption>Sending to the keyboard</figcaption></figure>
@@ -269,7 +285,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
           <ol>
             <li>Download <code>Aula-Control-Setup.exe</code> and run it. No admin rights needed. Or take <code>Aula-Control-Portable.exe</code>, which needs no install.</li>
             <li>If Windows warns about an unknown publisher (the app is not code-signed), choose <b>More info</b>, then <b>Run anyway</b>.</li>
-            <li>Close AULA's official driver. Only one program can use the keyboard at a time.</li>
+            <li>Close AULA’s official driver. Only one program can use the keyboard at a time.</li>
             <li>Plug in the 2.4G dongle or USB-C cable, press <b>Start</b> and pick your keyboard.</li>
           </ol>
         </div>
@@ -279,11 +295,11 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
             <li><b>Ubuntu, Debian, Mint, Pop!_OS:</b> download <code>Aula-Control-amd64.deb</code>, double-click it and press Install. Then unplug and plug the keyboard once.</li>
             <li><b>Any other distro:</b> download <code>Aula-Control-x86_64.AppImage</code>, allow it to run as a program, then double-click it.</li>
             <li>The AppImage cannot set up keyboard access itself. Download <code>99-aula-control.rules</code> from the same release, run this, then replug the keyboard:
-              <pre>sudo cp 99-aula-control.rules /etc/udev/rules.d/ &amp;&amp; sudo udevadm control --reload-rules &amp;&amp; sudo udevadm trigger</pre></li>
+              <div class="cmd"><pre>sudo cp 99-aula-control.rules /etc/udev/rules.d/ &amp;&amp; sudo udevadm control --reload-rules &amp;&amp; sudo udevadm trigger</pre><button class="copy" type="button">Copy</button></div></li>
           </ol>
         </div>
       </div>
-      <p class="small"><b>No keyboard?</b> Press Start, open <b>Demo keyboards</b> and pick a demo F75, F75 Max or F75 HE. <b>Stuck?</b> Open Settings, Connection help and save a log, then ask on <a href="https://discord.gg/BdeQygyRwN">Discord</a>. The red low-battery light only works while the app is running, so turn on Start with Windows if you want it always on.</p>
+      <p class="note"><b>No keyboard?</b> Press Start, open <b>Demo keyboards</b> and pick a demo F75, F75 Max or F75 HE. <b>Stuck?</b> Open Settings, Connection help and save a log, then ask on <a href="https://discord.gg/BdeQygyRwN">Discord</a>. The red low-battery light only works while the app is running, so turn on Start with Windows if you want it always on.</p>
 
       <div class="cta">
         <h2>Try it with your keyboard</h2>
@@ -304,5 +320,26 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   </div>
 </footer>
 
+<dialog id="lb" aria-label="Screenshot viewer"><button class="lb-x" type="button" aria-label="Close">×</button><img alt=""><div class="lb-bar"><button class="lb-p" type="button" aria-label="Previous">‹</button><span class="lb-cap"></span><button class="lb-n" type="button" aria-label="Next">›</button></div></dialog>
+<script>
+(function(){
+  var lb=document.getElementById('lb'),im=lb.querySelector('img'),cap=lb.querySelector('.lb-cap'),
+      fs=[].slice.call(document.querySelectorAll('.shots figure')),cur=0;
+  function show(i){cur=(i+fs.length)%fs.length;var a=fs[cur].querySelector('a');
+    im.src=a.getAttribute('href');im.alt=a.querySelector('img').alt;
+    cap.textContent=fs[cur].querySelector('figcaption').textContent+' ('+(cur+1)+' of '+fs.length+')'}
+  fs.forEach(function(f,i){f.querySelector('a').addEventListener('click',function(e){if(!lb.showModal)return;e.preventDefault();show(i);lb.showModal()})});
+  lb.querySelector('.lb-p').onclick=function(){show(cur-1)};
+  lb.querySelector('.lb-n').onclick=function(){show(cur+1)};
+  lb.querySelector('.lb-x').onclick=function(){lb.close()};
+  lb.addEventListener('click',function(e){if(e.target===lb)lb.close()});
+  lb.addEventListener('keydown',function(e){if(e.key==='ArrowLeft')show(cur-1);if(e.key==='ArrowRight')show(cur+1)});
+  document.querySelectorAll('.copy').forEach(function(b){b.addEventListener('click',async function(){
+    try{await navigator.clipboard.writeText(b.previousElementSibling.textContent.trim());var t=b.textContent;b.textContent='Copied';setTimeout(function(){b.textContent=t},1600)}catch(e){}})});
+  var links=[].slice.call(document.querySelectorAll('nav a[href^="#"]'));
+  if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)links.forEach(function(l){l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id)})})},{rootMargin:'-45% 0px -50% 0px'});
+    document.querySelectorAll('main section[id]').forEach(function(s){io.observe(s)})}
+})();
+</script>
 </body>
 </html>

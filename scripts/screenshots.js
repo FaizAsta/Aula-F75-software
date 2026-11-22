@@ -241,7 +241,7 @@ async function open(scenario = 'demo', { theme = 'dark', model = 'f75', demo, ex
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e.stack || e)));
   page.on('console', (m) => m.type() === 'error' && errors.push('console.error: ' + m.text()));
-  // styleAsked: the "Which UI do you want to use?" question after Start has been answered, so Start goes straight to the devices (the style-picker scene turns that off)
+  // styleAsked: the "Which UI do you want to use?" question after Start has been answered, so Start goes straight to the devices
   const prefs = { demo: demo !== undefined ? demo : scenario === 'demo', model, modelSet: true, theme, styleAsked: true, ...extra };
   await page.addInitScript({ content: initScript({ prefs, scenario, version: PKG.version, backgrounds: BACKGROUNDS, memory }) });
   await page.goto(state.base);
@@ -251,6 +251,14 @@ async function open(scenario = 'demo', { theme = 'dark', model = 'f75', demo, ex
   page.ctx = ctx;
   await wait(900); // the start screen's entrance
   return page;
+}
+
+/** The device screen shows one keyboard at a time (the big box): brings the one whose text matches to the front. */
+async function showDevice(page, card) {
+  const src = card instanceof RegExp ? { re: card.source, flags: card.flags } : { text: String(card) };
+  const ok = await page.evaluate((c) => window.AulaDevices.show(c.re ? new RegExp(c.re, c.flags) : c.text), src);
+  if (!ok) throw new Error(`no keyboard on the device screen matches ${card}`);
+  await wait(500); // the slide
 }
 
 /** Start -> device list -> pick the card whose text matches -> the main screen. */
@@ -265,7 +273,8 @@ async function enter(page, card = /Demo keyboard/, { ready = true } = {}) {
     await page.waitForFunction(() => document.getElementById('hmTitle').textContent === 'Demo keyboards');
     await wait(400);
   }
-  await page.locator('#hmList .hm-dev', { hasText: card }).first().click();
+  await showDevice(page, card);
+  await page.locator('#hmList .hm-dev[data-pos="cur"]').first().click();
   await page.waitForFunction(() => document.querySelector('.shell').dataset.screen === 'app');
   if (ready) await page.waitForFunction(() => window.aulaApp.session.ready || (window.aulaApp.max && window.aulaApp.max.active()), null, { timeout: 15000 });
   await wait(2200); // the keyboard's intro animation and the screen's fade
@@ -274,6 +283,15 @@ async function enter(page, card = /Demo keyboard/, { ready = true } = {}) {
 const tab = async (page, name, ms = 500) => {
   await page.evaluate((n) => window.aulaApp.setTab(n), name);
   await wait(ms);
+};
+
+// The F75 Max / F75 HE pages share one scrolling box (#maxRoot): a picture is taken from the top of the page, as a person opens it.
+const toTop = async (page) => {
+  await page.evaluate(() => {
+    const box = document.getElementById('maxRoot');
+    if (box) box.scrollTop = 0;
+  });
+  await wait(300);
 };
 
 const settingsPage = async (page, name) => {
@@ -361,18 +379,7 @@ const SHOTS = {
     await page.ctx.close();
   },
 
-  // "Which UI do you want to use?": the question shown once after Start (a first install, or an update from a build without it).
-  async 'style-picker'() {
-    const page = await open('demo', { extra: { styleAsked: false } });
-    await page.click('#hmStart');
-    await page.waitForFunction(() => document.getElementById('home').dataset.screen === 'style');
-    await wait(4500); // the screen's entrance, and the live picture on the selected card (a second copy of the app that has to start)
-    await snap(page, 'style-picker');
-    check(page, 'style-picker');
-    await page.ctx.close();
-  },
-
-  // The two pictures on the cards of that question (src/img/ui/classic.webp and glass.webp): the Lighting tab of the real app in
+  // The two pictures on the cards of the "Which UI do you want to use?" question (src/img/ui/classic.webp and glass.webp): the Lighting tab of the real app in
   // each UI, over the same background picture so only the UI differs. They ship inside the app, so re-make them when the UI changes.
   async 'ui-previews'() {
     if (!sharp) throw new Error('sharp is needed to make the UI previews: npm install --no-save sharp');
@@ -394,14 +401,6 @@ const SHOTS = {
     }
   },
 
-  async lighting() {
-    const page = await open();
-    await enter(page);
-    await snap(page, 'lighting');
-    check(page, 'lighting');
-    await page.ctx.close();
-  },
-
   // The Support button in the header, with its menu open.
   // Liquid glass (experimental) needs a picture to bend, so this one runs over the preset background that ships with the app.
   async 'lighting-glass'() {
@@ -415,14 +414,16 @@ const SHOTS = {
     await page.ctx.close();
   },
 
-  async support() {
-    const page = await open();
+  // The same Lighting tab with the Realistic type of glass (Settings > Theme > Liquid glass > Glass type): thick glass that bends the picture
+  // at its edge, with a colour fringe. Normal glass is the picture above.
+  async 'lighting-glass-realistic'() {
+    const preset = BACKGROUNDS[0];
+    const page = await open('demo', { extra: { style: 'glass', glassType: 'realistic' }, memory: preset ? { 'aula.bgPreset': preset, 'aula.bgOpacity': '0.5' } : {} });
     await enter(page);
-    await page.click('#supBtn');
-    await page.waitForSelector('#supPop:not([hidden])');
-    await wait(500); // the menu's entrance
-    await snap(page, 'support');
-    check(page, 'support');
+    await tab(page, 'lighting', 1200);
+    await wait(800);
+    await snap(page, 'lighting-glass-realistic');
+    check(page, 'lighting-glass-realistic');
     await page.ctx.close();
   },
 
@@ -488,15 +489,6 @@ const SHOTS = {
     await page.ctx.close();
   },
 
-  async battery() {
-    const page = await open();
-    await enter(page);
-    await tab(page, 'battery', 1200);
-    await snap(page, 'battery');
-    check(page, 'battery');
-    await page.ctx.close();
-  },
-
   async charging() {
     const page = await open('charging');
     await enter(page, /dongle/i);
@@ -506,22 +498,13 @@ const SHOTS = {
     await page.ctx.close();
   },
 
-  async 'charging-cable'() {
-    const page = await open('cable');
-    await enter(page, /AULA F75/i);
-    await tab(page, 'battery', 1200);
-    await snap(page, 'charging-cable');
-    check(page, 'charging-cable');
-    await page.ctx.close();
-  },
-
   // The app is still talking to a keyboard that has not answered yet ("Waking the keyboard, attempt 2 of 3").
   async connecting() {
     const page = await open('silent');
     await page.click('#hmStart');
     await page.waitForSelector('#hmList .hm-dev');
     await wait(600);
-    await page.locator('#hmList .hm-dev', { hasText: /dongle/i }).first().click();
+    await page.locator('#hmList .hm-dev[data-pos="cur"]').first().click();
     await page.waitForFunction(() => !document.getElementById('overlay').hidden && /attempt 2/.test(document.getElementById('ovBody').textContent), null, { timeout: 40000 });
     await wait(400);
     await snap(page, 'connecting');
@@ -535,7 +518,7 @@ const SHOTS = {
     await page.click('#hmStart');
     await page.waitForSelector('#hmList .hm-dev');
     await wait(600);
-    await page.locator('#hmList .hm-dev', { hasText: /dongle/i }).first().click();
+    await page.locator('#hmList .hm-dev[data-pos="cur"]').first().click();
     await page.waitForFunction(() => !document.getElementById('overlay').hidden && /asleep/.test(document.getElementById('ovTitle').textContent), null, { timeout: 20000 });
     await wait(1200);
     await snap(page, 'asleep');
@@ -548,10 +531,6 @@ const SHOTS = {
     await enter(page);
     await tab(page, 'settings');
     await snap(page, 'settings');
-    await settingsPage(page, 'app');
-    await snap(page, 'settings-app');
-    await settingsPage(page, 'debug');
-    await snap(page, 'settings-debug');
     check(page, 'settings');
     await page.ctx.close();
   },
@@ -577,38 +556,6 @@ const SHOTS = {
     await page.ctx.close();
   },
 
-  async update() {
-    const page = await open();
-    await enter(page);
-    const notes = latestNotes();
-    await page.evaluate(
-      ({ info }) => {
-        window.__upd.badge(info);
-        window.__upd.available(info);
-      },
-      { info: { version: PKG.version, current: previousVersion(PKG.version), notes, mode: 'installer', size: 86 * 1048576 } },
-    );
-    await wait(900);
-    await snap(page, 'update');
-    check(page, 'update');
-    await page.ctx.close();
-  },
-
-  async max() {
-    const page = await open('max');
-    await enter(page, /Max/i);
-    await wait(800);
-    await snap(page, 'max');
-    await tab(page, 'perkey');
-    await page.click('#mxRainbow');
-    await wait(700);
-    await snap(page, 'max-perkey');
-    // Known and harmless: while the Max screen is up, the hidden F75 preview is resized to nothing and boardart.js's
-    // roundRect() is given a negative radius (arcTo throws). Nothing on screen is affected.
-    check(page, 'max', /arcTo/);
-    await page.ctx.close();
-  },
-
   // The F75 HE (experimental): a simulated one on its 2.4G dongle, found and opened the way a real one is.
   async he() {
     const page = await open('he');
@@ -616,86 +563,19 @@ const SHOTS = {
     await wait(800);
     await snap(page, 'he');
     await tab(page, 'perkey');
-    await page.click('#mxFillAll');
+    await page.click('#mxFillAll'); // Playwright scrolls the page to reach the button, and the next tab opens at the same scroll position
     await wait(700);
+    await toTop(page);
     await snap(page, 'he-perkey');
     await tab(page, 'keys');
     await wait(500);
+    await toTop(page);
     await snap(page, 'he-keyboard');
-    // Known and harmless: see the max scene (the hidden F75 preview's roundRect() is given a negative radius).
+    // Known and harmless: while this screen is up, the hidden F75 preview's roundRect() is given a negative radius (arcTo throws).
     check(page, 'he', /arcTo/);
     await page.ctx.close();
   },
 
-  // A sheet with the keyboard picture of every model, stacked.
-  async keyboards() {
-    const parts = [];
-    const page = await open();
-    await enter(page);
-    for (const id of ['f75', 'f75pro', 'f87']) {
-      await tab(page, 'settings');
-      await settingsPage(page, 'keyboard');
-      await page.selectOption('#modelSel', id);
-      await wait(1500);
-      await page.waitForFunction(() => window.aulaApp.session.ready, null, { timeout: 10000 });
-      await tab(page, 'lighting', 1800);
-      await page.mouse.move(W - 3, H - 3);
-      parts.push((await page.locator('.stage-canvas').screenshot({ omitBackground: true })).toString('base64'));
-    }
-    check(page, 'keyboards');
-    await page.ctx.close();
-    const mx = await open('max');
-    await enter(mx, /Max/i);
-    await tab(mx, 'perkey');
-    await mx.click('#mxRainbow');
-    await wait(700);
-    await mx.mouse.move(W - 3, H - 3);
-    parts.push((await mx.locator('.mx-board').screenshot({ omitBackground: true })).toString('base64'));
-    await mx.ctx.close();
-    const names = ['AULA F75', 'AULA F75 Pro', 'AULA F87', 'AULA F75 Max'];
-    await sheet(
-      'keyboards',
-      `<div class="wrap"><div class="stack">${parts.map((b, i) => `<figure><img alt="${names[i]}" src="data:image/png;base64,${b}" style="width:${i === 3 ? 940 : 1100}px;border-radius:20px"><figcaption>${names[i]}${i === 3 ? ' (its per-key screen)' : ''}</figcaption></figure>`).join('')}</div></div>`,
-      1180,
-    );
-  },
-
-  // The flat window buttons in each of their states, photographed from the real page.
-  async 'window-controls'() {
-    const page = await open();
-    await enter(page);
-    const box = await page.locator('#winBtns').boundingBox();
-    const pad = 10;
-    const clip = { x: box.x - 3, y: box.y - pad, width: box.width + pad + 3, height: box.height + pad * 2 }; // keeps clear of the battery pill on the left
-    const grab = async () => (await page.screenshot({ clip, omitBackground: false })).toString('base64');
-    const shots = [];
-    await page.mouse.move(W - 3, H - 3);
-    await wait(250);
-    shots.push(['Idle', await grab()]);
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); // the maximize button
-    await wait(300);
-    shots.push(['Hover', await grab()]);
-    await page.mouse.move(box.x + box.width - 20, box.y + box.height / 2); // close
-    await wait(300);
-    shots.push(['Close hover', await grab()]);
-    await page.mouse.move(W - 3, H - 3);
-    await page.evaluate(() => window.__setMaximized(true));
-    await wait(300);
-    shots.push(['Maximized', await grab()]);
-    await page.evaluate(() => window.__setMaximized(false));
-    await wait(200);
-    const header = (await page.screenshot({ clip: { x: 0, y: 0, width: W, height: 56 } })).toString('base64');
-    check(page, 'window-controls');
-    await page.ctx.close();
-    await sheet(
-      'window-controls',
-      `<div class="wrap" style="padding-bottom:20px"><h1>Window controls</h1><p class="sub">Three flat buttons, top right, above every screen. A soft square lights up under the pointer, red for close.</p>
-       <img alt="In the app header" src="data:image/png;base64,${header}" style="width:100%;border-radius:10px;display:block;margin-bottom:6px">
-       <p class="sub" style="margin:6px 0 20px">In place, in the app header.</p>
-       <div class="grid" style="grid-template-columns:repeat(4,1fr)">${shots.map(([n, b]) => `<div class="cell"><img alt="${n}" src="data:image/png;base64,${b}" style="width:${(box.width + pad + 3) * 2.2}px;border-radius:12px"><b>${n}</b></div>`).join('')}</div></div>`,
-      1000,
-    );
-  },
 };
 
 // ------------------------------------------------------------------------------------------------------------- main

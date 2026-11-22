@@ -182,15 +182,12 @@ test('the selected card is marked by more than colour (a tick), and the cards ar
 
 // ------------------------------------------------------------------------------------------------ the screenshot tools
 
-test('the screenshot tools skip the question by default and have scenes for it', () => {
+test('the screenshot tools skip the question by default and make its card pictures', () => {
   for (const f of ['screenshots.js', '_harness.js']) {
     const src = read('scripts', f);
     assert.match(src, /styleAsked: true, \.\.\.extra/, `${f}: Start goes straight to the devices unless a scene asks for the question`);
   }
   const shots = read('scripts', 'screenshots.js');
-  assert.match(shots, /'style-picker'\(\)/);
-  assert.match(shots, /styleAsked: false/);
-  assert.match(shots, /snap\(page, 'style-picker'\)/);
   assert.match(shots, /'ui-previews'\(\)/);
   assert.match(shots, /src', 'img', 'ui'/);
 });

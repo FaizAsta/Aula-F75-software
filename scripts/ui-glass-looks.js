@@ -1,4 +1,4 @@
-// Settings > Theme > Liquid glass: the three looks (Clear, Blur, Frosted) and the Customise button, checked in a real browser.
+// Settings > Theme > Liquid glass: the four looks (Clear, Blur, Frosted, Default) and the Customise button, checked in a real browser.
 // A look sets the four numbers and is saved, the sliders stay hidden until Customise is pressed, a slider that is moved makes
 // the look "custom" (no button lit), and Reset goes back to Blur glass.
 //   npm install --no-save playwright && npx playwright install chromium     (once)
@@ -68,7 +68,7 @@ async function run() {
 
   // 1. what is there at the start: the looks and the Customise button show, the sliders do not; the default is Blur glass
   let s = await read(page);
-  assert.ok(s.lookButtonsShown, 'the three looks must be visible');
+  assert.ok(s.lookButtonsShown, 'the four looks must be visible');
   assert.ok(s.customBtn.shown, 'the Customise button must be visible');
   assert.deepEqual([s.customBtn.text, s.customBtn.expanded], ['Customise', 'false']);
   assert.equal(s.panelShown, false, 'the sliders start hidden');
@@ -98,6 +98,16 @@ async function run() {
   assert.deepEqual(s.saved, P.frosted);
   assert.match(s.hint, /^Frosted glass/);
   await shot('3-frosted');
+
+  // 3b. Default: Blur 2.5 px, Edge width 14 px, Refraction 60 px, Colour fringe 0%
+  await page.click('#segGlass [data-glass-preset="default"]');
+  await wait(500);
+  s = await read(page);
+  assert.deepEqual(s.lit, ['default']);
+  assert.deepEqual(s.params, { blur: 2.5, bezel: 14, amount: 60, chroma: 0 });
+  assert.deepEqual(s.saved, P.default);
+  assert.match(s.hint, /^Default/);
+  await shot('3b-default');
 
   // 4. the page really repaints: a glass control's backdrop-filter follows the look (Clear has no frost, Frosted has a lot)
   const blurOf = () =>
@@ -188,7 +198,7 @@ async function run() {
     controls: document.querySelector('#glassCustomBtn').getAttribute('aria-controls'),
     exists: !!document.getElementById('glassCustom'),
   }));
-  assert.deepEqual(a11y, { role: 'radiogroup', radios: ['radio', 'radio', 'radio'], controls: 'glassCustom', exists: true });
+  assert.deepEqual(a11y, { role: 'radiogroup', radios: ['radio', 'radio', 'radio', 'radio'], controls: 'glassCustom', exists: true });
 
   check(page, 'glass looks');
   await page.ctx.close();

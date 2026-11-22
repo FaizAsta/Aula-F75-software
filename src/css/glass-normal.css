@@ -1,0 +1,38 @@
+/* ==========================================================================
+   Normal glass (Settings > Theme > Liquid glass > Glass type > Normal): the default type. Loaded right after glass.css.
+
+   The glass of iOS bars, Telegram and most music players: the picture behind a surface is blurred and tinted, and the edge is a
+   thin light line that is brightest at the top left and the bottom right, where the edge catches the light, and fainter between.
+   Nothing bends and nothing splits into colours.
+
+   It is the same surfaces and the same tints as Realistic (glass.css), so this file only changes what is different:
+     1. the blur: js/glass.js puts one blur on <html> as --ag-filter, and glass.css already reads --ag-filter as the backdrop filter
+        of every surface (Realistic gives each surface its own url(#filter) there instead), so no rule has to be repeated here;
+     2. the edge: Realistic gets its outline from the reflection built into each filter. There is no filter here, so the outline is
+        painted, as --ag-rim, which every surface already uses for its edge (a hairline all round, a lit crescent at the top left and
+        at the bottom right, and a faint glow just inside the edge);
+     3. the slider lens: a clear lens only has a rim to show, so it is not blurred while it is held.
+   Every rule starts with html.glass.glass-normal, so Classic is untouched (js/glass.js puts the class on <html>). It is there for
+   Normal, and also for Realistic while its Refraction is 0: with nothing to bend, Realistic's per-surface filters would only cost
+   speed, so it is painted exactly like this (with its own blur scale), and a Realistic that bends never carries the class.
+   ========================================================================== */
+
+html.glass.glass-normal {
+  --ag-filter: blur(11px); /* only until js/glass.js has set the real value, from the Blur setting */
+  --ag-rim:
+    inset 0 0 0 1px rgb(255 255 255 / 0.1),        /* a hairline all round, so no edge ever vanishes */
+    inset 1px 1px 0 rgb(255 255 255 / 0.4),        /* the lit edge, top left */
+    inset -1px -1px 0 rgb(255 255 255 / 0.22),     /* the bounce along the opposite edge, bottom right */
+    inset 0 0 16px -4px rgb(255 255 255 / 0.12);   /* a soft glow just inside the edge: the glass has some thickness */
+}
+html.glass.glass-normal[data-theme="light"] {
+  --ag-rim:
+    inset 0 0 0 1px rgb(20 28 50 / 0.07),
+    inset 1px 1px 0 rgb(255 255 255 / 0.9),
+    inset -1px -1px 0 rgb(255 255 255 / 0.6),
+    inset 0 0 16px -4px rgb(255 255 255 / 0.55);
+}
+
+/* The slider lens, held: a clear drop you look through at the track. A blur would hide the bar under it, so it is left sharp and only
+   its rim and shadow show (Realistic does the same with a blur of a quarter of the setting). */
+html.glass.glass-normal .range-lens.ag.held { --ag-filter: blur(0.4px); }

@@ -44,7 +44,7 @@
       const m = E.memoryStorage();
       m.setItem(
         'aula.prefs',
-        JSON.stringify({ demo: true, model: 'f75', modelSet: true, styleAsked: true, theme: PV.theme, style: PV.style, blur: PV.blur, stageBgOn: PV.stageBgOn, glass: PV.glass }),
+        JSON.stringify({ demo: true, model: 'f75', modelSet: true, styleAsked: true, theme: PV.theme, style: PV.style, blur: PV.blur, stageBgOn: PV.stageBgOn, glass: PV.glass, glassType: PV.glassType }),
       );
       if (PV.bg) {
         m.setItem('aula.bgPreset', String(PV.bg));
@@ -128,6 +128,7 @@
   prefs.stageBgOn = prefs.stageBgOn === true;
   document.documentElement.classList.toggle('no-stage-bg', !prefs.stageBgOn); // lite.css (Classic) does the rest; Liquid glass ignores it
   if (G) prefs.glass = G.clean(prefs.glass); // the four Liquid glass sliders
+  prefs.glassType = G ? G.cleanType(prefs.glassType) : 'normal'; // Settings > Theme > Liquid glass > Glass type: Normal (the default) or Realistic
   // Keyboard model: decides the preview layout and which LED each key is. Unknown or missing falls back to the F75.
   // What the keyboard picture shows: 'live' (follows the keyboard, the original behaviour) or 'picture' (just the board).
   prefs.view = prefs.view === 'picture' ? 'picture' : 'live';
@@ -1536,14 +1537,33 @@
 
   // Style (Settings > Theme): Classic, or Liquid glass with its four sliders (blur, edge width, refraction, colour fringe).
   const GLASS_UNITS = { blur: ' px', bezel: ' px', amount: ' px', chroma: '%' };
-  // Settings > Theme > Liquid glass: three ready-made looks (clear, blur, frosted), and a Customise button that shows the four
+  // Settings > Theme > Liquid glass: four ready-made looks (clear, blur, frosted, default), and a Customise button that shows the four
   // sliders. A look is not saved by name: it is whatever the four numbers are (G.presetOf), so a look picked by hand that lands
   // on a ready-made one lights that button, and any other mix is "custom" (no button lit). The sliders start hidden every time.
+  // The words follow the glass type: Realistic also bends the picture at the edge, Normal only blurs it.
   const GLASS_PRESET_HINT = {
-    clear: 'Clear glass: no blur, so the picture shows through sharply and the edge bends it.',
-    blur: 'Blur glass: a soft blur and a gentle bend. This is the default look.',
-    frosted: 'Frosted glass: a heavy blur and a soft edge, like frosted glass. No colour fringe.',
-    custom: 'Custom: your own settings. Pick a look above to go back to a ready-made one.',
+    normal: {
+      clear: 'Clear glass: no blur, so the picture shows through sharply.',
+      blur: 'Blur glass: a soft blur behind the controls. This is the default look.',
+      frosted: 'Frosted glass: a heavy blur, like frosted glass.',
+      default: 'Default: a soft blur behind the controls.',
+      custom: 'Custom: your own blur. Pick a look above to go back to a ready-made one.',
+    },
+    realistic: {
+      clear: 'Clear glass: no blur, so the picture shows through sharply and the edge bends it.',
+      blur: 'Blur glass: a soft blur and a gentle bend. This is the default look.',
+      frosted: 'Frosted glass: a heavy blur and a soft edge, like frosted glass. No colour fringe.',
+      default: 'Default: a soft blur and the strongest bend at the edge. No colour fringe.',
+      custom: 'Custom: your own settings. Pick a look above to go back to a ready-made one.',
+    },
+  };
+  const GLASS_TYPE_HINT = {
+    normal: 'Normal: soft blurred glass with a light edge. Light on the computer.',
+    realistic: 'Realistic: thick glass that bends the picture at its edge, with a colour fringe. Heavier, and slower on some computers.',
+  };
+  const GLASS_CUSTOM_HINT = {
+    normal: 'Set how much the glass blurs the picture yourself.',
+    realistic: 'Set the blur, edge width, refraction and colour fringe yourself. With Refraction at 0 nothing bends, and the glass is as light as Normal.',
   };
   let glassCustomOpen = false;
   function renderGlassPreset() {
@@ -1553,7 +1573,7 @@
     for (const b of btns) b.setAttribute('aria-checked', b.dataset.glassPreset === preset ? 'true' : 'false');
     seg.style.setProperty('--i', Math.max(0, btns.findIndex((b) => b.dataset.glassPreset === preset)));
     seg.classList.toggle('seg-none', preset === 'custom'); // no look is lit while the sliders hold a mix of their own
-    $('#glassPresetHint').textContent = GLASS_PRESET_HINT[preset];
+    $('#glassPresetHint').textContent = GLASS_PRESET_HINT[prefs.glassType][preset];
     $('#glassCustom').hidden = !glassCustomOpen;
     const cb = $('#glassCustomBtn');
     cb.setAttribute('aria-expanded', glassCustomOpen ? 'true' : 'false');
@@ -1575,8 +1595,16 @@
     $('#styleTag').hidden = !glass; // the experimental tag and caution only while Liquid glass is on
     $('#styleCaution').hidden = !glass;
     $('#styleHint').textContent = glass
-      ? 'Liquid glass bends the picture behind the controls. Looks best with a background picture.'
-      : 'Classic is the original look. Liquid glass (experimental) bends the picture behind the controls, like iOS.';
+      ? 'Liquid glass blurs the picture behind the controls. Looks best with a background picture.'
+      : 'Classic is the original look. Liquid glass (experimental) makes the controls glass that blurs the picture behind them, like iOS.';
+    // the glass type: Realistic has three more sliders (edge width, refraction, colour fringe), which Normal has nothing for
+    const gt = $('#segGlassType');
+    const realistic = prefs.glassType === 'realistic';
+    for (const b of $$('.seg-btn', gt)) b.setAttribute('aria-checked', b.dataset.glassType === prefs.glassType ? 'true' : 'false');
+    gt.style.setProperty('--i', realistic ? 1 : 0);
+    $('#glassTypeHint').textContent = GLASS_TYPE_HINT[prefs.glassType];
+    $('#glassCustomHint').textContent = GLASS_CUSTOM_HINT[prefs.glassType];
+    for (const row of $$('#glassSection [data-glass-real]')) row.hidden = !realistic;
     for (const rng of $$('#glassSection input[data-glass]')) {
       const k = rng.dataset.glass;
       const v = prefs.glass[k];
@@ -1596,9 +1624,18 @@
     prefs.style = style;
     savePrefs();
     G.setParams(prefs.glass);
+    G.setType(prefs.glassType);
     G.set(style === 'glass');
     renderStyle();
     renderBackground(); // the frosted window steps aside while the glass paints its own backdrop
+  }
+  // Glass type (Settings > Theme > Liquid glass): the same surfaces, painted by a plain blur (Normal) or by the bending filters (Realistic).
+  function setGlassType(type) {
+    if (!G) return;
+    prefs.glassType = G.cleanType(type);
+    savePrefs();
+    G.setType(prefs.glassType);
+    renderStyle();
   }
 
   // The question after Start (home.js draws it): owed until the person has answered, and only when there is a choice to make
@@ -1607,7 +1644,7 @@
   const styleStart = () => (SP ? SP.initial(prefs) : 'classic'); // what is highlighted when the question opens
   // The options that go with a style, as the question shows them under the selected card: Classic has Blur and Keyboard background,
   // Liquid glass has its four sliders. Painting them does not save them; chooseStyle (and the Settings controls) do that.
-  const styleOptions = () => ({ blur: prefs.blur, stageBgOn: prefs.stageBgOn, glass: { ...prefs.glass } });
+  const styleOptions = () => ({ blur: prefs.blur, stageBgOn: prefs.stageBgOn, glass: { ...prefs.glass }, glassType: prefs.glassType });
   function applyStyleOptions(o) {
     if (!o) return;
     const root = document.documentElement;
@@ -1622,6 +1659,10 @@
     if (G && o.glass) {
       prefs.glass = G.clean(o.glass);
       G.setParams(prefs.glass);
+    }
+    if (G && o.glassType) {
+      prefs.glassType = G.cleanType(o.glassType);
+      G.setType(prefs.glassType);
     }
   }
   // The picture the live preview sits over: the preset the person already uses, else the first one that ships with the app.
@@ -1648,17 +1689,22 @@
     $('#themeHint').textContent = T.pref() === 'system' ? `Following Windows, which is ${T.resolved()} right now.` : 'Dark, light, or the same as Windows.';
   }
 
-  // Background: either a picture the person picked (kept as a data URL under 'aula.bg') or one of the preset pictures in
-  // src/img/backgrounds (only its file name is kept, under 'aula.bgPreset'). Only one is kept at a time and none is the
-  // default. #appBg shows whichever is set.
+  // Background: a picture the person picked (kept as a data URL under 'aula.bg'), one of the preset pictures in
+  // src/img/backgrounds (only its file name is kept, under 'aula.bgPreset'), or a video / live wallpaper (the desktop app keeps
+  // a copy in its own folder and only the copy's name is kept, under 'aula.bgVideo'). Only one is kept at a time and none is the
+  // default. #appBg shows a picture (or an animated GIF); #appBgVideo shows a video.
   const BG_KEY = 'aula.bg';
   const BG_PRESET_KEY = 'aula.bgPreset';
+  const BG_VIDEO_KEY = 'aula.bgVideo';
+  let sessionVideo = null; // a plain browser tab cannot keep a big file: the video lives until the tab closes ({ url, media })
+  let bgCur = { kind: 'none', css: '' }; // what renderBackground() last painted
   const BG_OPACITY_KEY = 'aula.bgOpacity'; // how strongly the picture shows (0.1 to 1); one setting for both kinds
   let bgPresets = []; // the file names main.js found in the presets folder
   const bgOpacity = () => BG.clampOpacity(store.getItem(BG_OPACITY_KEY));
   // Shows an opacity on the layer, the slider and its label. Does not save it.
   function paintOpacity(op) {
     $('#appBg').style.setProperty('--bg-opacity', String(op));
+    $('#appBgVideo').style.setProperty('--bg-opacity', String(op)); // the video is a layer of its own, so it needs the value too
     const rng = $('#bgOpacity');
     const pct = Math.round(op * 100);
     if (+rng.value !== pct) rng.value = pct;
@@ -1671,6 +1717,13 @@
     if (BG.isDataImage(data)) return { kind: 'custom', css: BG.cssUrl(data) };
     const name = store.getItem(BG_PRESET_KEY);
     if (BG.isPresetName(name)) return { kind: 'preset', name, css: BG.presetCss(name) };
+    // A video: media is 'video' (played on #appBgVideo) or 'animated' (a GIF, painted on #appBg like a picture).
+    const vname = store.getItem(BG_VIDEO_KEY);
+    const base = host && host.bgVideoBase;
+    if (BG.isVideoName(vname) && BG.videoUrl(base, vname)) {
+      return { kind: 'video', name: vname, media: BG.mediaKind(vname), url: BG.videoUrl(base, vname), css: BG.videoCss(base, vname) };
+    }
+    if (sessionVideo) return { kind: 'video', name: '', media: sessionVideo.media, url: sessionVideo.url, css: `url("${sessionVideo.url}")` };
     return { kind: 'none', css: '' };
   }
   // Frosted window (Windows 11): the switch in Settings > Theme. It only shows through on the default background, so with
@@ -1690,17 +1743,75 @@
     picture = picture || glass; // Liquid glass paints its own backdrop, so like a picture it keeps the window solid
     F.set(prefs.frost && !picture);
   }
+  // Stops the video layer and lets go of its file (so it can be deleted), and the small preview in Settings too.
+  function releaseVideo() {
+    const v = $('#appBgVideo');
+    if (v.getAttribute('src')) {
+      v.pause();
+      v.removeAttribute('src');
+      v.load();
+    }
+    delete v.dataset.url;
+    const t = $('#bgThumb video');
+    if (t) {
+      t.removeAttribute('src');
+      t.load();
+      t.remove();
+    }
+  }
+  // What plays behind the app right now. A video or GIF only runs while somebody can see it: the window shown (not in the tray or
+  // minimised), the tab visible and an app screen up (the start screen hides the layer). The person chose it themselves, so
+  // "reduce motion" is not applied to it; Remove is one click away.
+  function syncBgMedia() {
+    const shell = $('.shell');
+    const go = windowShown && !document.hidden && !!shell && shell.dataset.screen === 'app';
+    const v = $('#appBgVideo');
+    if (bgCur.kind === 'video' && bgCur.media === 'video') {
+      if (!go) v.pause();
+      else if (v.getAttribute('src')) {
+        const p = v.play();
+        if (p && p.catch) p.catch(() => {}); // a video that cannot play is reported by its error event
+      }
+    } else if (bgCur.kind === 'video') {
+      $('#appBg').style.backgroundImage = go ? bgCur.css : ''; // a GIF cannot be paused, so it is taken away while nobody looks
+    }
+  }
   function renderBackground() {
     const cur = currentBackground();
+    bgCur = cur;
     const on = cur.kind !== 'none';
+    const isVideo = cur.kind === 'video' && cur.media === 'video'; // played on #appBgVideo, not painted on #appBg
     const layer = $('#appBg');
     document.documentElement.classList.toggle('has-picture', on); // the panels turn see-through (app.css)
     renderFrost(on);
-    layer.style.backgroundImage = cur.css;
-    layer.hidden = !on;
+    layer.style.backgroundImage = cur.kind === 'video' ? '' : cur.css; // a GIF is painted by syncBgMedia()
+    layer.hidden = !on || isVideo;
+    const vid = $('#appBgVideo');
+    vid.muted = true;
+    vid.hidden = !isVideo;
+    if (isVideo) {
+      if (vid.dataset.url !== cur.url) {
+        vid.dataset.url = cur.url;
+        vid.src = cur.url;
+        vid.load();
+      }
+    } else releaseVideo();
     const thumb = $('#bgThumb');
-    thumb.style.backgroundImage = cur.css;
+    thumb.style.backgroundImage = cur.kind === 'video' ? '' : cur.css;
     thumb.hidden = !on;
+    if (isVideo) {
+      // A still of the video: a small paused <video> showing its first frame (a canvas copy would be refused for a file: address).
+      let tv = $('video', thumb);
+      if (!tv) {
+        tv = el('video', { class: 'bg-thumb-video', muted: true, preload: 'metadata', playsinline: true, tabindex: '-1', 'aria-hidden': 'true' });
+        tv.muted = true;
+        thumb.append(tv);
+      }
+      if (tv.dataset.url !== cur.url) {
+        tv.dataset.url = cur.url;
+        tv.src = `${cur.url}#t=0.1`;
+      }
+    }
     $('#bgClear').disabled = !on;
     $('#bgOpacity').disabled = !on;
     paintOpacity(bgOpacity());
@@ -1709,12 +1820,29 @@
       t.setAttribute('aria-checked', mine ? 'true' : 'false');
       t.tabIndex = mine ? 0 : -1;
     }
+    syncBgMedia();
   }
   function setBackground(kind, value) {
+    const hadVideo = BG.isVideoName(store.getItem(BG_VIDEO_KEY));
     store.removeItem(BG_KEY);
     store.removeItem(BG_PRESET_KEY);
+    store.removeItem(BG_VIDEO_KEY);
+    if (sessionVideo) {
+      try {
+        URL.revokeObjectURL(sessionVideo.url);
+      } catch (_) {
+        /* already gone */
+      }
+      sessionVideo = null;
+    }
     if (kind === 'custom') store.setItem(BG_KEY, value);
     else if (kind === 'preset') store.setItem(BG_PRESET_KEY, value);
+    else if (kind === 'video') store.setItem(BG_VIDEO_KEY, value);
+    // The old copy of a video is deleted once the player has let go of it. Only the new one is kept.
+    if (host && host.tidyBackgroundVideo && (hadVideo || kind === 'video')) {
+      if (hadVideo) releaseVideo();
+      host.tidyBackgroundVideo(kind === 'video' ? value : '').catch(() => {});
+    }
   }
   // Builds the tiles for the pictures found in the presets folder. With none, the whole section stays hidden.
   function renderBgPresets(names) {
@@ -2439,6 +2567,7 @@
       });
       rng.addEventListener('change', savePrefs);
     }
+    for (const b of $$('#segGlassType .seg-btn')) b.addEventListener('click', () => setGlassType(b.dataset.glassType));
     for (const b of $$('#segGlass .seg-btn')) {
       b.addEventListener('click', () => {
         const look = G.PRESETS[b.dataset.glassPreset];
@@ -2485,6 +2614,53 @@
       renderBackground();
       toast('Background removed.', 'info');
     });
+    // theme page: video / live wallpaper. In the desktop app the main process opens the file dialog and keeps a copy of the video
+    // (the page never sees a path); in a plain browser tab the file is played from memory until the tab is closed.
+    const videoBtn = $('#bgVideoPick');
+    videoBtn.addEventListener('click', async () => {
+      if (!(host && host.pickBackgroundVideo)) {
+        $('#bgVideoFile').value = '';
+        $('#bgVideoFile').click();
+        return;
+      }
+      if (videoBtn.disabled) return;
+      videoBtn.disabled = true;
+      videoBtn.textContent = 'Copying...'; // a big video takes a few seconds to copy
+      try {
+        const r = await host.pickBackgroundVideo();
+        if (!r || r.canceled) return;
+        if (!r.ok || !BG.isVideoName(r.name)) throw new Error((r && r.error) || 'Could not use that video.');
+        setBackground('video', r.name);
+        renderBackground();
+        toast('Background set.', 'ok');
+      } catch (err) {
+        toast(err && err.message ? err.message : 'Could not use that video.', 'bad');
+      } finally {
+        videoBtn.disabled = false;
+        videoBtn.textContent = 'Choose video';
+      }
+    });
+    $('#bgVideoFile').addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const check = BG.checkVideoFile(f.name, f.size);
+      if (!check.ok) {
+        toast(check.error, 'bad');
+        return;
+      }
+      setBackground('none');
+      sessionVideo = { url: URL.createObjectURL(f), media: BG.mediaKind(f.name) };
+      renderBackground();
+      toast('Background set. In a browser tab it is kept until the tab is closed.', 'ok');
+    });
+    // A video the browser cannot play (a codec Chromium lacks, a damaged file, a copy that is gone): forget it and say so.
+    $('#appBgVideo').addEventListener('error', () => {
+      const v = $('#appBgVideo');
+      if (v.hidden || !v.getAttribute('src')) return; // the layer is being emptied, not failing
+      setBackground('none');
+      renderBackground();
+      toast('That video could not be played. Try an MP4 (H.264) or a WebM file.', 'bad', 7000);
+    });
     // opacity slider: the picture follows the thumb as it moves, and the value is saved when it is let go
     $('#bgOpacity').addEventListener('input', (e) => paintOpacity(BG.clampOpacity(+e.target.value / 100)));
     $('#bgOpacity').addEventListener('change', (e) => {
@@ -2528,6 +2704,7 @@
     renderTheme();
     if (G) {
       G.setParams(prefs.glass);
+      G.setType(prefs.glassType);
       G.set(prefs.style === 'glass'); // glass.js already read the saved choice before the first paint; this keeps the two in step
     }
     renderStyle();
@@ -2798,6 +2975,9 @@
     };
     window.addEventListener('focus', nudge);
     document.addEventListener('visibilitychange', nudge);
+    document.addEventListener('visibilitychange', syncBgMedia);
+    // The start screen hides the background layer, so nothing plays behind it; an app screen starts it again.
+    new MutationObserver(syncBgMedia).observe($('.shell'), { attributes: true, attributeFilter: ['data-screen'] });
 
     // Hidden in the tray or minimized: stop drawing. Back on screen: draw again and look for the keyboard at once.
     if (host && host.onShown) {
@@ -2808,6 +2988,7 @@
       const setShown = (shown) => {
         if (shown === windowShown) return;
         windowShown = shown;
+        syncBgMedia(); // a video behind the app stops while the window is in the tray or minimised, and starts again when it is back
         if (!shown) {
           view.stop();
           return;

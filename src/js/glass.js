@@ -32,7 +32,20 @@
 // "sliders" and "scroll bars" below). The update dialog's progress bar is a glass tube like the rest (.upd-bar, in TARGETS); its
 // fill is plain CSS (css/glass.css), with no lens: a lens at the head would make it look like a slider.
 //
-// app.js owns the saved choice (prefs.style, prefs.glass) and calls set() / setParams(). Classic: nothing here runs.
+// Two TYPES of glass (Settings > Theme > Liquid glass > Glass type), chosen with prefs.glassType:
+//  - NORMAL (the default) is the glass of iOS bars, Telegram and most music players: the picture behind a surface is blurred and
+//    tinted, and the edge is a thin light line that is brightest at the top left and the bottom right. Nothing here measures,
+//    draws a map or builds a filter for it: the page only carries one blur on <html> (--ag-filter) and marks the surfaces (.ag,
+//    .ag-panel) so css/glass.css and css/glass-normal.css can paint them. It is cheap, so it never lags.
+//  - REALISTIC is everything above: each surface gets its own SVG filter that bends the picture at the rim, with a colour fringe
+//    and a reflection. It looks like thick glass and costs a lot more.
+//    The sliders cannot make those filters cheaper: they only change numbers inside each filter (how far it shifts, how wide the
+//    rim is), never whether it runs, and a filter that shifts by 0 still blurs, draws a rim map and runs the reflection on every
+//    surface, again every frame the picture behind it moves (a scroll, a page change). So with Refraction at 0 (nothing to bend)
+//    Realistic takes the NORMAL path instead (isLight below): one plain blur, a painted edge, no filter at all. It keeps
+//    Realistic's own blur scale, so the frost looks the same as it did, and it is as light as Normal.
+//
+// app.js owns the saved choice (prefs.style, prefs.glassType, prefs.glass) and calls set() / setType() / setParams(). Classic: nothing here runs.
 (() => {
   'use strict';
   const root = document.documentElement;
@@ -42,12 +55,22 @@
   const LIMITS = { blur: [0, 12], bezel: [4, 28], amount: [0, 60], chroma: [0, 100] };
   // The ready-made looks in Settings > Theme > Liquid glass (the same four numbers the sliders set). Blur glass is the default look.
   // Clear: no frost at all and a strong, sharp bend, so the picture shows through. Frosted: heavy blur, a gentle edge and no
-  // colour fringe, so it reads like frosted glass. A look the sliders land on by hand is "custom".
+  // colour fringe, so it reads like frosted glass. Default: the Blur glass frost and edge width with the strongest bend (Refraction at
+  // its top, 60) and no colour fringe. A look the sliders land on by hand is "custom".
   const PRESETS = {
     clear: { blur: 0, bezel: 16, amount: 40, chroma: 35 },
     blur: { ...DEFAULTS },
     frosted: { blur: 9, bezel: 10, amount: 12, chroma: 0 },
+    default: { blur: 2.5, bezel: 14, amount: 60, chroma: 0 },
   };
+  // The two types of glass (see the header). Normal is the default, and anything unknown counts as Normal.
+  const TYPES = ['normal', 'realistic'];
+  const DEFAULT_TYPE = 'normal';
+  const cleanType = (t) => (t === 'realistic' ? 'realistic' : DEFAULT_TYPE);
+  // Normal glass has nothing that bends the picture, so the Blur slider is the whole look. A blur is far more visible as the only
+  // thing between you and the picture than it was inside a bending filter, so a point of the slider is worth NORMAL.blur px of blur:
+  // the default 2.5 is about 11 px, Frosted (9) about 40 px, 0 stays clear.
+  const NORMAL = { blur: 4.5 };
   const TARGETS = [
     '.tabs, .tab-ind, .seg, .btn, .pill-btn', // controls
     '.select, .text-in, .color-pick, .win-btn, .day, .ka-chip, .ka-key', // dropdowns, inputs, window buttons, small buttons
@@ -115,6 +138,8 @@
   const THUMB = 42; // px, width of the native (invisible) thumb: the lens rests on it, so the travel stays the same
   const PEEK_MS = 700; // how long the lens stays swollen after a key press or wheel nudge
   const JELLY_SPEED = 14; // px per frame of pointer speed at which the held lens stretches the most
+  const GLIDE_HELD_MS = 25; // the slider lens follows the pointer with this time constant (a snug follow, no steps) ...
+  const GLIDE_MS = 70; // ... and settles into its step with this one after letting go, a key press or a change from the page
   const SCROLLERS = '.panels, #maxRoot, .upd-body'; // the areas that scroll: their native bar is hidden and a glass one is drawn
   const SB_GRAB = 18; // px, width of the strip you can grab (the glass thumb in it is 12 px: css/glass.css)
   const SB_INSET = 8; // px, space above and below the thumb's track
@@ -130,7 +155,7 @@
     return out;
   }
 
-  // Which ready-made look the numbers are: 'clear', 'blur' or 'frosted', or 'custom' when they match none of them.
+  // Which ready-made look the numbers are: 'clear', 'blur', 'frosted' or 'default', or 'custom' when they match none of them.
   function presetOf(p) {
     const c = clean(p);
     for (const name of Object.keys(PRESETS)) if (Object.keys(DEFAULTS).every((k) => c[k] === PRESETS[name][k])) return name;
@@ -153,7 +178,38 @@
   }
   let on = saved.style === 'glass';
   let params = clean(saved.glass);
+  let type = cleanType(saved.glassType);
+  // LIGHT glass paints a surface with one plain blur and a painted edge and builds no SVG filter. Normal is always light; Realistic is
+  // light while Refraction is 0 (see the header). Everything below that used to ask "is it Normal?" asks this.
+  const isLight = () => type === 'normal' || params.amount === 0;
+  const syncClass = () => root.classList.toggle('glass-normal', on && isLight()); // css/glass-normal.css reads it; Classic and a bending Realistic never carry it
   root.classList.toggle('glass', on);
+  syncClass();
+
+  // ---- Normal glass: one blur for every surface. It is a variable on <html> that every glass rule reads as its backdrop filter (the
+  // same variable Realistic sets per surface to a url(#filter)), so the stylesheet has a single path and the surfaces need no
+  // measuring. Realistic removes it again, because there each surface carries its own.
+  const normalBlur = () => Math.round(params.blur * NORMAL.blur * 10) / 10;
+  // Realistic without bending keeps Realistic's own scale (a point of the slider is a pixel of blur, as inside its filters), so
+  // dragging Refraction down to 0 does not change how frosted the glass looks.
+  const lightBlur = () => (type === 'normal' ? normalBlur() : Math.round(params.blur * 10) / 10);
+  function applyNormal() {
+    if (root.style) root.style.setProperty('--ag-filter', `blur(${lightBlur()}px)`);
+  }
+  function clearNormal() {
+    if (root.style) root.style.removeProperty('--ag-filter');
+  }
+  // A surface of Normal glass needs only its class (the page does the rest); Realistic also gives it a filter, in paint() below.
+  function markNormal(el) {
+    const panel = el.matches(PANELS);
+    el.classList.add(panel ? 'ag-panel' : 'ag');
+    // Realistic's boxes carry a little more frost than its controls (panelFrost), and keep it without the bending. Normal glass has
+    // one blur for every surface, so nothing is set on the surface itself (and an old one is removed).
+    if (el.style) {
+      if (panel && type === 'realistic') el.style.setProperty('--ag-filter', `blur(${Math.round((params.blur + panelFrost(true)) * 100) / 100}px)`);
+      else if (el.style.getPropertyValue('--ag-filter')) el.style.removeProperty('--ag-filter');
+    }
+  }
 
   // ---- displacement map: for a w x h rounded box, where each pixel at the rim should look from (R = x, G = y; 128 = still).
   // Drawn at CSS pixels, and only where it is not flat (see the header).
@@ -356,7 +412,7 @@
     const map = `<feImage href="${rimMapUrl(w, h, r, width, lens)}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="rm"/>`;
     const fetch = bent
       ? ''
-      : `<feDisplacementMap in="b" in2="rm" scale="${(pull * 2).toFixed(2)}" xChannelSelector="R" yChannelSelector="G" result="rr"/>`;
+      : `<feDisplacementMap in="${base}" in2="rm" scale="${(pull * 2).toFixed(2)}" xChannelSelector="R" yChannelSelector="G" result="rr"/>`;
     return (
       map +
       fetch +
@@ -368,9 +424,12 @@
   }
   function makeFilter(id, w, h, r, bezel, blur, amount, ca, lens) {
     const s = amount * 2; // feDisplacementMap moves a pixel by scale * (value - 0.5)
-    const frost = `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" edgeMode="duplicate" result="b"/>`;
+    // A blur of 0 changes nothing, but the primitive would still be a pass over the whole surface, so with Blur at 0 (the Clear look)
+    // the picture is used as it is and the later steps read it from there.
+    const src = blur > 0 ? 'b' : 'SourceGraphic';
+    const frost = blur > 0 ? `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" edgeMode="duplicate" result="b"/>` : '';
     const disp = (k, result) =>
-      `<feDisplacementMap in="b" in2="m" scale="${(s * k).toFixed(2)}" xChannelSelector="R" yChannelSelector="G" result="${result}"/>`;
+      `<feDisplacementMap in="${src}" in2="m" scale="${(s * k).toFixed(2)}" xChannelSelector="R" yChannelSelector="G" result="${result}"/>`;
     let body;
     let post = '';
     if (s === 0) {
@@ -393,7 +452,7 @@
           '<feComposite in="cA" in2="cB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="o"/>';
       }
     }
-    body += rimPass(w, h, r, s === 0 ? 'b' : 'o', s !== 0, lens) + post; // the reflection goes over the finished glass; the smoothing covers both
+    body += rimPass(w, h, r, s === 0 ? src : 'o', s !== 0, lens) + post; // the reflection goes over the finished glass; the smoothing covers both
     const holder = document.createElement('div');
     holder.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg"><filter id="${id}" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">${body}</filter></svg>`;
     return holder.firstChild.firstChild;
@@ -556,6 +615,47 @@
     rng.after(lens); // empty: what you see through it while it is held is the real track, bent by its filter
     let peek = 0;
     const hold = (v) => lens.classList.toggle('held', v);
+    // The lens (and the filled part of the track, --vf) does not jump from step to step: what is drawn is a position along the
+    // track, `vis` (0 to 1), not the value. While the pointer holds the lens, `cont` is the pointer's own position and `vis`
+    // follows it, so the lens slides freely under the finger even where the value only has a few steps (brightness has 9 levels);
+    // the value still snaps, in the number beside the slider. Without the pointer (a key, the wheel, a change the page makes, or
+    // letting go) `vis` glides to `target`, the position of the value itself: the lens settles into its step.
+    let geo = null; // where the track is, from the last measurement ({ left, span, y }); null while the slider is hidden
+    let target = 0; // the value's own position, 0 to 1
+    let vis = 0; // the position that is drawn
+    let cont = null; // pointer held: its position along the track, 0 to 1, not rounded to a step; otherwise null
+    let grab = 0; // px between the pointer and the middle of the thumb at the moment it was picked up
+    let glide = 0; // the animation frame of the glide, 0 when none is pending
+    let glideT = 0;
+    let sig = ''; // what the style watcher last saw (see below)
+    const reduced = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const paint = () => {
+      if (!geo) return;
+      lens.style.setProperty('--lx', `${geo.left + THUMB / 2 + geo.span * vis}px`);
+      rng.style.setProperty('--vf', vis.toFixed(4)); // css/glass.css fills the track up to here instead of up to --pf
+    };
+    // One step of the glide: exponential easing by elapsed time (so a slow machine glides at the same pace). It follows the pointer
+    // closely while held and takes its time to settle into a step afterwards.
+    const stepGlide = (now) => {
+      glide = 0;
+      if (!geo) return;
+      const goal = cont != null ? cont : target;
+      const dt = Math.min(100, glideT ? now - glideT : 16.7);
+      glideT = now;
+      vis += (goal - vis) * (1 - Math.exp(-dt / (cont != null ? GLIDE_HELD_MS : GLIDE_MS)));
+      if (Math.abs(goal - vis) < 0.0004) {
+        vis = goal;
+        glideT = 0;
+      } else glide = requestAnimationFrame(stepGlide);
+      paint();
+    };
+    const go = () => {
+      if (!geo) return;
+      if (reduced() || typeof requestAnimationFrame !== 'function') {
+        vis = cont != null ? cont : target;
+        paint();
+      } else if (!glide) glide = requestAnimationFrame(stepGlide);
+    };
     // Where the lens goes is measured (measure) and written (apply) apart, so that several sliders shown together (a page that
     // has just been opened) are all measured before the first is changed; one by one, each write made the next measurement lay
     // the page out again.
@@ -565,15 +665,34 @@
       const min = rng.min === '' ? 0 : +rng.min;
       const max = rng.max === '' ? 100 : +rng.max;
       const pf = max > min ? Math.min(1, Math.max(0, (+rng.value - min) / (max - min))) : 0;
-      return { x: rng.offsetLeft + THUMB / 2 + (w - THUMB) * pf, y: rng.offsetTop + rng.offsetHeight / 2, pf };
+      return { left: rng.offsetLeft, span: w - THUMB, y: rng.offsetTop + rng.offsetHeight / 2, pf };
     };
     const apply = (m) => {
-      if (!m) return;
-      lens.style.setProperty('--lx', `${m.x}px`);
+      if (!m) {
+        geo = null; // hidden: when it is shown again it simply appears at its value
+        return;
+      }
+      const fresh = !geo;
+      geo = m;
+      target = m.pf;
       lens.style.setProperty('--ly', `${m.y}px`);
       lens.style.setProperty('--lp', String(m.pf));
+      if (fresh && cont == null) vis = target; // first sight of the slider: no glide in from the start of the track
+      paint();
+      if (vis !== (cont != null ? cont : target)) go();
     };
-    const place = () => apply(measure());
+    const place = () => {
+      sig = sigOf();
+      apply(measure());
+    };
+    // The pointer's position along the track (0 to 1), for the middle of the thumb to follow it. A panel that is scaled while it
+    // opens is allowed for (the on-screen width against the layout width).
+    const contFrom = (clientX) => {
+      const r = rng.getBoundingClientRect();
+      const k = rng.offsetWidth ? r.width / rng.offsetWidth : 1;
+      const span = r.width - THUMB * k;
+      return span > 0 ? Math.min(1, Math.max(0, (clientX - grab - r.left - (THUMB * k) / 2) / span)) : 0;
+    };
     // The held lens is a drop of liquid: dragged fast it stretches (css/glass.css reads --lv, -1 to 1: the smoothed pointer speed,
     // signed by direction), then settles back. Only a scale is applied, never a change of shape, so the filter built for the lens stays exact. `kick` is the latest move, `vel` follows it with a lag, and a frame loop runs only while either moves.
     // Speeds are in px per 16.7 ms (one frame at 60 Hz) and the easing is by elapsed time, so a slow machine eases at the same pace.
@@ -598,6 +717,10 @@
     };
     const onMove = (e) => {
       if (!lens.classList.contains('held')) return;
+      if (cont != null) {
+        cont = contFrom(e.clientX); // the lens follows the pointer, not the step the value has snapped to
+        go();
+      }
       const t = e.timeStamp || 0;
       const frames = Math.max(0.5, lastT ? (t - lastT) / 16.7 : 1); // a burst of events is fast, not many separate nudges
       kick = Math.max(-60, Math.min(60, (e.clientX - lastX) / frames));
@@ -610,6 +733,11 @@
       window.removeEventListener('pointerup', letGo, true);
       window.removeEventListener('pointercancel', letGo, true);
       window.removeEventListener('pointermove', onMove, true);
+      if (cont != null) {
+        cont = null;
+        grab = 0;
+        place(); // the lens glides from where the pointer left it into the step the value snapped to
+      }
     };
     const onDown = (e) => {
       if (rng.disabled || (e.button != null && e.button > 0)) return;
@@ -617,6 +745,15 @@
       hold(true);
       lastX = e.clientX || 0;
       lastT = e.timeStamp || 0;
+      // Like the native slider: picked up on the thumb, it keeps the distance between the pointer and the thumb's middle; a press on
+      // the track puts the middle of the thumb under the pointer.
+      const r = rng.getBoundingClientRect();
+      const k = rng.offsetWidth ? r.width / rng.offsetWidth : 1;
+      const mid = r.left + (THUMB * k) / 2 + (r.width - THUMB * k) * target;
+      const onThumb = Math.abs(e.clientX - mid) <= (THUMB * k) / 2 && Math.abs(e.clientY - (r.top + r.height / 2)) <= 14 * k;
+      grab = onThumb ? e.clientX - mid : 0;
+      cont = contFrom(e.clientX);
+      go();
       window.addEventListener('pointerup', letGo, true);
       window.addEventListener('pointercancel', letGo, true);
       window.addEventListener('pointermove', onMove, true);
@@ -632,8 +769,12 @@
     rng.addEventListener('input', onInput);
     rng.addEventListener('change', place);
     rng.addEventListener('blur', letGo);
-    // app.js moves a slider by setting .value and the --pf variable on its style, which fires no event: watch the style
-    const watch = new MutationObserver(place);
+    // app.js moves a slider by setting .value and the --pf variable on its style, which fires no event: watch the style.
+    // paint() writes --vf on the same style, so only a change of what matters (value, range, disabled, --pf) counts.
+    const sigOf = () => `${rng.value}|${rng.min}|${rng.max}|${rng.disabled}|${rng.style.getPropertyValue('--pf')}`;
+    const watch = new MutationObserver(() => {
+      if (sigOf() !== sig) place();
+    });
     watch.observe(rng, { attributes: true, attributeFilter: ['style', 'min', 'max', 'disabled'] });
     roRange.observe(rng);
     live.add(lens);
@@ -647,7 +788,11 @@
         clearTimeout(peek);
         letGo();
         if (jelly && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(jelly);
+        if (glide && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(glide);
+        glide = 0;
+        geo = null;
         lens.style.removeProperty('--lv');
+        rng.style.removeProperty('--vf'); // Classic fills the track from --pf alone
         rng.removeEventListener('pointerdown', onDown);
         rng.removeEventListener('input', onInput);
         rng.removeEventListener('change', place);
@@ -841,13 +986,19 @@
   function flush() {
     raf = 0;
     if (!on) return dirty.clear();
+    if (isLight()) {
+      // Light glass (Normal, or Realistic with no bending): nothing to measure and no filter to build, a surface only has to be marked.
+      for (const el of dirty) if (el.isConnected) markNormal(el);
+      dirty.clear();
+      return;
+    }
     ensureDefs();
     const batch = [];
     for (const el of dirty) {
       const w = el.offsetWidth;
       const h = el.offsetHeight;
       if (!w || !h || !el.isConnected) continue; // hidden for now: the observer fires again when it is shown
-      batch.push([el, w, h, parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0]);
+      batch.push([el, w, h, cornerOf(el)]);
     }
     dirty.clear();
     pending = [];
@@ -858,7 +1009,19 @@
       pending = null;
     }
     if (sweepAfter) sweep();
+    if (rootBlurStale) {
+      rootBlurStale = false; // every surface that is shown has its own filter now: the blur Normal left on <html> is not needed
+      clearNormal();
+    }
   }
+  // The corner radius a surface rests at. A menu opens with an animation that squeezes its corners into its button's (js/glass-motion.js),
+  // and a filter sized to the squeezed corners keeps them for as long as the menu stays the same size, so the glass edge and the menu's
+  // own edge part ways at every corner. glass-motion.js writes the radius the menu settles at (--ag-rest-r) before it starts the animation.
+  function cornerOf(el) {
+    const rest = parseFloat(el.style.getPropertyValue('--ag-rest-r'));
+    return Number.isFinite(rest) ? rest : parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+  }
+  let rootBlurStale = false; // set when Realistic takes over from Normal, cleared once the surfaces have been painted
   function paint(el, w, h, radius) {
     const panel = el.matches(PANELS);
     el.style.setProperty('--ag-filter', `url(#${acquire(el, w, h, radius, panel, !panel && el.matches(LENSES), !panel && el.matches(SLIDER_LENS))})`);
@@ -878,7 +1041,8 @@
     for (const el of document.querySelectorAll(`${TARGETS}, ${PANELS}`)) {
       if (live.has(el)) continue;
       live.add(el);
-      ro.observe(el); // reports the size straight away, which paints it
+      if (isLight()) markNormal(el); // nothing to measure: marked at once
+      ro.observe(el); // reports the size straight away, which paints it (Normal: only marks it, see flush)
     }
     for (const [rng, rec] of lensOf) {
       if (!rng.isConnected) {
@@ -906,7 +1070,7 @@
     if (scanTimer) return;
     for (const m of list) {
       if (hasElement(m.addedNodes) || hasElement(m.removedNodes)) {
-        scanTimer = setTimeout(scan, 150);
+        scanTimer = setTimeout(scan, isLight() ? 16 : 150); // light glass: a scan costs next to nothing, and a new menu should not wait for it
         return;
       }
     }
@@ -917,12 +1081,17 @@
     const now = dpr();
     if (now === seenDpr) return;
     seenDpr = now;
-    if (on) repaintAll();
+    if (on && !isLight()) repaintAll(); // only the smoothing blur of the filters depends on it
   }
   // The filters are not thrown away first: the key of each one holds the settings and the pixel density, so acquire() gives every
   // surface the filter that fits the new ones and lets go of its old one (which is removed when nobody else uses it). That is
   // done in one go, so a setting that is dragged never shows a frame with the glass missing.
   function repaintAll() {
+    if (isLight()) {
+      applyNormal(); // the blur is one variable on <html>: every surface follows it
+      for (const el of live) if (el.matches(PANELS)) markNormal(el); // Realistic's boxes have a little more frost of their own
+      return;
+    }
     ensureDefs();
     sweepAfter = true;
     for (const el of live) queueNow(el);
@@ -959,41 +1128,101 @@
     if (defs) defs.replaceChildren();
     filters.clear();
     maps.clear();
+    clearNormal();
+    rootBlurStale = false;
   }
   function start() {
     if (!document.body) return;
-    ensureDefs();
+    if (isLight()) applyNormal();
+    else ensureDefs(); // before the observer, so adding the holder does not start a scan
     mo.observe(document.body, { childList: true, subtree: true });
     seenDpr = dpr();
     if (window.addEventListener) window.addEventListener('resize', onResize);
     scan();
-    warm();
+    if (!isLight()) warm();
+  }
+
+  // ---- changing the type while glass is on (Settings > Theme > Liquid glass > Glass type): the surfaces stay marked and in place, only
+  // what paints them changes, so nothing is rebuilt from scratch.
+  function leaveRealistic() {
+    clearTimeout(warmTimer);
+    warmRun++; // a warm-up in progress is for the filters that are about to go
+    dirty.clear();
+    for (const el of live) {
+      clearTimeout(settle.get(el));
+      drop(el);
+      if (el.style) el.style.removeProperty('--ag-filter'); // back to the one blur on <html>
+    }
+    if (defs) defs.replaceChildren();
+    filters.clear();
+    maps.clear();
+    sweepAfter = false;
+    rootBlurStale = false;
+    applyNormal();
+    for (const el of live) markNormal(el);
+  }
+  function enterRealistic() {
+    ensureDefs();
+    seenDpr = dpr();
+    rootBlurStale = true; // the blur on <html> keeps the glass blurred until each surface has its own filter (the next frame)
+    warm(); // the sizes the last Realistic session remembered, made while nothing else is happening
+    for (const el of live) ro.observe(el); // Normal did not need the sizes: report them now (a repeated observe changes nothing)
+    repaintAll();
+  }
+
+  // After the type or the numbers changed: from the filters to light glass, from light glass to the filters, or on the same path, where
+  // everything is just painted again.
+  function moveTo(wasLight) {
+    const light = isLight();
+    if (light && !wasLight) leaveRealistic();
+    else if (!light && wasLight) enterRealistic();
+    else repaintAll();
   }
 
   window.AulaGlass = {
     DEFAULTS,
     LIMITS,
     PRESETS,
+    TYPES,
+    DEFAULT_TYPE,
+    NORMAL,
     clean,
+    cleanType,
     presetOf,
+    normalBlur,
+    isLight,
     rim,
     rimSpec,
     rimLight,
     isOn: () => on,
+    type: () => type,
     params: () => ({ ...params }),
     set(next) {
       next = !!next;
       if (next === on) return;
       on = next;
       root.classList.toggle('glass', on);
+      syncClass();
       if (on) start();
       else release();
+    },
+    // 'normal' or 'realistic'. With glass off it is only remembered, so it is right when glass comes on.
+    setType(next) {
+      next = cleanType(next);
+      if (next === type) return;
+      const wasLight = isLight();
+      type = next;
+      syncClass();
+      if (!on) return;
+      moveTo(wasLight);
     },
     setParams(p) {
       const next = clean({ ...params, ...p });
       if (next.bezel !== params.bezel) maps.clear();
+      const wasLight = isLight();
       params = next;
-      if (on) repaintAll();
+      syncClass();
+      if (on) moveTo(wasLight); // Refraction reaching 0 (or leaving it) changes which path paints the glass
     },
   };
 

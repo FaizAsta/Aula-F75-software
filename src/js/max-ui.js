@@ -306,7 +306,10 @@
           if (acc.legend) b.style.setProperty('--sk-ink', acc.legend); // a cap of another colour prints its legend in its own ink
         }
         const blend = acc ? acc.blend : skin && skin.cap.blend; // how a painted colour lies on this cap (white caps need multiply)
-        if (blend) b.style.setProperty('--blend', blend);
+        if (blend) {
+          b.style.setProperty('--blend', blend);
+          b.dataset.tint = '1'; // a light cap: the Lighting page washes it with the light's colour (css/max.css)
+        }
         if (skin && skin.underlight) {
           // The light of the key, as on the F75. A glow at the foot of the cap's front wall goes in the key, over its cap. The glow on
           // the plate and the thin line of light in the gaps round the cap (the lamp) must sit under every cap, and each key is its own
@@ -878,6 +881,40 @@
       };
     }
 
+    /**
+     * Not every colour shows equally: blue and red on a white cap are far fainter than yellow or cyan, and as light on a dark cap it is the other
+     * way round. So that all the lighting effects look equally lit, each light colour (at full strength) gets two gains, set next to --hue:
+     *   --g   for a light cap, where the colour is laid on as a wash (multiply): the gain that gives every colour the same distance from white (CIE Lab)
+     *   --gl  for the light itself (the glow in the gaps, under the caps, on a dark cap): bright colours are easier to see, so dark ones are lifted
+     * Both are 1 for a mid colour, and cached per colour.
+     */
+    const GAINS = new Map();
+    function lightGains(rgb) {
+      const key = rgb.join();
+      let g = GAINS.get(key);
+      if (g) return g;
+      const lin = (v) => ((v /= 255) > 0.04045 ? ((v + 0.055) / 1.055) ** 2.4 : v / 12.92);
+      const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+      const lab = (c) => {
+        const r = lin(c[0]);
+        const gg = lin(c[1]);
+        const b = lin(c[2]);
+        const x = f((0.4124 * r + 0.3576 * gg + 0.1805 * b) / 0.95047);
+        const y = f(0.2126 * r + 0.7152 * gg + 0.0722 * b);
+        const z = f((0.0193 * r + 0.1192 * gg + 0.9505 * b) / 1.08883);
+        return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+      };
+      const w = lab([255, 255, 255]);
+      const out = rgb.map((v) => 255 - 0.1 * (255 - v)); // a 10% wash of this colour on white
+      const l = lab(out);
+      const dE = Math.hypot(l[0] - w[0], l[1] - w[1], l[2] - w[2]);
+      const luma = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+      const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+      g = { g: +clamp(10.3 / Math.max(3, dE), 0.7, 1.5).toFixed(3), gl: +clamp(Math.sqrt(0.55 / Math.max(0.05, luma)), 0.8, 1.8).toFixed(3) };
+      GAINS.set(key, g);
+      return g;
+    }
+
     /** How much of full strength the picture's light is drawn at: the brightness level as a share of the keyboard's levels (1 / levels .. 1). */
     function brightShare() {
       const n = Math.max(1, FAM.brightLevels);
@@ -904,11 +941,15 @@
         // The key's light as hue and strength (as the F75's preview takes it): the hue at full strength, and how bright the key is.
         const peak = cd ? Math.max(cd[0], cd[1], cd[2]) : 0;
         const strength = peak ? (peak / 255).toFixed(3) : '0';
-        const full = peak ? hexOf(c.map((v) => Math.round((v * 255) / Math.max(1, Math.max(c[0], c[1], c[2]))))) : '';
+        const fullRgb = peak ? c.map((v) => Math.round((v * 255) / Math.max(1, Math.max(c[0], c[1], c[2])))) : null;
+        const full = fullRgb ? hexOf(fullRgb) : '';
+        const gains = fullRgb ? lightGains(fullRgb) : null;
         for (const t of [b, refs.lamps.get(led)]) {
           if (!t) continue;
           t.style.setProperty('--b', strength);
           t.style.setProperty('--hue', full);
+          t.style.setProperty('--g', gains ? gains.g : '1');
+          t.style.setProperty('--gl', gains ? gains.gl : '1');
           t.dataset.on = c ? '1' : '';
         }
         // Painting (the Per-key page) prints the legend to suit the painted cap; lighting leaves the cap and its print as they are

@@ -236,7 +236,7 @@ async function open(scenario = 'demo', { theme = 'dark', model = 'f75', demo, ex
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e.stack || e)));
   page.on('console', (m) => m.type() === 'error' && errors.push('console.error: ' + m.text()));
-  // styleAsked: the "Which UI do you want to use?" question after Start has been answered, so Start goes straight to the devices (the style-picker scene turns that off)
+  // styleAsked: the "Which UI do you want to use?" question after Start has been answered, so Start goes straight to the devices
   const prefs = { demo: demo !== undefined ? demo : scenario === 'demo', model, modelSet: true, theme, styleAsked: true, ...extra };
   await page.addInitScript({ content: initScript({ prefs, scenario, version: PKG.version, backgrounds: BACKGROUNDS, memory }) });
   await page.goto(state.base);
@@ -248,18 +248,28 @@ async function open(scenario = 'demo', { theme = 'dark', model = 'f75', demo, ex
   return page;
 }
 
+/** The device screen shows one keyboard at a time (the big box): brings the one whose text matches to the front. */
+async function showDevice(page, card) {
+  const src = card instanceof RegExp ? { re: card.source, flags: card.flags } : { text: String(card) };
+  const ok = await page.evaluate((c) => window.AulaDevices.show(c.re ? new RegExp(c.re, c.flags) : c.text), src);
+  if (!ok) throw new Error(`no keyboard on the device screen matches ${card}`);
+  await wait(500); // the slide
+}
+
 /** Start -> device list -> pick the card whose text matches -> the main screen. */
 async function enter(page, card = /Demo keyboard/, { ready = true } = {}) {
   await page.click('#hmStart');
-  await page.waitForSelector('#hmList .hm-dev');
+  const wantsDemo = /demo/i.test(card instanceof RegExp ? card.source : String(card));
+  await page.waitForSelector(wantsDemo ? '#hmDemos' : '#hmList .hm-dev');
   await wait(500);
-  // The simulated keyboards sit behind one plate in the list ("Demo keyboards"): it is opened first.
-  if (/demo/i.test(card instanceof RegExp ? card.source : String(card))) {
-    await page.locator('#hmList .hm-dev', { hasText: 'Demo keyboards' }).first().click();
+  // The simulated keyboards sit behind the small "Demo keyboards" button beside Search again: it is pressed first.
+  if (wantsDemo) {
+    await page.click('#hmDemos');
     await page.waitForFunction(() => document.getElementById('hmTitle').textContent === 'Demo keyboards');
     await wait(400);
   }
-  await page.locator('#hmList .hm-dev', { hasText: card }).first().click();
+  await showDevice(page, card);
+  await page.locator('#hmList .hm-dev[data-pos="cur"]').first().click();
   await page.waitForFunction(() => document.querySelector('.shell').dataset.screen === 'app');
   if (ready) await page.waitForFunction(() => window.aulaApp.session.ready || (window.aulaApp.max && window.aulaApp.max.active()), null, { timeout: 15000 });
   await wait(2200); // the keyboard's intro animation and the screen's fade
@@ -292,4 +302,4 @@ const check = (page, what, ignore) => {
 
 
 
-module.exports = { open, enter, tab, settingsPage, snap, check, wait, serve, state, chromium, fs, path, OUT, W, H, SCALE, ROOT };
+module.exports = { open, enter, showDevice, tab, settingsPage, snap, check, wait, serve, state, chromium, fs, path, OUT, W, H, SCALE, ROOT };

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; script-src 'self'; connect-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file:; media-src 'self' blob: file:; script-src 'self'; connect-src 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Aula Control</title>
   <link rel="stylesheet" href="css/app.css">
@@ -18,6 +18,10 @@
   <link rel="stylesheet" href="css/lite.css">
   <link rel="stylesheet" href="css/motion.css">
   <link rel="stylesheet" href="css/glass.css">
+  <link rel="stylesheet" href="css/glass-normal.css">
+  <link rel="stylesheet" href="css/glass-bend.css">
+  <link rel="stylesheet" href="css/glass-motion.css">
+  <link rel="stylesheet" href="css/glide.css">
   <link rel="icon" href="../assets/icon.png">
   <script src="js/boot.js"></script>
   <script src="js/theme.js"></script>
@@ -28,6 +32,7 @@
 <div class="shell" data-screen="home">
   <!-- Background (Settings > Theme): a custom or preset picture behind everything, with an opacity slider; see background.js. -->
   <div class="app-bg" id="appBg" aria-hidden="true" hidden></div>
+  <video class="app-bg app-bg-video" id="appBgVideo" muted loop playsinline preload="auto" tabindex="-1" disablepictureinpicture disableremoteplayback aria-hidden="true" hidden></video>
 
   <header class="top">
     <div class="brand" id="brand" role="button" tabindex="0" title="Devices">
@@ -498,7 +503,7 @@
                   </div>
                 </div>
                 <div class="srow">
-                  <div class="srow-text"><b>UI</b><span class="tag warn style-tag" id="styleTag" hidden>Experimental</span><p class="hint" id="styleHint">Classic is the original look. Liquid glass (experimental) bends the picture behind the controls, like iOS.</p><p class="hint caution" id="styleCaution" hidden>Caution: Liquid glass is experimental. It may look off or run slower on some computers. If anything misbehaves, switch back to Classic.</p></div>
+                  <div class="srow-text"><b>UI</b><span class="tag warn style-tag" id="styleTag" hidden>Experimental</span><p class="hint" id="styleHint">Classic is the original look. Liquid glass (experimental) makes the controls glass that blurs the picture behind them, like iOS.</p><p class="hint caution" id="styleCaution" hidden>Caution: Liquid glass is experimental. It may look off or run slower on some computers. If anything misbehaves, switch back to Classic.</p></div>
                   <div class="srow-ctl">
                     <div class="seg seg-2" id="segStyle" style="--n:2" role="radiogroup" aria-label="UI">
                       <button class="seg-btn" role="radio" data-style-pref="classic" type="button">Classic</button>
@@ -527,19 +532,30 @@
             <section class="set" id="glassSection" hidden>
               <h2>Liquid glass</h2>
               <div class="group">
-                <!-- Three ready-made looks. The sliders below stay hidden until Customise is pressed; moving one makes the look "custom" (no button lit). -->
+                <!-- The type of glass: Normal (blur and a light edge, the default) or Realistic (bends the picture at the rim). Normal has no bending, so the three bending sliders below are hidden with it (data-glass-real). -->
+                <div class="srow">
+                  <div class="srow-text"><b>Glass type</b><p class="hint" id="glassTypeHint">Normal: soft blurred glass with a light edge. Light on the computer.</p></div>
+                  <div class="srow-ctl">
+                    <div class="seg seg-2" id="segGlassType" style="--n:2" role="radiogroup" aria-label="Glass type">
+                      <button class="seg-btn" role="radio" data-glass-type="normal" type="button">Normal</button>
+                      <button class="seg-btn" role="radio" data-glass-type="realistic" type="button">Realistic</button>
+                    </div>
+                  </div>
+                </div>
+                <!-- Four ready-made looks. The sliders below stay hidden until Customise is pressed; moving one makes the look "custom" (no button lit). -->
                 <div class="srow">
                   <div class="srow-text"><b>Glass style</b><p class="hint" id="glassPresetHint">Pick a look for the glass.</p></div>
                   <div class="srow-ctl">
-                    <div class="seg seg-3 seg-glass" id="segGlass" style="--n:3" role="radiogroup" aria-label="Glass style">
+                    <div class="seg seg-4 seg-glass" id="segGlass" style="--n:4" role="radiogroup" aria-label="Glass style">
                       <button class="seg-btn" role="radio" data-glass-preset="clear" type="button">Clear glass</button>
                       <button class="seg-btn" role="radio" data-glass-preset="blur" type="button">Blur glass</button>
                       <button class="seg-btn" role="radio" data-glass-preset="frosted" type="button">Frosted glass</button>
+                      <button class="seg-btn" role="radio" data-glass-preset="default" type="button">Default</button>
                     </div>
                   </div>
                 </div>
                 <div class="srow">
-                  <div class="srow-text"><b>Customise</b><p class="hint">Set the blur, edge width, refraction and colour fringe yourself.</p></div>
+                  <div class="srow-text"><b>Customise</b><p class="hint" id="glassCustomHint">Set how much the glass blurs the picture yourself.</p></div>
                   <div class="srow-ctl"><button class="btn small ghost" id="glassCustomBtn" type="button" aria-expanded="false" aria-controls="glassCustom">Customise</button></div>
                 </div>
                 <div id="glassCustom" class="glass-custom" hidden>
@@ -552,7 +568,7 @@
                     </div>
                   </div>
                 </div>
-                <div class="srow">
+                <div class="srow" data-glass-real>
                   <div class="srow-text"><b>Edge width</b><p class="hint">How far in from the rim the bending reaches.</p></div>
                   <div class="srow-ctl">
                     <div class="bg-opacity">
@@ -561,7 +577,7 @@
                     </div>
                   </div>
                 </div>
-                <div class="srow">
+                <div class="srow" data-glass-real>
                   <div class="srow-text"><b>Refraction</b><p class="hint">How strongly the rim bends the picture.</p></div>
                   <div class="srow-ctl">
                     <div class="bg-opacity">
@@ -570,7 +586,7 @@
                     </div>
                   </div>
                 </div>
-                <div class="srow">
+                <div class="srow" data-glass-real>
                   <div class="srow-text"><b>Colour fringe</b><p class="hint">A thin rainbow edge where the glass bends light.</p></div>
                   <div class="srow-ctl">
                     <div class="bg-opacity">
@@ -599,7 +615,13 @@
                   </div>
                 </div>
                 <div class="srow">
-                  <div class="srow-text"><b>Opacity</b><p class="hint">How strongly the picture shows, for a custom or a preset picture. Lower is softer.</p></div>
+                  <div class="srow-text"><b>Video or live wallpaper</b><p class="hint" id="bgVideoHint">Play a video behind the app: MP4 or WebM, or an animated GIF, up to 500 MB. It loops without sound and stops while the window is hidden or minimized. The app keeps its own copy, so it still works if you move or delete the original. A big video uses more of the graphics card; the Liquid glass style is the heaviest with it.</p></div>
+                  <div class="srow-ctl">
+                    <button class="btn small" id="bgVideoPick" type="button">Choose video</button>
+                  </div>
+                </div>
+                <div class="srow">
+                  <div class="srow-text"><b>Opacity</b><p class="hint">How strongly the picture or video shows. Lower is softer.</p></div>
                   <div class="srow-ctl">
                     <div class="bg-opacity">
                       <input class="range" id="bgOpacity" type="range" min="10" max="100" step="5" value="50" aria-label="Background opacity" disabled>
@@ -608,6 +630,7 @@
                   </div>
                 </div>
                 <input type="file" id="bgFile" accept="image/png,image/jpeg,image/webp" hidden>
+                <input type="file" id="bgVideoFile" accept="video/mp4,video/webm,video/ogg,video/quicktime,image/gif,.mp4,.webm,.m4v,.ogv,.mov,.gif" hidden>
               </div>
             </section>
 
@@ -748,7 +771,7 @@
           <span class="sp-shot"><img src="img/ui/glass.webp" alt="The Lighting tab in the Liquid glass UI" width="720" height="480" draggable="false"></span>
           <span class="sp-meta">
             <span class="sp-name"><b>Liquid glass</b><span class="tag warn">Experimental</span></span>
-            <span class="sp-text" id="spGlassText">Controls are glass that bends and blurs the picture behind them, like iOS. May look off or run slower on some computers.</span>
+            <span class="sp-text" id="spGlassText">Controls are see-through glass that blurs the picture behind them, like iOS. May look off or run slower on some computers.</span>
           </span>
           <svg class="sp-tick" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.6 12.4l3 3 5.8-6.2"/></svg>
         </button>
@@ -756,9 +779,9 @@
             <div class="sp-opts-head"><span>Same sliders as Settings, Theme.</span><button class="btn small ghost" id="spGlassReset" type="button">Reset</button></div>
             <div class="sp-sliders">
               <label class="sp-rng"><span class="sp-rng-top"><b>Blur</b><output id="spGBlurVal" for="spGBlur"></output></span><input class="range" id="spGBlur" data-glass="blur" type="range" min="0" max="12" step="0.5" value="2.5" aria-label="Blur"></label>
-              <label class="sp-rng"><span class="sp-rng-top"><b>Edge width</b><output id="spGBezelVal" for="spGBezel"></output></span><input class="range" id="spGBezel" data-glass="bezel" type="range" min="4" max="28" step="1" value="14" aria-label="Edge width"></label>
-              <label class="sp-rng"><span class="sp-rng-top"><b>Refraction</b><output id="spGAmountVal" for="spGAmount"></output></span><input class="range" id="spGAmount" data-glass="amount" type="range" min="0" max="60" step="1" value="30" aria-label="Refraction"></label>
-              <label class="sp-rng"><span class="sp-rng-top"><b>Colour fringe</b><output id="spGChromaVal" for="spGChroma"></output></span><input class="range" id="spGChroma" data-glass="chroma" type="range" min="0" max="100" step="5" value="30" aria-label="Colour fringe"></label>
+              <label class="sp-rng" data-glass-real><span class="sp-rng-top"><b>Edge width</b><output id="spGBezelVal" for="spGBezel"></output></span><input class="range" id="spGBezel" data-glass="bezel" type="range" min="4" max="28" step="1" value="14" aria-label="Edge width"></label>
+              <label class="sp-rng" data-glass-real><span class="sp-rng-top"><b>Refraction</b><output id="spGAmountVal" for="spGAmount"></output></span><input class="range" id="spGAmount" data-glass="amount" type="range" min="0" max="60" step="1" value="30" aria-label="Refraction"></label>
+              <label class="sp-rng" data-glass-real><span class="sp-rng-top"><b>Colour fringe</b><output id="spGChromaVal" for="spGChroma"></output></span><input class="range" id="spGChroma" data-glass="chroma" type="range" min="0" max="100" step="5" value="30" aria-label="Colour fringe"></label>
             </div>
           </div>
         </div>
@@ -769,9 +792,21 @@
 
     <section class="scr scr-devices" aria-label="Devices">
       <div class="hm-radar" id="hmRadar" aria-hidden="true"><i></i><i></i><i></i></div>
-      <h2 class="hd-title" id="hmTitle">Connected devices</h2>
-      <p class="hd-sub" id="hmSub"></p>
-      <div class="hm-list" id="hmList" role="list"></div>
+      <div class="hd-head">
+        <h2 class="hd-title" id="hmTitle">Connected devices</h2>
+        <p class="hd-sub" id="hmSub"></p>
+      </div>
+      <!-- The big box: one keyboard picture at a time. The arrows and the dots only show when more than one keyboard is listed (home.js). -->
+      <div class="hm-stage" id="hmStage">
+        <button class="btn ghost hm-nav hm-prev" id="hmPrev" type="button" aria-label="Previous keyboard" data-lock hidden>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg>
+        </button>
+        <div class="hm-list" id="hmList" role="group" aria-roledescription="carousel" aria-label="Keyboards"></div>
+        <button class="btn ghost hm-nav hm-next" id="hmNext" type="button" aria-label="Next keyboard" data-lock hidden>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg>
+        </button>
+        <div class="hm-dots" id="hmDots" aria-hidden="true" hidden></div>
+      </div>
       <div class="hm-actions"><button class="btn ghost" id="hmRescan" type="button" data-lock>Search again</button><button class="btn ghost" id="hmDemos" type="button" data-lock>Demo keyboards</button></div>
     </section>
 
@@ -850,10 +885,13 @@
 <script src="js/stylepick.js"></script>
 <script src="js/stylepick-ui.js"></script>
 <script src="js/app.js"></script>
+<script src="js/devpic.js"></script>
+<script src="js/glide.js"></script>
 <script src="js/home.js"></script>
 <script src="js/update.js"></script>
 <script src="js/support.js"></script>
 <script src="js/select.js"></script>
 <script src="js/whatsnew-ui.js"></script>
+<script src="js/glass-motion.js"></script>
 </body>
 </html>

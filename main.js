@@ -4,11 +4,13 @@ const { app, BrowserWindow, Tray, Menu, nativeImage, nativeTheme, ipcMain, sessi
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
+const { pathToFileURL } = require('node:url');
 const { execFile } = require('node:child_process');
 const { loginItemOptions } = require('./login-item');
 const updater = require('./updater');
 const pkg = require('./package.json');
 const bgLib = require('./src/js/background.js');
+const bgVideo = require('./bgvideo.js');
 const { usageLine } = require('./usage');
 const whatsNew = require('./src/js/whatsnew.js');
 const supportLinks = require('./src/js/support-links.js');
@@ -34,6 +36,10 @@ const TRAY_ICON = path.join(__dirname, 'assets', 'tray.png');
 // its own bundled pages.
 if (process.platform === 'linux' && process.env.APPIMAGE) app.commandLine.appendSwitch('no-sandbox');
 
+// A video background (Settings > Theme) is just decoration. Without this, Chromium could show it in the Windows media overlay and
+// take the play / pause media keys away from the player the person is really using.
+app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,MediaSessionService');
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
 
@@ -45,7 +51,7 @@ let quitting = false;
 // desktop shows through. Older Windows and other systems keep the solid look. The page only turns it on while the
 // "Frosted window" switch is on and no background picture is chosen (see js/frost.js); otherwise it is switched off again.
 const FROST_OK = process.platform === 'win32' && (Number(String(os.release()).split('.')[2]) || 0) >= 22621;
-const FROST_PICTURE_KEYS = ['aula.bg', 'aula.bgPreset']; // the page's saved picture and preset, in the remembered data
+const FROST_PICTURE_KEYS = ['aula.bg', 'aula.bgPreset', 'aula.bgVideo']; // the page's saved picture, preset and video, in the remembered data
 
 // What the page will want when it starts, read from the remembered data: the "Frosted window" switch (Settings > Theme,
 // on unless turned off) and no background picture. The page confirms or corrects it once it has loaded.
@@ -95,6 +101,9 @@ function saveSettings() {
 // cannot lose it the way delayed browser storage can.
 
 const memoryFile = () => path.join(app.getPath('userData'), 'aula-memory.json');
+// Where the copies of the person's background videos live (see bgvideo.js). Never inside the app package, so it survives updates.
+const bgVideoDir = () => path.join(app.getPath('userData'), bgLib.VIDEO_DIR);
+let bgVideoBusy = false; // one copy at a time
 let memory = null;
 
 // ---------------------------------------------------------------- what's new
@@ -118,6 +127,16 @@ function prepareWhatsNew() {
     if (d.record) recordRunVersion();
   } catch (_) {
     whatsNewState = null;
+  }
+}
+
+// At every start: forget the copies of videos the person no longer uses (a copy that could not be deleted while it was playing).
+function tidyBgVideos() {
+  try {
+    const keep = loadMemory()['aula.bgVideo'];
+    bgVideo.tidy(bgVideoDir(), bgLib.isVideoName(keep) ? keep : '').catch(() => {});
+  } catch (_) {
+    /* nothing to tidy */
   }
 }
 
@@ -379,7 +398,8 @@ function watchPower() {
 
 // ------------------------------------------------------------------- updates
 // Asks GitHub for the latest release of the repository named in package.json ("aulaControl.updateRepo"). When it is newer
-// than this version the page shows the update dialog. The installed Windows build downloads the installer and runs it;
+// than this version the page shows the update dialog. A beta (1.5.3-beta.1) is offered newer betas, shown with their beta
+// part (1.5.3-beta.2), and the final release; a stable version is never offered a beta (see updater.js). The installed Windows build downloads the installer and runs it;
 // the portable file and other systems open the release page instead, because a running file cannot replace itself.
 
 const UPDATE_REPO = updater.parseRepo(pkg.aulaControl && pkg.aulaControl.updateRepo);
@@ -564,6 +584,39 @@ function registerIpc() {
     }
   });
 
+  // Video backgrounds (live wallpapers). The page never sends a path: the person picks the file in a dialog opened here, it is
+  // copied into the app's own folder (bgvideo.js) and only its new name goes back. The page asks for the folder's address once,
+  // before it draws (preload.js), and builds the address of the video from it, only for names that pass the same check.
+  ipcMain.on('host:bg-video-base', (e) => {
+    try {
+      e.returnValue = pathToFileURL(bgVideoDir()).href.replace(/\/?$/, '/');
+    } catch (_) {
+      e.returnValue = '';
+    }
+  });
+  ipcMain.handle('host:pick-bg-video', async () => {
+    if (!win || bgVideoBusy) return { ok: false, canceled: true };
+    bgVideoBusy = true;
+    try {
+      const res = await dialog.showOpenDialog(win, {
+        title: 'Choose a background video',
+        properties: ['openFile'],
+        filters: [{ name: 'Video or animated picture', extensions: bgLib.VIDEO_EXTENSIONS }],
+      });
+      if (res.canceled || !res.filePaths[0]) return { ok: false, canceled: true };
+      return await bgVideo.importVideo(res.filePaths[0], bgVideoDir());
+    } catch (_) {
+      return { ok: false, error: 'Could not use that video.' };
+    } finally {
+      bgVideoBusy = false;
+    }
+  });
+  // Deletes the kept videos except the one the page is using now ('' = none). Best effort; the next start does it again.
+  ipcMain.handle('host:tidy-bg-video', async (_e, keep) => {
+    await bgVideo.tidy(bgVideoDir(), bgLib.isVideoName(keep) ? keep : '');
+    return true;
+  });
+
   // Updates. The page only ever sees the version, the release notes and what kind of update it is.
   ipcMain.handle('update:info', () => ({ enabled: !!UPDATE_REPO, current: app.getVersion(), portable: IS_PORTABLE }));
   ipcMain.handle('update:latest', () => (update.info ? publicInfo(update.info) : null)); // for the header icon: not hidden by "Later"
@@ -674,6 +727,7 @@ if (gotLock) app.whenReady().then(() => {
   Menu.setApplicationMenu(null); // no default menu, so Ctrl+R / F5 reach the app's own Refresh instead of reloading the window
   loadSettings();
   prepareWhatsNew();
+  tidyBgVideos();
   applyLoginItem();
   setupHidPermissions();
   watchPower();

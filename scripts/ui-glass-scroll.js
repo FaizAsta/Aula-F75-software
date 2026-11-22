@@ -8,7 +8,8 @@ const assert = require('assert');
 const h = require('./_harness');
 const { open, enter, tab, settingsPage, wait, state, chromium, serve } = h;
 
-const glass = (theme = 'dark') => open('demo', { theme, extra: { style: 'glass' }, memory: { 'aula.bgPreset': 'lumine-intertwined.jpg', 'aula.bgOpacity': '0.7' } });
+// Both types of glass are checked: Normal (the default, a plain blur) and Realistic (each surface bends the picture through its own SVG filter).
+const glass = (theme = 'dark', glassType = 'normal') => open('demo', { theme, extra: { style: 'glass', glassType }, memory: { 'aula.bgPreset': 'lumine-intertwined.jpg', 'aula.bgOpacity': '0.7' } });
 
 // Software-rendered headless Chromium can take half a second per frame (the whole glass UI is backdrop filters), and a busy
 // machine stalls longer, so a fixed sleep after a move is a coin toss, and so is "it stopped changing" (a stalled page does not
@@ -43,7 +44,7 @@ const probe = (page) =>
       marked: area.hasAttribute('data-ag-scroll'),
       thumb: box(thumb),
       bar: box(bar),
-      glass: !!thumb && thumb.classList.contains('ag') && /url\(/.test(getComputedStyle(thumb).backdropFilter),
+      glass: !!thumb && thumb.classList.contains('ag') ? getComputedStyle(thumb).backdropFilter : '',
       bars: document.querySelectorAll('.ag-scroll').length,
     };
   });
@@ -58,7 +59,12 @@ async function scrollBars(browserPage) {
   let i = await probe(p);
   assert.ok(!i.hidden, 'a long page has a scroll bar');
   assert.ok(i.marked && i.nativeBar === 'none', 'the native bar is hidden while the glass one is drawn');
-  assert.ok(i.glass, 'the thumb refracts (it has a backdrop filter of its own)');
+  const type = await p.evaluate(() => window.AulaGlass.type());
+  if (type === 'realistic') assert.match(i.glass, /url\(/, 'the thumb refracts (it has a filter of its own)');
+  else {
+    assert.match(i.glass, /^blur\(/, 'the thumb blurs the picture behind it (Normal glass)');
+    assert.ok(!/url\(/.test(i.glass), 'and does not bend it');
+  }
 
   // drag: the page moves in proportion to the thumb
   const cx = i.thumb.x + i.thumb.width / 2;
@@ -167,17 +173,19 @@ async function progressBar(browserPage) {
   state.browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH || undefined, ignoreDefaultArgs: ['--hide-scrollbars'], args: ['--force-color-profile=srgb'] });
   let failed = false;
   for (const [name, fn] of [['scroll bars', scrollBars], ['update progress bar', progressBar]]) {
-    for (const theme of ['dark', 'light']) {
-      const page = await glass(theme);
-      try {
-        await fn(page);
-        assert.strictEqual(page.errors.length, 0, `the page reported errors:\n  ${page.errors.slice(0, 3).join('\n  ')}`);
-        console.log(`ok   ${name} (${theme})`);
-      } catch (e) {
-        failed = true;
-        console.log(`FAIL ${name} (${theme}): ${e.message}`);
+    for (const glassType of ['normal', 'realistic']) {
+      for (const theme of ['dark', 'light']) {
+        const page = await glass(theme, glassType);
+        try {
+          await fn(page);
+          assert.strictEqual(page.errors.length, 0, `the page reported errors:\n  ${page.errors.slice(0, 3).join('\n  ')}`);
+          console.log(`ok   ${name} (${glassType}, ${theme})`);
+        } catch (e) {
+          failed = true;
+          console.log(`FAIL ${name} (${glassType}, ${theme}): ${e.message}`);
+        }
+        await page.ctx.close();
       }
-      await page.ctx.close();
     }
   }
   await state.browser.close();

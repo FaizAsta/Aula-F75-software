@@ -76,9 +76,11 @@
   const CUSTOM = 20; // lighting mode that shows the per-key table
   const WAIT_MS = 600; // longest the keyboard is given to answer one frame
   const TRIES = 3; // the vendor driver asks up to three times per frame
-  // The Snake (drawn by this app): the shortest time between two pictures, by link (a whole table is 10 frames on the cable and 22 on
-  // the dongle, each acknowledged, so the real pace is set by the keyboard's answers), and how many pictures in a row may fail before it stops.
-  const SOFT_MIN_MS = { cable: 40, dongle: 90 };
+  // The Snake (drawn by this app): the shortest time between two pictures, by link, and how many pictures in a row may fail before it
+  // stops. 16 ms is 60 pictures a second. Each frame is acknowledged before the next goes (about 5 ms on the cable in AULA's own capture),
+  // so the real pace is set by how many frames a picture needs: a whole table is 10 on the cable and 22 on the dongle (about 10 pictures
+  // a second at best), which is why a picture sends only the pages that changed, see patchFrames.
+  const SOFT_MIN_MS = { cable: 16, dongle: 16 };
   const SOFT_FAILS = 3;
   const sameBytes = (a, b) => !!a && !!b && a.length === b.length && a.every((v, i) => v === b[i]);
   // A keyboard that is unplugged can leave an open, a send or a close waiting for ever. One call stuck like that would hold the
@@ -264,20 +266,43 @@
    * The colour of every lit key of the Snake `t` seconds after it started, as a Map of key index to [r, g, b] at full strength (the
    * keyboard's brightness level dims it). The head is the brightest key and the tail fades over SNAKE_TAIL keys; with multicolour on,
    * the hue changes along the tail, as the F75's Snake does. `l` is the lighting state: rgb, colorful, speed, direction (1 = reverse).
+   *
+   * By default the head jumps a whole key at a time, like the F75's own Snake (the card and the keyboard picture on screen draw it
+   * so). With `glide` the head moves continuously between keys: the key it is leaving fades by a tenth, the key it is reaching lights
+   * up in proportion to how far the head has come, so every picture is a little different from the one before and the motion is smooth
+   * at any number of pictures a second. The pace, the length of the tail and the hues are the same.
    */
-  function snakeFrame(t, l, path = snakePath()) {
+  function snakeFrame(t, l, path = snakePath(), glide = false) {
     const n = path.length;
     const out = new Map();
     if (!n) return out;
-    const steps = Math.floor(Math.max(0, t) * snakeRate(l.speed));
+    const rate = snakeRate(l.speed);
     const reverse = l.direction === 1;
-    const head = (((reverse ? -steps : steps) % n) + n) % n;
+    const at = Math.max(0, t) * rate;
+    const mod = (v) => ((v % n) + n) % n;
+    const colour = (f, behind) => (l.colorful ? hsv(((behind / 12) * 360) % 360, 1, f) : l.rgb.map((v) => Math.round(clamp(v, 0, 255) * f)));
+    if (!glide) {
+      const head = mod(reverse ? -Math.floor(at) : Math.floor(at));
+      for (let i = 0; i < n; i++) {
+        const behind = reverse ? (i - head + n) % n : (head - i + n) % n;
+        const f = 1 - behind / SNAKE_TAIL;
+        if (f <= 0) continue;
+        out.set(path[i], colour(f, behind));
+      }
+      return out;
+    }
+    const head = mod(reverse ? -at : at); // a position between two keys
     for (let i = 0; i < n; i++) {
-      const behind = reverse ? (i - head + n) % n : (head - i + n) % n;
-      const f = 1 - behind / SNAKE_TAIL;
+      const behind = mod(reverse ? i - head : head - i); // how far behind the head this key is, in keys (a fraction)
+      let f;
+      let hue = behind;
+      if (behind < SNAKE_TAIL) f = 1 - behind / SNAKE_TAIL;
+      else if (n - behind < 1) {
+        f = behind - (n - 1); // the key the head is about to reach: it fades in over the last key before it
+        hue = 0;
+      } else continue;
       if (f <= 0) continue;
-      const rgb = l.colorful ? hsv(((behind / 12) * 360) % 360, 1, f) : l.rgb.map((v) => Math.round(clamp(v, 0, 255) * f));
-      out.set(path[i], rgb);
+      out.set(path[i], colour(f, hue));
     }
     return out;
   }
@@ -319,6 +344,37 @@
     const out = [];
     for (let off = 0; off < data.length; off += page) out.push(frame(cmd, { payload: data.subarray(off, off + page), offset: off, last: off + page >= data.length, size }));
     return out;
+  }
+
+  /**
+   * The frames that bring a keyboard that holds the table `prev` to the table `data`: the pages that differ, and always the table's
+   * last page, which carries the "last" mark. Every frame is one the full write of the table sends too (same page, same offset, same
+   * length), only the pages that did not change are left out, so the Snake can send two or three frames a picture instead of 10
+   * on the cable and 22 on the dongle. The last page (8 bytes) is sent every time so that each picture still ends the way a whole
+   * table does.
+   */
+  function patchFrames(cmd, data, prev, size) {
+    const page = size - HEAD;
+    const out = [];
+    const lastOff = Math.floor((data.length - 1) / page) * page;
+    for (let off = 0; off < data.length; off += page) {
+      const end = Math.min(off + page, data.length);
+      const last = off === lastOff;
+      if (!last && prev && prev.length === data.length && sameBytes(prev.subarray(off, end), data.subarray(off, end))) continue;
+      out.push(frame(cmd, { payload: data.subarray(off, end), offset: off, last, size }));
+    }
+    return out;
+  }
+
+  /** True when `back` (a table read from the keyboard) holds, in every page that the frames `sent` wrote, what `data` says. */
+  function pagesHeld(back, data, sent, size) {
+    if (!back) return false;
+    for (const req of sent) {
+      const off = req[3] | (req[4] << 8);
+      const end = Math.min(off + req[2], back.length); // the keyboard is read back only as far as KEYS_READ
+      if (end > off && !sameBytes(back.subarray(off, end), data.subarray(off, end))) return false;
+    }
+    return true;
   }
 
   /**
@@ -623,6 +679,13 @@
     async write(cmd, data) {
       for (const req of writeFrames(cmd, data, this.size)) await this.transact(req);
     }
+
+    /** Writes only the pages of `data` that differ from `prev` (what the keyboard holds), see patchFrames. Returns the frames sent. */
+    async patch(cmd, data, prev) {
+      const reqs = patchFrames(cmd, data, prev, this.size);
+      for (const req of reqs) await this.transact(req);
+      return reqs;
+    }
   }
 
   // ------------------------------------------------------------------ session
@@ -635,11 +698,12 @@
      * @param opts.storage   { getItem, setItem }
      * @param opts.waitMs    how long the keyboard is given to answer one frame
      */
-    constructor({ hid, storage, waitMs = WAIT_MS, softMs = null } = {}) {
+    constructor({ hid, storage, waitMs = WAIT_MS, softMs = null, softPartial = true } = {}) {
       this.hid = hid || (typeof navigator !== 'undefined' ? navigator.hid : null) || null;
       this.storage = storage || null;
       this.waitMs = waitMs;
       this.softMs = softMs; // overrides the shortest time between two Snake pictures (the tests use it)
+      this.softPartial = softPartial; // false: every Snake picture writes the whole table (the slow way, kept for a keyboard that refuses pages)
       this.softAck = false; // the person has read what the Snake does to the keyboard and said go on
       this._soft = null; // the Snake that is running: { light, t0, minMs, frames, fails, prev, via }
       this.cable = null;
@@ -1090,7 +1154,7 @@
      */
     _startSoft() {
       this._stopSoft();
-      const soft = { light: { ...this.lighting, rgb: this.lighting.rgb.slice() }, t0: 0, minMs: 0, frames: 0, fails: 0, prev: null, path: snakePath() };
+      const soft = { light: { ...this.lighting, rgb: this.lighting.rgb.slice() }, t0: 0, minMs: 0, frames: 0, fails: 0, prev: null, path: snakePath(), partial: this.softPartial, checked: false };
       this._soft = soft;
       this._emit('animation');
       const first = this._run('animation', async () => {
@@ -1100,7 +1164,7 @@
         const base = await this._lightBase(link);
         await link.write(CMD.SET_LIGHT, lightingPayload(soft.light, CUSTOM, base));
         soft.t0 = Date.now();
-        const table = keyTable(snakeFrame(0, soft.light, soft.path));
+        const table = keyTable(snakeFrame(0, soft.light, soft.path, true));
         await link.write(CMD.SET_KEYS, table);
         soft.prev = table;
         soft.frames = 1;
@@ -1125,18 +1189,33 @@
 
     /**
      * One picture after another, each only after the keyboard has acknowledged the one before (so nothing piles up on the link when
-     * the keyboard is slow, the pace follows its answers). A picture that equals the last one is not sent again.
+     * the keyboard is slow, the pace follows its answers). A picture that equals the last one is not sent again. The head moves with
+     * the clock, not with the number of pictures, so a slow link makes the snake choppier, never slower.
+     *
+     * A picture sends only the pages of the table that changed (Link.patch), which is what makes 60 pictures a second possible. The
+     * first time, the pages are read back to make sure this keyboard really took them; if it did not, the whole table is sent for
+     * the rest of the run. A picture that fails sends the whole table the next time, so no page can stay behind.
      */
     async _softLoop(soft) {
       while (this._soft === soft) {
         const started = Date.now();
-        const table = keyTable(snakeFrame((started - soft.t0) / 1000, soft.light, soft.path));
+        const table = keyTable(snakeFrame((started - soft.t0) / 1000, soft.light, soft.path, true));
         let wait = soft.minMs;
         if (!sameBytes(table, soft.prev)) {
+          const prev = soft.prev;
           const res = await this._run('animation', async () => {
             if (this._soft !== soft) return { skipped: true }; // another job was queued behind this one: it goes first
             const link = await this._writer();
-            await link.write(CMD.SET_KEYS, table);
+            if (soft.partial && prev) {
+              const sent = await link.patch(CMD.SET_KEYS, table, prev);
+              if (!soft.checked) {
+                soft.checked = true;
+                if (!pagesHeld(await link.read(CMD.GET_KEYS, KEYS_READ), table, sent, link.size)) {
+                  soft.partial = false; // this keyboard did not keep the pages: whole tables from here on
+                  await link.write(CMD.SET_KEYS, table);
+                }
+              }
+            } else await link.write(CMD.SET_KEYS, table);
             return { via: link.kind, confirmed: true };
           }, true, true);
           if (this._soft !== soft) return;
@@ -1146,12 +1225,17 @@
               soft.prev = table;
               soft.frames++;
             }
-          } else if (++soft.fails >= SOFT_FAILS) {
-            this._failSoft(soft, res.error || 'the keyboard did not answer.');
-            return;
-          } else wait = Math.max(wait, 250);
+          } else {
+            soft.prev = null; // what the keyboard holds is not known any more: the next picture is a whole table
+            if (++soft.fails >= SOFT_FAILS) {
+              this._failSoft(soft, res.error || 'the keyboard did not answer.');
+              return;
+            }
+            wait = Math.max(wait, 250);
+          }
         }
-        await sleep(Math.max(1, wait - (Date.now() - started)));
+        const left = wait - (Date.now() - started);
+        if (left > 0) await sleep(left);
       }
     }
 
@@ -1178,7 +1262,7 @@
   return {
     IDS, IDENTITY, SAFE, CMD, EFFECTS, SOFT_EFFECTS, SNAKE, isSoft, snakePath, snakeFrame, effect, DIRECTIONS, BRIGHT_LEVELS, DEFAULT_LIGHTING, KEYS, GRID, keyLayout, labelOf,
     INFO_SIZE, LIGHT_SIZE, LED_COUNT, KEYS_SIZE, KEYS_READ, CUSTOM,
-    frame, readFrames, writeFrames, lightingPayload, parseLighting, keyTable, parseKeyTable, parseInfo, verdictOf, frameSizeOf,
+    frame, readFrames, writeFrames, patchFrames, lightingPayload, parseLighting, keyTable, parseKeyTable, parseInfo, verdictOf, frameSizeOf,
     Link, SimKeyboard, HeSession, HeError,
   };
 });

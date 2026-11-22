@@ -12,7 +12,8 @@ const { open, enter, tab, wait, check, state, chromium, serve } = h;
 const BG = { 'aula.bgPreset': 'lumine-intertwined.jpg', 'aula.bgOpacity': '0.7' };
 const STYLES = [
   { name: 'classic', extra: { style: 'classic' } },
-  { name: 'glass', extra: { style: 'glass' } },
+  { name: 'glass', extra: { style: 'glass' } }, // Normal glass, the default type: a plain blur
+  { name: 'glass-realistic', extra: { style: 'glass', glassType: 'realistic' } }, // Realistic glass: its own SVG filter
 ];
 
 const isOpen = (page) => page.evaluate(() => window.AulaSelect.isOpen());
@@ -61,11 +62,15 @@ async function run(style) {
   assert.equal(shape.expanded, 'true');
   assert.ok(shape.inside, tag('the menu stays inside the window'));
 
-  // 2. the look: Classic is frosted (a plain blur), Liquid glass refracts (its own SVG filter, class ag)
-  if (style.name === 'glass') {
+  // 2. the look: Classic is frosted (a plain blur), Normal glass is a plain blur too (class ag), Realistic glass refracts (its own SVG filter, class ag)
+  if (style.name.startsWith('glass')) {
     await settle(page, 'glass.js has measured the menu', () => document.getElementById('selPop').classList.contains('ag'));
     const look = await page.$eval('#selPop', (e) => ({ f: getComputedStyle(e).backdropFilter, v: getComputedStyle(e).visibility, r: parseFloat(getComputedStyle(e).borderTopLeftRadius) }));
-    assert.match(look.f, /url\(/, tag('the glass menu refracts through an SVG filter'));
+    if (style.name === 'glass-realistic') assert.match(look.f, /url\(/, tag('the Realistic glass menu refracts through an SVG filter'));
+    else {
+      assert.match(look.f, /^blur\(/, tag('the Normal glass menu is a blur'));
+      assert.ok(!/url\(/.test(look.f), tag('and does not bend the picture'));
+    }
     assert.equal(look.v, 'visible');
     assert.ok(look.r >= 20, tag('the glass menu has soft, round corners'));
     const row = await page.$eval('.sel-item', (e) => parseFloat(getComputedStyle(e).borderTopLeftRadius));

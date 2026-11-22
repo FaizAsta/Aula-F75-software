@@ -10,6 +10,15 @@ try {
   frostSupported = false;
 }
 
+// The address of the folder that keeps the person's background videos (a file: address ending in "/"). Asked once and kept, so the
+// page can paint a saved video the moment it starts. The page builds the video's address from it, only for names it can check.
+let bgVideoBase = '';
+try {
+  bgVideoBase = String(ipcRenderer.sendSync('host:bg-video-base') || '');
+} catch (_) {
+  bgVideoBase = '';
+}
+
 contextBridge.exposeInMainWorld('aulaHost', {
   getSettings: () => ipcRenderer.invoke('host:get-settings'),
   setSettings: (patch) => ipcRenderer.invoke('host:set-settings', patch),
@@ -18,6 +27,9 @@ contextBridge.exposeInMainWorld('aulaHost', {
   whatsNewSeen: () => ipcRenderer.send('host:whats-new-seen'),
   openSupport: (id) => ipcRenderer.invoke('host:open-support', String(id)),
   listBackgrounds: () => ipcRenderer.invoke('host:list-backgrounds'),
+  bgVideoBase,
+  pickBackgroundVideo: () => ipcRenderer.invoke('host:pick-bg-video'),
+  tidyBackgroundVideo: (keep) => ipcRenderer.invoke('host:tidy-bg-video', String(keep || '')),
   loadMemory: () => ipcRenderer.sendSync('host:mem-load'),
   setMemory: (key, value) => ipcRenderer.send('host:mem-set', key, value),
   removeMemory: (key) => ipcRenderer.send('host:mem-remove', key),

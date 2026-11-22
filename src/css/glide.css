@@ -1,0 +1,45 @@
+/* Devices -> app and app -> devices: the glide (js/glide.js).
+   The picture of the keyboard flies from its box into the preview, while the rest of the device screen goes and the rest of the
+   app arrives. js/glide.js moves things with the Web Animations API; these are the few rules that keep the old fade (the device
+   layer growing and blurring away, the header and the page fading in on a timer) from fighting it. Every rule hangs on
+   .shell.gliding, which glide.js sets for the length of the glide only, so nothing here changes how the app looks the rest of
+   the time. This file comes last, so it wins ties with home.css, lite.css and glass.css. */
+
+/* the copy of the picture that travels: it sits above the device layer (40) and below the window buttons (60) */
+.glide-ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 44;
+  margin: 0;
+  pointer-events: none;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+}
+.glide-ghost canvas { display: block; width: 100%; height: 100%; }
+
+/* the header and the page are there at once; the glide fades and moves their parts itself, one after another */
+.shell.gliding :is(.top, .main) { transition: none; }
+
+/* the device layer fades away where it stands: no zoom and no blur (they would carry the box and the picture's place with them) */
+.shell.gliding .home[data-screen="app"] {
+  transform: none;
+  filter: none;
+  transition: opacity 0.5s var(--ease) 0.08s, visibility 0s linear 0.6s;
+}
+.shell.gliding .home[data-screen="app"] .scr-devices {
+  transform: none;
+  transition: opacity 0.34s var(--ease) 0.04s, visibility 0s linear 0.4s;
+}
+/* the background of the device screen (the grid) settles to the app's level a little more slowly than before */
+.shell.gliding[data-screen="app"] .hm-fx { transition: opacity 0.9s var(--ease); }
+
+/* ---- the glide back (app -> devices): .shell.gliding.back, set by glide.js beginBack() until the glide is over.
+   The device layer and its screen must stand exactly where they will end up from the first frame (no zoom, no blur, no rise and
+   no fade of their own), or the picture could not be aimed at its box: glide.js moves and fades their parts itself. */
+.shell.gliding.back .home { transform: none; filter: none; transition: none; }
+.shell.gliding.back .scr-devices { opacity: 1; transform: none; transition: none; }
+.shell.gliding.back :is(.hd-head, .hm-prev, .hm-next, .hm-dots, .hm-actions, .hm-back, .hm-radar) { transition: none; }
+.shell.gliding.back .hm-dev { animation: none; transition: none; }
+/* the app is already going by the movements of glide.js; its own fade only tidies up what is left, a little later than usual */
+.shell.gliding.back :is(.top, .main, .applybar) { transition: opacity 0.3s var(--ease) 0.15s, visibility 0s linear 0.45s; }

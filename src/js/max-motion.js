@@ -128,26 +128,48 @@
     let lastFrame = 0;
     let tintAt = -1e9;
     let tintRGB = [150, 200, 255];
-    let size = { u: 0, w: 0, h: 0, m: 0, dpr: 1, gl: 0, gt: 0, bw: 0, bh: 0 };
+    let size = { u: 0, w: 0, h: 0, m: 0, ml: 0, mt: 0, mr: 0, mb: 0, dpr: 1, gl: 0, gt: 0, bw: 0, bh: 0 };
     let boardTf = '';
     let canvasDirty = false;
     let on = false;
 
     // ------------------------------------------------------------------ size
+    /*
+     * The canvas holds the pointer's spotlight (about four keys wide), so it must reach as far as the light does: the whole picture area,
+     * as the F75's canvas does (preview.js, tiltBleed), with the panel (.stage, overflow hidden) as the edge you see. A canvas that
+     * stopped just past the keys cut the glow off in a hard rectangle beside the board. It also reaches a little past the area on every
+     * side, because the board leans and a leaning canvas pulls its far edge inwards (the same reason the F75's has its bleed).
+     * Where the area has no size (a test window) it falls back to reaching 0.6 of a key past the keys.
+     */
     function measure() {
       const w = grid.clientWidth;
       const h = grid.clientHeight;
       const u = w / gridW;
-      const m = Math.round(u * 0.6); // the light reaches this far past the keys, over the plate's rim
+      const m = Math.round(u * 0.6); // the light reaches at least this far past the keys, over the plate's rim
       const dpr = win.devicePixelRatio || 1;
-      size = { u, w, h, m, dpr, gl: grid.offsetLeft, gt: grid.offsetTop, bw: board.offsetWidth || w, bh: board.offsetHeight || h };
+      const hw = host.clientWidth;
+      const hh = host.clientHeight;
+      const gx = board.offsetLeft + grid.offsetLeft; // the keys' top left corner in the picture area
+      const gy = board.offsetTop + grid.offsetTop;
+      let ml = m;
+      let mt = m;
+      let mr = m;
+      let mb = m;
+      if (w && h && hw && hh) {
+        const bleed = Math.ceil(Math.max(hw, hh) * 0.04) + 4;
+        ml = Math.max(m, Math.ceil(gx) + bleed);
+        mt = Math.max(m, Math.ceil(gy) + bleed);
+        mr = Math.max(m, Math.ceil(hw - gx - w) + bleed);
+        mb = Math.max(m, Math.ceil(hh - gy - h) + bleed);
+      }
+      size = { u, w, h, m, ml, mt, mr, mb, dpr, gl: grid.offsetLeft, gt: grid.offsetTop, bw: board.offsetWidth || w, bh: board.offsetHeight || h };
       if (w && h) {
-        cv.style.left = `${-m}px`;
-        cv.style.top = `${-m}px`;
-        cv.style.width = `${w + m * 2}px`;
-        cv.style.height = `${h + m * 2}px`;
-        const pw = Math.round((w + m * 2) * dpr);
-        const ph = Math.round((h + m * 2) * dpr);
+        cv.style.left = `${-ml}px`;
+        cv.style.top = `${-mt}px`;
+        cv.style.width = `${w + ml + mr}px`;
+        cv.style.height = `${h + mt + mb}px`;
+        const pw = Math.round((w + ml + mr) * dpr);
+        const ph = Math.round((h + mt + mb) * dpr);
         if (cv.width !== pw || cv.height !== ph) {
           cv.width = pw;
           cv.height = ph;
@@ -159,6 +181,7 @@
       ro = new win.ResizeObserver(() => measure());
       ro.observe(grid);
       ro.observe(board);
+      ro.observe(host); // the picture area changes size: the canvas reaches its edges
     }
     measure();
 
@@ -311,7 +334,7 @@
 
     function draw(nowMs) {
       if (!size.u) measure();
-      const { u, w, h, m, dpr } = size;
+      const { u, w, h, ml, mt, mr, mb, dpr } = size;
       if (!u) return;
       const pfx = pointerOn();
 
@@ -403,8 +426,8 @@
           const peak = t ? Math.max(t[0], t[1], t[2]) : 0;
           tintRGB = peak < 24 ? [150, 200, 255] : t.map((v) => Math.min(255, Math.round((v * 255) / peak)));
         }
-        g2.setTransform(dpr, 0, 0, dpr, m * dpr, m * dpr);
-        g2.clearRect(-m, -m, w + m * 2, h + m * 2);
+        g2.setTransform(dpr, 0, 0, dpr, ml * dpr, mt * dpr);
+        g2.clearRect(-ml, -mt, w + ml + mr, h + mt + mb);
         g2.globalCompositeOperation = 'lighter';
         for (const { k, tk, yoff } of touched) {
           // the cap's flat face (the picture's keycap sprite has it 12.5% in from the sides, 9.5% down, 33.9% up from the foot of a key)

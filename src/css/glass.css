@@ -78,7 +78,6 @@ html.glass .ag-panel::after {
 }
 html.glass .stage.ag-panel::after {
   background:
-    radial-gradient(52% 56% at 50% 56%, rgb(var(--glow) / 0.18), transparent 100%), /* the light spilling onto the desk */
     linear-gradient(135deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0) 34%, rgb(255 255 255 / 0) 72%, rgb(255 255 255 / 0.035)),
     color-mix(in srgb, var(--surface) 12%, transparent);
 }
@@ -91,10 +90,14 @@ html.glass[data-theme="light"] .ag-panel::after {
 }
 html.glass[data-theme="light"] .stage.ag-panel::after {
   background:
-    radial-gradient(52% 56% at 50% 56%, rgb(var(--glow) / 0.13), transparent 100%),
     linear-gradient(135deg, rgb(255 255 255 / 0.28), rgb(255 255 255 / 0) 36%, rgb(255 255 255 / 0) 72%, rgb(255 255 255 / 0.1)),
     rgb(255 255 255 / 0.1);
 }
+
+/* No lighting glow on the stage in Liquid glass: the glass behind the keyboard stays clear, so the picture shows through untinted.
+   Classic keeps all three layers (app.css): the desk light on .stage itself, and the two ambient blobs on .stage::before. */
+html.glass .stage { background: none; }
+html.glass .stage::before { content: none; }
 
 /* The glass behind the keyboard picture is always on. Settings > Theme > Keyboard background (class "no-stage-bg" on <html>) is a Classic
    setting only: lite.css reads it, this file never does, and the switch is hidden while Liquid glass is on. */
@@ -281,7 +284,8 @@ html.glass :is(.range-wrap, .bg-opacity) { position: relative; } /* the lens is 
 html.glass .range { --th: 42px; height: 44px; }
 html.glass .range::-webkit-slider-runnable-track {
   height: 10px;
-  background: linear-gradient(to right, rgb(var(--ctl)) calc(var(--th) / 2 + (100% - var(--th)) * var(--pf)), rgb(var(--ink) / 0.2) 0);
+  /* --vf is where the lens is drawn (js/glass.js: it follows the pointer smoothly, not step by step); --pf, the value's own position, is the fallback */
+  background: linear-gradient(to right, rgb(var(--ctl)) calc(var(--th) / 2 + (100% - var(--th)) * var(--vf, var(--pf))), rgb(var(--ink) / 0.2) 0);
   box-shadow: none;
 }
 html.glass .range::-webkit-slider-thumb,
@@ -314,7 +318,7 @@ html.glass .range-lens {
   overflow: hidden;
   border-radius: 999px;
   pointer-events: none;
-  transition: translate 0.12s ease-out, scale 0.5s var(--spring), background 0.3s, box-shadow 0.3s;
+  transition: scale 0.5s var(--spring), background 0.3s, box-shadow 0.3s; /* no transition on translate: js/glass.js moves the lens every frame */
 }
 /* held: full size, and a drop of liquid: the faster the thumb is dragged (--lv, from js/glass.js) the wider and flatter it stretches,
    then it settles back. Only a scale: a rotation or skew makes the backdrop filter clip and jump. */

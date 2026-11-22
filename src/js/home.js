@@ -20,6 +20,13 @@
   const ctx = cv.getContext('2d');
   const xh = document.getElementById('hmXh');
   const listEl = $('#hmList');
+  const stageEl = $('#hmStage');
+  const prevBtn = $('#hmPrev');
+  const nextBtn = $('#hmNext');
+  const dotsEl = $('#hmDots');
+  const DP = window.AulaDevPic || null; // devpic.js: the keyboard picture in the big box
+  const BP = window.AulaBoardPhoto || null; // boardphoto.js: tells when another rendered picture has arrived
+  const GL = window.AulaGlide || null; // glide.js: the keyboard picture flies from the big box into the preview (devices -> app) and back again (app -> devices)
 
   let screen = 'home';
   let entered = false; // has the person been in the main app yet (decides where Back goes)
@@ -254,13 +261,20 @@
 
   // ------------------------------------------------------------------- screens
 
-  function go(name) {
+  /** `opts.from`: the keyboard that was pressed on the devices screen; its picture then glides into the preview (glide.js). */
+  function go(name, opts = {}) {
     if (name === screen) return;
     if (home.hidden) {
       home.hidden = false;
       void home.offsetWidth; // so the layer fades in instead of popping
     }
     const left = screen;
+    if (GL) GL.end(); // another screen while a glide is still under way: put everything back at once
+    // Measured before the screen changes, because the picture is still where it is now.
+    const flight = GL && name === 'app' && left === 'devices' && opts.from ? GL.begin(opts.from) : null;
+    // The other way round (the Aula logo in the app): the picture flies from the preview back into its box. Only the rules that
+    // hold the old fade off are switched on here; the flight itself starts once the box is built (below).
+    const back = GL && name === 'devices' && left === 'app' ? GL.beginBack() : null;
     screen = name;
     if (name !== 'devices') demoView = false;
     home.dataset.screen = name;
@@ -275,23 +289,32 @@
       entered = true;
       setHeavy(true);
       paintStatic();
-      shell.classList.add('entering');
-      setTimeout(() => shell.classList.remove('entering'), 900);
+      if (flight) flight.play(); // the picture flies, the header and the page arrive piece by piece (glide.js)
+      else {
+        shell.classList.add('entering');
+        setTimeout(() => shell.classList.remove('entering'), 900);
+      }
       // Once it has faded out, take the start layer out of the page so its animations stop costing anything.
       setTimeout(() => {
         if (screen === 'app') home.hidden = true;
       }, reduce ? 0 : 700);
-      // The keyboard may have connected while the start screen was up, so play its intro now.
+      // The keyboard may have connected while the start screen was up, so play its intro now (after a glide: as the picture melts into the live keyboard).
       setTimeout(() => {
         if (session.ready && A.view && A.view.playIntro) A.view.playIntro();
-      }, 250);
+      }, flight ? flight.landAt : 250);
       kick();
       return;
     }
     setHeavy(false);
     kick();
     if (name === 'style') openStyle();
-    if (name === 'devices') openDevices();
+    if (name === 'devices') {
+      openDevices();
+      if (back) {
+        paintPics(false); // the picture of the box has to be drawn before it can be copied and flown
+        back.play(slides[shown]); // measures both ends and starts every movement; the old fade when it cannot (glide.js)
+      }
+    }
   }
 
   let starting = false;
@@ -380,17 +403,20 @@
     renderDevices();
   }
 
+  /** The picture of the F75 family boards: the model chosen in Settings (F75, F75 Pro or F87). */
+  const modelPic = () => (DP && DP.knows(window.AulaLayout && window.AulaLayout.id) ? window.AulaLayout.id : 'f75');
+
   /** The simulated keyboards, in the order they are listed once the Demo keyboards button is pressed. */
   function demoItems() {
     const s = session;
     const out = [];
     const live = prefs.demo && s.status === 'ready';
-    out.push({ kind: 'kb', name: 'Demo keyboard', sub: 'Simulated · try every control without hardware', supported: true, demo: true, st: live ? 'Connected' : prefs.demo ? 'Starting' : 'Available', k: live ? 'ok' : prefs.demo ? 'busy' : 'idle', bat: live ? s.battery.percent : null });
+    out.push({ kind: 'kb', name: 'Demo keyboard', sub: 'Simulated · try every control without hardware', supported: true, demo: true, pic: modelPic(), st: live ? 'Connected' : prefs.demo ? 'Starting' : 'Available', k: live ? 'ok' : prefs.demo ? 'busy' : 'idle', bat: live ? s.battery.percent : null });
     if (A.max) {
       for (const [fam, name] of [['max', 'F75 Max'], ['he', 'F75 HE']]) {
         if (!A.max.session(fam)) continue;
         const onDemo = !!(A.max.active() && A.max.family() === fam && A.max.max.demo);
-        out.push({ kind: 'kb', name: `Demo ${name}`, sub: `Simulated · all ${name} pages`, supported: true, demo: true, demoFamily: fam, demoName: name, st: onDemo ? 'Connected' : 'Available', k: onDemo ? 'ok' : 'idle', bat: onDemo ? A.max.max.battery.percent : null });
+        out.push({ kind: 'kb', name: `Demo ${name}`, sub: `Simulated · all ${name} pages`, supported: true, demo: true, demoFamily: fam, demoName: name, pic: fam, st: onDemo ? 'Connected' : 'Available', k: onDemo ? 'ok' : 'idle', bat: onDemo ? A.max.max.battery.percent : null });
       }
     }
     return out;
@@ -420,6 +446,7 @@
         sub: d.label && d.label !== d.name ? `${d.label} · ${d.id}` : d.id,
         supported: d.supported,
         family: d.family,
+        pic: isMax ? d.family : modelPic(), // the F75 Max and F75 HE have their own picture; the other boards are the model chosen in Settings
         confirm: !!d.confirm,
         real: true,
         st,
@@ -429,22 +456,25 @@
       });
     }
     if (!out.length && s.battery.source === 'bluetooth' && s.battery.percent != null) {
-      out.push({ kind: 'bt', name: 'Bluetooth keyboard', sub: 'Battery only · reported by Windows', supported: true, real: true, st: 'Battery', k: 'warn', bat: s.battery.percent });
+      out.push({ kind: 'bt', name: 'Bluetooth keyboard', sub: 'Battery only · reported by Windows', supported: true, real: true, pic: modelPic(), st: 'Battery', k: 'warn', bat: s.battery.percent });
     }
     return out;
   }
 
+  /** One keyboard of the big box: its picture, then its name, how it is connected and its state. */
   function card(it, i) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'hm-dev';
     b.setAttribute('data-lock', '');
     b.dataset.k = it.k;
+    b.dataset.pic = it.pic || 'f75';
     b.style.setProperty('--i', i);
-    b.innerHTML = `<span class="hm-dev-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICON[it.kind] || ICON.kb}</svg></span><span class="hm-dev-txt"><b></b><small></small></span><span class="hm-dev-st"><i></i><em></em></span>`;
+    b.innerHTML = `<span class="hm-dev-pic" aria-hidden="true"><canvas class="hm-pic"></canvas><svg class="ico hm-pic-ph" viewBox="0 0 24 24">${ICON.kb}</svg></span><span class="hm-dev-foot"><span class="hm-dev-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICON[it.kind] || ICON.kb}</svg></span><span class="hm-dev-txt"><b></b><small></small></span><span class="hm-dev-st"><i></i><em></em></span></span>`;
     b.querySelector('b').textContent = it.name;
     b.querySelector('small').textContent = it.sub;
     b.querySelector('em').textContent = it.st;
+    if (!it.supported) b.dataset.off = '1'; // a board this app cannot drive yet: its picture is dimmed
     if (it.bat != null || it.chg) {
       const bat = document.createElement('span');
       bat.className = it.chg ? 'bat chg' : 'bat';
@@ -456,13 +486,75 @@
     return b;
   }
 
+  // ---- the big box: a carousel of the keyboards (one shown at a time; the arrows and dots only exist for two or more)
+  let slides = []; // the .hm-dev of each keyboard, in list order
+  let slideItems = []; // the item behind each slide
+  let shown = 0; // the keyboard that is showing
+  let curKey = ''; // which keyboard that is (a list that refreshes keeps showing the same one)
+  const keyOf = (it) => `${it.name}|${it.sub}`;
+
+  /** Draws the keyboard pictures that are not drawn yet (or were drawn at another size). Cheap when nothing changed. */
+  let paintQueued = 0;
+  function paintPics(force) {
+    paintQueued = 0;
+    if (!DP) return;
+    for (const sl of slides) {
+      const cv = sl.querySelector('canvas');
+      if (!cv) continue;
+      const ok = DP.draw(cv, sl.dataset.pic, { force });
+      cv.parentElement.dataset.ready = ok ? '1' : '';
+    }
+  }
+  const queuePaint = (force) => {
+    if (!DP || paintQueued) return;
+    paintQueued = requestAnimationFrame(() => paintPics(force));
+  };
+  if (BP && BP.subscribe) BP.subscribe(() => queuePaint(false)); // another rendered picture arrived
+  if (window.ResizeObserver) new ResizeObserver(() => queuePaint(false)).observe(listEl); // the window, or the box, changed size
+  if (document.fonts && document.fonts.load) {
+    // the legend font arrives a moment after the first drawing: print the legends again with it
+    document.fonts.load('600 20px "Aula Legend"', 'Qq1!@Ag').then(() => queuePaint(true)).catch(() => {});
+  }
+
+  /** Shows keyboard `i` (wrapping round at both ends). `dir` is 1 for next, -1 for previous, 0 for no sliding. */
+  function showSlide(i, dir = 0) {
+    const n = slides.length;
+    if (!n) return;
+    i = ((i % n) + n) % n;
+    const from = shown;
+    if (dir && i !== from && slides[i]) {
+      // the incoming keyboard starts on the side it comes from, with no transition, so it slides in instead of fading in place
+      const inc = slides[i];
+      inc.classList.add('no-tr');
+      inc.dataset.pos = dir > 0 ? 'after' : 'before';
+      void inc.offsetWidth;
+      inc.classList.remove('no-tr');
+    }
+    shown = i;
+    curKey = keyOf(slideItems[i]);
+    slides.forEach((sl, k) => {
+      const pos = k === i ? 'cur' : dir && k === from ? (dir > 0 ? 'before' : 'after') : k < i ? 'before' : 'after';
+      sl.dataset.pos = pos;
+      sl.inert = pos !== 'cur'; // the keyboards that are not showing cannot be tabbed to or clicked
+      sl.setAttribute('aria-hidden', pos === 'cur' ? 'false' : 'true');
+    });
+    dotsEl.querySelectorAll('i').forEach((d, k) => {
+      d.dataset.on = k === i ? '1' : '';
+    });
+    const label = `Keyboard ${i + 1} of ${n}`;
+    listEl.setAttribute('aria-label', n > 1 ? label : 'Keyboards');
+  }
+  const stepSlide = (dir) => {
+    if (slides.length > 1) showSlide(shown + dir, dir);
+  };
+
   function renderDevices() {
     const its = items();
     const real = its.filter((i) => i.real).length;
     const sub = demoView
-      ? 'Simulated keyboards, no hardware needed. Changes stay in the demo. Choose one.'
-      : real ? `${real} device${real === 1 ? '' : 's'} found. Choose one to continue.` : 'No keyboard found yet. Plug in the 2.4G dongle or the USB-C cable, or press Demo keyboards to try the app.';
-    const next = (demoView ? 'demos|' : '') + sub + JSON.stringify(its.map((i) => [i.name, i.st, i.bat, i.chg]));
+      ? `Simulated keyboards, no hardware needed. Changes stay in the demo. ${its.length > 1 ? 'Use the arrows, then click one.' : 'Click it to continue.'}`
+      : real > 1 ? `${real} devices found. Use the arrows to switch, then click one.` : real ? '1 device found. Click the keyboard to continue.' : 'No keyboard found yet. Plug in the 2.4G dongle or the USB-C cable, or press Demo keyboards to try the app.';
+    const next = (demoView ? 'demos|' : '') + sub + JSON.stringify(its.map((i) => [i.name, i.st, i.bat, i.chg, i.pic]));
     if (next === sig) return;
     sig = next;
     $('#hmTitle').textContent = demoView ? 'Demo keyboards' : 'Connected devices';
@@ -470,13 +562,26 @@
     $('#hmRadar').hidden = real > 0 || demoView;
     $('#hmRescan').parentElement.hidden = demoView; // searching again is for real devices
     listEl.textContent = '';
-    its.forEach((it, i) => listEl.append(card(it, i)));
+    dotsEl.textContent = '';
+    slideItems = its;
+    slides = its.map((it, i) => listEl.appendChild(card(it, i)));
+    for (let i = 0; i < slides.length; i++) dotsEl.append(document.createElement('i'));
+    // The arrows and the dots are only there when there is more than one keyboard to go between.
+    const many = slides.length > 1;
+    prevBtn.hidden = nextBtn.hidden = dotsEl.hidden = !many;
+    stageEl.hidden = !slides.length;
+    // The same keyboard stays on show when the list refreshes; a list that has just opened starts on the one that is connected.
+    let at = curKey ? its.findIndex((it) => keyOf(it) === curKey) : -1;
+    if (at < 0) at = Math.max(0, its.findIndex((it) => it.k === 'ok'));
+    showSlide(at, 0);
+    queuePaint(false);
   }
 
   let enterTimer = 0;
   /** The cards cascade in when the screen opens or the list changes to the demo keyboards; later refreshes do not replay it. */
   function cascade() {
     sig = '';
+    curKey = ''; // a list that has just opened starts on the connected keyboard (see renderDevices)
     listEl.dataset.enter = '1';
     clearTimeout(enterTimer);
     enterTimer = setTimeout(() => delete listEl.dataset.enter, 1100);
@@ -508,7 +613,7 @@
       return;
     }
     if (it.demoFamily && A.max) {
-      go('app');
+      go('app', { from: node });
       if (A.max.active() && A.max.family() === it.demoFamily && A.max.max.demo) return; // already on it
       if (prefs.demo) await A.setDemo(false).catch(() => {});
       const opened = await A.max.enterDemo(it.demoFamily);
@@ -527,7 +632,7 @@
           : 'This keyboard shares its USB ids with several AULA models (S98 Pro, L99, F108 Pro and others) and its name does not say which one it is.\n\nUse it as an F75 Max? Choose Cancel if it is another model.';
         if (!window.confirm(ask)) return;
       }
-      go('app');
+      go('app', { from: node });
       if (A.max.active() && A.max.max.demo) A.max.leave(); // the demo keyboard is let go, so the real one is the one that opens
       if (prefs.demo) await A.setDemo(false).catch(() => {});
       const opened = await A.max.enter({ family: fam, confirmed: it.confirm });
@@ -535,7 +640,7 @@
       return;
     }
     if (A.max && A.max.active()) A.max.leave(); // choosing an F75 or the demo leaves the Max screen
-    go('app');
+    go('app', { from: node });
     try {
       if (it.demo) {
         if (!prefs.demo) await A.setDemo(true);
@@ -556,6 +661,8 @@
   const backFromDevices = () => (demoView ? showDemos(false) : go(entered ? 'app' : 'home'));
   $('#hmBack').addEventListener('click', backFromDevices);
   $('#hmDemos').addEventListener('click', () => showDemos(true));
+  prevBtn.addEventListener('click', () => stepSlide(-1));
+  nextBtn.addEventListener('click', () => stepSlide(1));
   $('#hmRescan').addEventListener('click', () => {
     if (session.poke) session.poke();
     const run = async () => {
@@ -582,6 +689,9 @@
       start();
     } else if (screen === 'devices' && e.key === 'Escape') {
       backFromDevices();
+    } else if (screen === 'devices' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && slides.length > 1 && !e.altKey && !e.ctrlKey && !e.metaKey && !(e.target.closest && e.target.closest('input, select, textarea'))) {
+      e.preventDefault();
+      stepSlide(e.key === 'ArrowLeft' ? -1 : 1); // the same as the arrow buttons
     } else if (screen === 'style' && !document.querySelector('.upd:not([hidden])')) {
       // Left / Up and Right / Down move the choice, Enter continues, Escape goes back to Start. Enter only counts from the
       // question itself (or from nowhere in particular), never from the Back, Support or Update buttons.
@@ -607,6 +717,22 @@
   session.on('battery', live);
   if (W) W.onDevicesChanged(() => screen === 'devices' && setTimeout(scan, 500));
   setInterval(() => screen === 'devices' && scan(), 3000);
+
+  // What the tests and the screenshot scripts use to bring one keyboard of the big box to the front (the others are not clickable).
+  window.AulaDevices = {
+    count: () => slides.length,
+    index: () => shown,
+    names: () => slideItems.map((it) => it.name),
+    /** Shows the keyboard whose name or description matches (a string is a part of the text, a RegExp is tested). */
+    show(match) {
+      const at = slideItems.findIndex((it) => (match instanceof RegExp ? match.test(`${it.name} ${it.sub}`) : `${it.name} ${it.sub}`.toLowerCase().includes(String(match).toLowerCase())));
+      if (at < 0) return false;
+      showSlide(at, 0);
+      return true;
+    },
+    next: () => stepSlide(1),
+    prev: () => stepSlide(-1),
+  };
 
   resize();
   setHeavy(false);

@@ -45,18 +45,41 @@ Battery, lighting effects, per-key RGB and a live preview.
 
 ## New: Liquid glass UI (experimental)
 
-A second look for the app: panels, buttons, sliders and switches become glass that blurs and bends the picture behind
-them, a bit like iOS. **Classic** is still the default.
+A second look for the app: panels, buttons, sliders and switches become glass that blurs the picture behind them, a bit
+like iOS or Telegram. **Classic** is still the default.
 
 - **Choose it:** the first time you press **Start**, the app asks "Which UI do you want to use?" and shows both looks.
   Pick one and press **Continue**. You can change it any time in **Settings > Theme > UI**.
-- **Three looks:** **Clear glass** (no blur), **Blur glass** (soft blur, the default) and **Frosted glass** (heavy blur).
-  Press **Customise** for sliders (blur, edge width, refraction, colour fringe). **Reset** goes back to Blur glass.
+- **Two types of glass** (**Settings > Theme > Liquid glass > Glass type**): **Normal** (the default) is a soft blur with a
+  thin light edge, like the bars in iOS and Telegram, and it is light on the computer. **Realistic** is thick glass that
+  also bends the picture at its edge, with a colour fringe: it looks deeper but is heavier.
+- **Four looks:** **Clear glass** (no blur), **Blur glass** (soft blur, the default), **Frosted glass** (heavy blur) and
+  **Default** (soft blur, the strongest bend at the edge and no colour fringe; the bend shows with Realistic glass).
+  Press **Customise** for the sliders: blur for Normal glass, plus edge width, refraction and colour fringe for Realistic
+  glass. **Reset** goes back to Blur glass.
+- **It moves like iOS glass:** buttons swell under the pointer and spring back, the tab pill and the sliding highlight
+  of a segmented control stretch like a drop of liquid while they travel, slider thumbs slide freely under the pointer
+  (even on sliders with only a few steps, like Brightness) and settle into their step when you let go, the tab bar folds
+  to the open tab when you scroll down (point at it to open it again), and menus grow out of their button. Nothing to switch on. It follows your
+  system's **reduce motion** setting and Classic is not affected.
 
 > [!CAUTION]
-> **Experimental:** it is **not stable** and **can be laggy**, more so on older computers, and it may glitch in places.
+> **Experimental:** it is **not stable**, and **Realistic** glass **can be laggy**, more so on older computers. It may glitch in places.
 > It looks best with a background picture (Settings > Theme). If anything misbehaves, switch back to **Classic** in the
 > same place. Nothing else is affected.
+
+## Picture and video backgrounds
+
+**Settings > Theme > Background** puts your own picture or a looping video (a live wallpaper) behind the app.
+
+- **Choose picture:** PNG, JPEG or WebP. The app keeps a shrunk copy, so it still works if you move or delete the original.
+- **Choose video:** MP4 or WebM (H.264, VP8, VP9 and AV1 normally play; some `.mov` files do not), or an animated GIF, up to 500 MB. The
+  app copies it into its own data folder, plays it without sound in a loop, and stops it while the window is hidden in the tray
+  or minimized, so it does not use the graphics card then. **Remove** deletes the copy.
+- **Opacity** works for both, and **Preset backgrounds** below it lists the pictures built into the app.
+- A big video uses more of the graphics card, and the Liquid glass style (which blurs what is behind it) is the heaviest with it.
+  If the video stutters, try a lower resolution (1080p is plenty), a shorter file, or Classic.
+- Video files you drop into `src/img/backgrounds` are not presets: only pictures are. Use **Choose video** for those.
 
 ## Read this first
 
@@ -155,13 +178,14 @@ a key lights the wrong cap, or anything else misbehaves, please say what you saw
 
 ## Screenshots
 
-The top picture is the Lighting tab. All of these are the real app with a simulated keyboard (the Demo keyboard, or a
-simulated dongle). Click a picture to see it full size.
+The top picture is the Lighting tab in the Liquid glass UI (Normal glass, dark theme), and the last one is the same tab with
+Realistic glass: both are captures of the real app on a real AULA F75 over the 2.4G dongle. All the others are the real app
+with a simulated keyboard (the Demo keyboard, or a simulated dongle). Click a picture to see it full size.
 
 <table>
 <tr>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/start.png"><img src="docs/screenshots/start.png" alt="The start screen" width="260"></a><br><sub>Start screen</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/devices.png"><img src="docs/screenshots/devices.png" alt="The list of connected devices" width="260"></a><br><sub>Connected devices</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/devices.png"><img src="docs/screenshots/devices.png" alt="The connected devices, shown one at a time with arrows" width="260"></a><br><sub>Connected devices</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/light-theme.png"><img src="docs/screenshots/light-theme.png" alt="The Lighting tab in the light theme" width="260"></a><br><sub>Light theme</sub></td>
 </tr>
 <tr>
@@ -182,7 +206,10 @@ simulated dongle). Click a picture to see it full size.
 <tr>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/he-perkey.png"><img src="docs/screenshots/he-perkey.png" alt="The Per-key tab of an F75 HE with every key painted" width="260"></a><br><sub>F75 HE: Per-key</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/he-keyboard.png"><img src="docs/screenshots/he-keyboard.png" alt="The Keyboard page of an F75 HE: what the keyboard reports about itself" width="260"></a><br><sub>F75 HE: Keyboard</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/demo-keyboards.png"><img src="docs/screenshots/demo-keyboards.png" alt="The list of demo keyboards, opened from the Demo keyboards button" width="260"></a><br><sub>Demo keyboards</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/demo-keyboards.png"><img src="docs/screenshots/demo-keyboards.png" alt="The demo keyboards, shown one at a time with arrows, opened from the Demo keyboards button" width="260"></a><br><sub>Demo keyboards</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/lighting-glass-realistic.png"><img src="docs/screenshots/lighting-glass-realistic.png" alt="The Lighting tab in the Liquid glass UI with Realistic glass, dark theme" width="260"></a><br><sub>Liquid glass: Realistic (experimental)</sub></td>
 </tr>
 </table>
 

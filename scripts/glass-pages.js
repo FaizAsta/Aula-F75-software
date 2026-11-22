@@ -33,7 +33,7 @@ const SCENES = {
   async support() { const p = await mk(); await enter(p); await p.click('#supBtn'); await p.waitForSelector('#supPop:not([hidden])'); await wait(700); await snap(p, 'page-11-support'); check(p, 'support'); await p.ctx.close(); },
   async asleep() {
     const p = await mk('asleep'); await p.click('#hmStart'); await p.waitForSelector('#hmList .hm-dev'); await wait(600);
-    await p.locator('#hmList .hm-dev', { hasText: /dongle/i }).first().click();
+    await p.locator('#hmList .hm-dev[data-pos="cur"]').first().click();
     await p.waitForFunction(() => !document.getElementById('overlay').hidden && /asleep/.test(document.getElementById('ovTitle').textContent), null, { timeout: 20000 });
     await wait(1200); await snap(p, 'page-12-asleep'); check(p, 'asleep'); await p.ctx.close();
   },

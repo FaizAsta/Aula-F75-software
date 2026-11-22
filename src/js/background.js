@@ -9,6 +9,11 @@
  * Preset backgrounds: every picture (PNG, JPEG or WebP) in src/img/backgrounds is offered in Settings > Theme. None is
  * chosen by default. The folder is read by main.js when the app starts, so a picture dropped in the folder before
  * `npm run dist` is part of the built app with no list to edit. Only the file name is remembered (never a path).
+ *
+ * Video backgrounds (live wallpapers): a video (MP4, WebM, ...) or an animated GIF is far too big for the remembered-data file, so the
+ * desktop app copies it into its own data folder (main.js, through bgvideo.js) under a name this module made ("bg-<time>.mp4") and
+ * only that name is remembered, under 'aula.bgVideo'. The page builds the address from the folder main.js gave it and the name,
+ * and only for names that pass isVideoName(). The video plays muted and looping on #appBgVideo, at the same opacity as a picture.
  */
 (function (root, factory) {
   'use strict';
@@ -28,6 +33,12 @@
   const PRESET_EXT = /\.(png|jpe?g|webp)$/i;
   const MAX_FILE = 25 * 1024 * 1024; // the file the person picks
   const MAX_STORED = 3 * 1024 * 1024; // the saved copy, as text (a data URL)
+
+  const VIDEO_DIR = 'backgrounds'; // under the app's data folder (never under src/): where the copies of the person's videos live
+  const VIDEO_EXTENSIONS = ['mp4', 'webm', 'm4v', 'ogv', 'mov', 'gif']; // what the file picker offers; GIF is the one animated picture
+  const VIDEO_EXT = /\.(mp4|webm|m4v|ogv|mov|gif)$/i;
+  const VIDEO_NAME = /^bg-\d{10,16}\.(mp4|webm|m4v|ogv|mov|gif)$/; // the names newVideoName() makes, and the only ones ever served or deleted
+  const MAX_VIDEO = 500 * 1024 * 1024; // the file the person picks, in bytes
 
   /** The size to draw a w x h picture at so its longest side is at most `max`. Never enlarges. null for a bad size. */
   function fit(w, h, max = MAX_EDGE) {
@@ -88,6 +99,49 @@
     return base ? base.charAt(0).toUpperCase() + base.slice(1) : 'Picture';
   }
 
+  /** True for a name made by newVideoName(): "bg-" and a time, then a video extension. Nothing else is served, kept or deleted. */
+  function isVideoName(s) {
+    return typeof s === 'string' && VIDEO_NAME.test(s);
+  }
+
+  /** 'animated' for a GIF (painted like a picture, but it moves), 'video' for anything else with a video extension, null for the rest. */
+  function mediaKind(name) {
+    const n = String(name || '');
+    if (!VIDEO_EXT.test(n)) return null;
+    return /\.gif$/i.test(n) ? 'animated' : 'video';
+  }
+
+  /** Looks at the file the person picked (its name, size in bytes, and whether it is a regular file). { ok: true, ext } or { ok: false, error } with a message to show as it is. */
+  function checkVideoFile(name, size, isFile = true) {
+    const m = VIDEO_EXT.exec(String(name || ''));
+    if (!m || isFile === false) return { ok: false, error: 'Pick a video (MP4 or WebM) or an animated GIF.' };
+    if (!(size > 0)) return { ok: false, error: 'That file is empty.' };
+    if (size > MAX_VIDEO) return { ok: false, error: `That file is too big (over ${Math.floor(MAX_VIDEO / 1048576)} MB).` };
+    return { ok: true, ext: m[1].toLowerCase() };
+  }
+
+  /** The name the copy of a picked video is kept under: "bg-1732190000000.mp4". */
+  function newVideoName(ext, now = Date.now()) {
+    const e = String(ext || '').toLowerCase();
+    return VIDEO_EXTENSIONS.includes(e) ? `bg-${Math.floor(now)}.${e}` : '';
+  }
+
+  /** True for the address of the folder main.js keeps the videos in: a file: address that ends in "/" and has nothing that could break out of a URL. */
+  function isVideoBase(s) {
+    return typeof s === 'string' && s.length <= 2048 && /^file:\/\/[^\s"'\\<>`{}|^?#\u0000-\u001f]*\/$/.test(s);
+  }
+
+  /** The address of a kept video: the folder's address and the name. '' when either does not pass its check. */
+  function videoUrl(base, name) {
+    return isVideoBase(base) && isVideoName(name) ? base + name : '';
+  }
+
+  /** The CSS value that paints a kept animated picture (a GIF): url("file:///..."). */
+  function videoCss(base, name) {
+    const u = videoUrl(base, name);
+    return u ? `url("${u}")` : '';
+  }
+
   /** A picked File -> a shrunk data URL. Rejects with a message that can be shown as it is. */
   async function fromFile(file) {
     if (!file || !/^image\//.test(file.type || '')) throw new Error('Pick a picture (PNG, JPEG or WebP).');
@@ -116,5 +170,8 @@
     }
   }
 
-  return { OPACITY, MIN_OPACITY, MAX_OPACITY, clampOpacity, MAX_EDGE, MAX_STORED, PRESET_DIR, fit, isDataImage, cssUrl, isPresetName, presetNames, presetUrl, presetCss, presetLabel, fromFile };
+  return {
+    OPACITY, MIN_OPACITY, MAX_OPACITY, clampOpacity, MAX_EDGE, MAX_STORED, PRESET_DIR, fit, isDataImage, cssUrl, isPresetName, presetNames, presetUrl, presetCss, presetLabel, fromFile,
+    VIDEO_DIR, VIDEO_EXTENSIONS, MAX_VIDEO, isVideoName, mediaKind, checkVideoFile, newVideoName, isVideoBase, videoUrl, videoCss,
+  };
 });
