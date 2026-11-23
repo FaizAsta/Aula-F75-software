@@ -21,23 +21,24 @@
   BUMPING THE VERSION (note for anyone who edits this project, people and AI assistants alike).
 
   When the version is bumped, change only the version number: in package.json ("version") and in the Version
-  badge below (the X.Y.Z in badge/version-1.5.4-blue). The only other edit is the new header at the top of
+  badge below (the X.Y.Z in badge/version-X.Y.Z-blue). The only other edit is the new header at the top of
   RELEASE_NOTES.md (see the note at the top of that file). Change nothing else: no README text, no screenshots,
   no tests. `npm test` checks that the two numbers agree.
 -->
 
 <div align="center">
 
-<img src="docs/banner.png" width="800" alt="Aula Control">
+<a href="https://faizasta.github.io/Aula-F75-software/"><img src="docs/banner.png" width="800" alt="Aula Control"></a>
 
 **An unofficial Windows and Linux app for AULA F75 keyboards.**<br>
 Battery, lighting effects, per-key RGB and a live preview.
 
-[![Version](https://img.shields.io/badge/version-1.5.4-blue)](../../releases)
+[![Website](https://img.shields.io/badge/website-open-0053f1)](https://faizasta.github.io/Aula-F75-software/)
+[![Version](https://img.shields.io/badge/version-1.5.3--beta.1-blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20%7C%20Linux-0078d4)](#download)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20server-5865F2?logo=discord&logoColor=white)](https://discord.gg/BdeQygyRwN)
 
-[**Download**](../../releases) · [Features](#features) · [Screenshots](#screenshots) · [Troubleshooting](#troubleshooting) · [Discord](https://discord.gg/BdeQygyRwN)
+[**Website**](https://faizasta.github.io/Aula-F75-software/) · [**Download**](../../releases) · [Features](#features) · [Screenshots](#screenshots) · [Troubleshooting](#troubleshooting) · [Discord](https://discord.gg/BdeQygyRwN)
 
 ![Aula Control, Lighting tab](docs/screenshots/lighting-glass.png)
 
