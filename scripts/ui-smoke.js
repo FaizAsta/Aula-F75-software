@@ -202,18 +202,17 @@ if (require.main === module) {
       await wait(100);
       A.setTab('settings');
       await wait(100);
-      const sel = doc.getElementById('modelSel');
-      check(sel && [...sel.options].map((o) => o.value).sort().join() === 'f75,f75pro,f87', `model list: ${sel && [...sel.options].map((o) => o.value)}`);
+      const ids = w.AulaLayout.MODELS.map((m) => m.id);
+      check(ids.slice().sort().join() === 'f75,f75pro,f87', `model list: ${ids}`);
 
-      // Switch to the other models from the Settings box and re-check the Keys tab each time
+      // Start the demo as each of the other models (the cards of the Demo keyboards screen) and re-check the Keys tab each time
       for (const other of ['f87', 'f75pro', 'f75']) {
-        sel.value = other;
-        sel.dispatchEvent(new w.Event('change', { bubbles: true }));
+        await A.startDemo(other);
         await wait(300);
         await until(() => A.session.ready, 4000);
         A.setTab('keys');
         await until(() => A.keys.ka.state.status === 'ready' || A.keys.ka.state.status === 'error', 4000);
-        check(A.keys.ka.state.status === 'ready', `after switching to ${other}, Keys tab: ${A.keys.ka.state.error}`);
+        check(A.keys.ka.state.status === 'ready', `after starting the demo as ${other}, Keys tab: ${A.keys.ka.state.error}`);
         A.setTab('settings');
         await wait(60);
       }

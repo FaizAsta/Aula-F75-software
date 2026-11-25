@@ -584,6 +584,21 @@ function registerIpc() {
     }
   });
 
+  // A preset picture as a data: address. The GPU glass (src/js/glass-gpu.js) reads the picture into WebGL, which refuses a file: picture
+  // (another origin); a data: address it accepts. Only a name from the presets folder is read, never a path from the page.
+  ipcMain.handle('host:bg-image-data', (e, name) => {
+    try {
+      const dir = path.join(__dirname, 'src', 'img', 'backgrounds');
+      const ok = bgLib.presetNames(fs.readdirSync(dir));
+      if (typeof name !== 'string' || !ok.includes(name)) return '';
+      const ext = path.extname(name).toLowerCase();
+      const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+      return `data:${mime};base64,${fs.readFileSync(path.join(dir, name)).toString('base64')}`;
+    } catch (_) {
+      return '';
+    }
+  });
+
   // Video backgrounds (live wallpapers). The page never sends a path: the person picks the file in a dialog opened here, it is
   // copied into the app's own folder (bgvideo.js) and only its new name goes back. The page asks for the folder's address once,
   // before it draws (preload.js), and builds the address of the video from it, only for names that pass the same check.

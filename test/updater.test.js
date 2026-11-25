@@ -232,11 +232,11 @@ test('a found update shows an icon in the header and on the start screens, and t
   assert.match(read('src/js/update.js'), /api\.onBadge\(badge\)/);
 });
 
-test('the version in package.json is the one the README badge shows (the app reads its own version from package.json)', () => {
+test('the README Version badge is live from GitHub releases, so no version is typed into the README (the app reads its own version from package.json)', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
-  // shields.io writes a hyphen inside the value as two (1.5.3-beta.1 is version-1.5.3--beta.1-blue)
-  assert.ok(readme.includes(`badge/version-${pkg.version.replace(/-/g, '--')}-blue`), 'README badge and package.json version differ');
+  assert.ok(readme.includes(`img.shields.io/github/v/release/${pkg.aulaControl.updateRepo}`), 'the Version badge reads the latest release from GitHub');
+  assert.doesNotMatch(readme, /badge\/version-/, 'a fixed version number is written into the README');
 });
 
 test('update dialog buttons do not use a class that the page layout already uses', () => {

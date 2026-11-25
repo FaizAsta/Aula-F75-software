@@ -394,7 +394,7 @@ test('the F75 HE has a skin of its own that no other model shares, and a rendere
   assert.equal(e.base.w, Math.round((H.GRID.w + 2) * man.scale), 'the same scale as the other models');
   assert.equal(e.base.h, Math.round((H.GRID.h + 2 + 0.35) * man.scale), 'the picture was rendered for the board\'s own grid (function row apart)');
   for (const k of H.keyLayout()) {
-    const acc = SK.accentOf(skin, k.name);
+    const acc = SK.accentOf(skin, k.legend); // the picture is the F75 window's: it names every key by the label the F75 prints
     const cap = e.caps[`${k.w}|${acc ? acc.name : '-'}`];
     assert.ok(cap, `a cap for ${k.name} (${k.w}u)`);
     assert.ok(fs.existsSync(path.join(dir, cap.file)), `${cap.file} exists`);
@@ -405,7 +405,8 @@ test('the F75 HE has a skin of its own that no other model shares, and a rendere
 
 test('the F75 HE is pictured as the real black, white and grey board: white letters with dark print, grey modifiers, darker F5-F8, black Esc / Enter / arrows / space', () => {
   const skin = SK.get('f75he');
-  const accent = (n) => (SK.accentOf(skin, n) ? SK.accentOf(skin, n).name : '-');
+  const legendOf = (name) => H.keyLayout().find((k) => k.name === name).legend;
+  const accent = (n) => (SK.accentOf(skin, legendOf(n)) ? SK.accentOf(skin, legendOf(n)).name : '-');
   for (const n of ['q', 'a', 'z', '1', 'f1', 'f4', 'f9', 'f12', 'backslash', 'grave']) assert.equal(accent(n), '-', `${n} is a plain white cap`);
   for (const n of ['tab', 'capslock', 'shiftleft', 'shiftright', 'ctrlleft', 'winleft', 'altleft', 'fn', 'ctrlright', 'backspace', 'delete', 'pageup', 'pagedown', 'end']) assert.equal(accent(n), 'grey', n);
   for (const n of ['f5', 'f6', 'f7', 'f8']) assert.equal(accent(n), 'dark', n);
@@ -416,35 +417,23 @@ test('the F75 HE is pictured as the real black, white and grey board: white lett
   assert.ok(SK.luma(skin.case.top) < 0.2, 'a black case');
 });
 
-test('a colour painted on the white caps is laid on with multiply, so it stays true (hard-light would turn orange yellow); the other caps keep hard-light', () => {
-  const skin = SK.get('f75he');
-  assert.equal(skin.cap.blend, 'multiply');
-  for (const a of Object.values(skin.accents)) assert.equal(a.blend, undefined, `${a.name} keeps the default blend`);
-  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'css', 'max.css'), 'utf8');
-  assert.match(css, /mix-blend-mode:\s*var\(--blend,\s*hard-light\)/, 'the CSS takes the blend from the key, hard-light unless it says otherwise');
-  const ui = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'max-ui.js'), 'utf8');
-  assert.match(ui, /setProperty\('--blend', blend\)/);
-  for (const id of ['f75', 'f75pro', 'f87', 'max']) assert.equal(SK.get(id).cap.blend, undefined, `${id} is unchanged`);
+test('a colour painted on a white cap is laid on with multiply, so it stays true (hard-light would turn orange yellow); the F75 preview decides by the cap\'s own brightness', () => {
+  const pv = read('src/js/preview.js');
+  assert.match(pv, /const lightFace = S\.luma\(f0\) > 0\.6;/, 'a light face is told from a dark one by its brightness');
+  assert.match(pv, /ctx\.globalCompositeOperation = lightFace \? 'multiply' : 'hard-light';/, 'a light cap gets multiply, a dark one hard-light');
+  for (const id of ['f75', 'f75pro', 'f87', 'max', 'f75he']) {
+    assert.equal(SK.get(id).cap.blend, undefined, `${id}: the skin does not say how paint lies on it, the picture works that out`);
+  }
 });
 
-test('the F75 HE lights its keys from under and round the caps, as the F75 does, and the Max is left as it was', () => {
-  assert.equal(SK.get('f75he').underlight, true);
-  for (const id of ['f75', 'f75pro', 'f87', 'max']) assert.ok(!SK.get(id).underlight, `${id} is unchanged`);
-  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'css', 'max.css'), 'utf8');
-  const ui = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'max-ui.js'), 'utf8');
-  // the light: a lamp (glow on the plate, a line in the gaps) in a layer that comes first in the grid, and a glow at the foot of each cap
-  assert.match(css, /\.mx-photo\.mx-under \.mx-lamp\s*\{[^}]*border:[^}]*var\(--hue[^}]*box-shadow:/s, 'the lamp is a line and a glow in the key\'s hue');
-  assert.match(css, /\.mx-photo\.mx-under \.mx-foot\s*\{[^}]*radial-gradient/s, 'the foot of the cap glows');
-  assert.match(css, /\.mx-photo\.mx-under \.mx-lamps\s*\{[^}]*position:\s*absolute/s);
-  assert.doesNotMatch(css.slice(css.indexOf('.mx-photo.mx-under .mx-lamp {')).split('}')[0], /z-index/, 'the lamp layer is under the keys by document order, not by a z-index that depends on a stacking context');
-  assert.ok(ui.indexOf('grid.append(lampLayer)') < ui.indexOf('for (const k of MX.keyLayout())'), 'the lamp layer is put in the grid before any key');
-  assert.match(ui, /setProperty\('--hue', full\)/);
-  assert.match(ui, /setProperty\('--b', strength\)/);
-  // lighting leaves the cap its own colour (a light screen, no paint); painting (the Per-key page) still paints it
-  assert.match(css, /\.stage-max:not\(\[data-paint="1"\]\) \.mx-photo\.mx-under \.mx-key\[data-on="1"\]::after\s*\{[^}]*mix-blend-mode:\s*screen/s);
-  assert.match(ui, /b\.style\.color = c && !\(underlit && tab !== 'perkey'\) \? ink\(c\) : ''/, 'lighting does not recolour the print; painting does');
-  // the lamps are in the grid only for a skin that has them
-  assert.match(ui, /underlight \? el\('div', \{ class: 'mx-lamps'/);
+test('the F75 HE and the white F75 Max are lit by the F75 preview, which glows from under and round the caps; the Max screen draws no board of its own', () => {
+  for (const id of ['f75he', 'max']) assert.equal(SK.get(id).underlight, undefined, `${id} has no separate under-light flag: every rendered picture is lit that way`);
+  const pv = read('src/js/preview.js');
+  assert.match(pv, /light only shows in the narrow gaps round each cap/, 'the rendered boards show their light in the gaps and at the foot of each cap');
+  const ui = read('src/js/max-ui.js');
+  assert.doesNotMatch(ui, /mx-key|mx-lamp|mx-board|makeBoard|AulaMaxMotion/, 'no second board or second motion code in the Max screen');
+  assert.ok(!fs.existsSync(path.join(root, 'src', 'js', 'max-motion.js')), 'max-motion.js is gone');
+  assert.doesNotMatch(read('src/css/max.css'), /\.mx-board|\.mx-key|\.stage-max/, 'and so are its styles');
 });
 
 test('the screen serves both families, loads after both protocol modules, and the F75 HE\'s own page has no settings to apply', () => {
@@ -492,9 +481,7 @@ test('the F75 HE screen offers nine brightness steps, and the keyboard picture f
   assert.match(ui, /max: BL/, 'the slider runs to the family\'s top level');
   assert.match(ui, /meter\('mxMeterBright', BL\)/, 'the meter has one tick per level');
   assert.ok(!/l\.brightness\}( of |\/)5/.test(ui), 'no brightness text says "of 5" any more (speed and response really are 1 to 5)');
-  assert.match(ui, /const share = brightShare\(\)/, 'paintKeys dims the picture by the brightness level');
-  assert.match(ui, /const sh = refs\.motion \? share \* refs\.motion\.lightFactor\(led\) : share/, 'the level (and, while the lights sweep on, the sweep) sets how strong each key is drawn');
-  assert.match(ui, /\$\{sh\.toFixed\(3\)\}/, 'a change of level repaints the keys');
+  assert.match(ui, /brightness: brightShare\(\) \* 4/, 'the picture is dimmed by the brightness level, on the preview\'s 0 to 4 scale');
 });
 
 // -------------------------------------------------------------------------------------------- the effect cards are colourful on the F75 HE

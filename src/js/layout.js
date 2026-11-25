@@ -7,6 +7,10 @@
  * is a matter of adding its layout to LAYOUTS (see "Adding a model" in the README), plus a skin in skins.js so the preview
  * shows that keyboard and not another model's picture (a model without a skin of its own is drawn with the F75 skin).
  *
+ * The F75 Max and the F75 HE have protocols of their own (max.js, he.js) and are not in the model list the person picks from, but
+ * they are drawn by the same preview as every other model: their screen (max-ui.js) registers their key table with define(), and
+ * use() then switches to it like to any other.
+ *
  * The module exposes the layout currently in use as KEYS / WIDTH / HEIGHT / CODE_TO_LED and switches it with
  * use(id). KEYS is the same array object for the life of the page (its contents are replaced), so holders of a
  * reference keep seeing the current layout; callers that cache anything derived from it (maps, paths) must
@@ -166,6 +170,8 @@
   ];
   const BY_ID = new Map(MODELS.map((m) => [m.id, m]));
   const DEFAULT_MODEL = 'f75';
+  /** Layouts that use() can switch to but the model list does not offer (define() adds them): the F75 Max and the F75 HE. */
+  const EXTRA = new Map();
 
   /** KeyboardEvent.code for each key label; labels that appear twice (Shift, Ctrl, Alt) are left then right. */
   const CODES = {
@@ -197,8 +203,8 @@
 
   /** Switches the layout in use. Returns true when it changed (so cached derivatives must be rebuilt). */
   api.use = function use(id) {
-    const m = BY_ID.get(id) || BY_ID.get(DEFAULT_MODEL);
-    if (api.id === m.id) return false;
+    const m = BY_ID.get(id) || EXTRA.get(id) || BY_ID.get(DEFAULT_MODEL);
+    if (api.id === m.id && api.KEYS.length === m.keys.length && api.KEYS[0] === m.keys[0]) return false;
     api.id = m.id;
     api.skin = m.skin || m.id; // which picture of the keyboard to draw (skins.js)
     api.KEYS.length = 0;
@@ -210,6 +216,27 @@
     return true;
   };
 
+  /**
+   * Adds a layout that is drawn like the others but is not one of the models to pick from. `keys` are { n, led, x, y, w, h? } with `n` the
+   * label the preview prints (the F75's: 'Esc', 'Backspace', 'Del', 'PgUp', 'Caps', 'Shift', 'Ctrl', 'Win', 'Alt', 'Fn', 'Up' ...), so the
+   * same legends, caps and Reactive key map serve it. Defining an id again replaces it (and, if it is the one in use, switches to the new table).
+   */
+  api.define = function define(id, spec) {
+    const m = {
+      id,
+      name: spec.name || id,
+      skin: spec.skin || id,
+      knob: !!spec.knob,
+      hardReset: spec.hardReset || HARD_RESET,
+      width: spec.width,
+      height: spec.height,
+      keys: spec.keys.map((k) => ({ n: k.n, led: k.led, x: k.x, y: k.y, w: k.w || 1, h: k.h || 1 })),
+    };
+    EXTRA.set(id, m);
+    if (api.id === id) api.use(id);
+    return m;
+  };
+
   /** Best guess at the model from a USB product name, or null when the name says nothing. */
   api.guessModel = (name) => {
     const hit = MODELS.find((m) => m.match.test(name || ''));
@@ -219,7 +246,7 @@
   api.requiredLeds = () => Math.max(...api.KEYS.map((k) => k.led)) + 1;
   /** Whether a colour block with `lights` entries can hold every key of the layout in use. */
   api.fits = (lights) => lights >= api.requiredLeds();
-  api.modelName = (id) => (BY_ID.get(id) || BY_ID.get(DEFAULT_MODEL)).name;
+  api.modelName = (id) => (BY_ID.get(id) || EXTRA.get(id) || BY_ID.get(DEFAULT_MODEL)).name;
   api.hasModel = (id) => BY_ID.has(id);
   /** The hotkey that hard-resets the keyboard itself: { keys: ['Fn', 'Esc'], hold: seconds }. Also what the F75 Max uses. */
   api.hardReset = (id) => (BY_ID.get(id) || BY_ID.get(DEFAULT_MODEL)).hardReset;

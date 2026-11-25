@@ -130,7 +130,7 @@
       // write is called a failure. A read that already matches ends the wait at once.
       this.verifyDelays = opts.verifyDelays ?? [0, 150, 250, 400, 600, 800];
 
-      this.brightMax = this._loadBrightMax(); // how many brightness levels this keyboard has; starts at 4 and grows when it reports more
+      this.brightMax = this._loadBrightMax(); // how many brightness levels the app offers; starts at the full 9 (0..9) unless the person chose fewer, and grows when the keyboard reports more
 
       this.productName = ''; // USB product name of the connected interface; a hint at the model
       this.status = 'idle'; // idle | searching | connecting | reading | ready | asleep | unsupported | error
@@ -823,13 +823,15 @@
     // ------------------------------------------------------ brightness range
 
     _loadBrightMax() {
-      let n = NaN;
+      let raw = null;
       try {
-        n = Number(this.storage.getItem(KEY.brightMax));
+        raw = this.storage.getItem(KEY.brightMax);
       } catch (_) {
         /* unreadable: use the default */
       }
-      return Number.isInteger(n) ? Math.min(P.BRIGHT_CAP, Math.max(P.LEVEL_MAX, n)) : P.LEVEL_MAX;
+      // Nothing saved (or something that is not a number): the full range, 0..BRIGHT_CAP. A level the person picked is kept.
+      const n = raw === null || raw === '' ? NaN : Number(raw);
+      return Number.isInteger(n) ? Math.min(P.BRIGHT_CAP, Math.max(P.LEVEL_MAX, n)) : P.BRIGHT_CAP;
     }
 
     /** Sets how many brightness levels the app offers (4..BRIGHT_CAP) and remembers it. */

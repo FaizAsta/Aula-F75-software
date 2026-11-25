@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('aulaHost', {
   whatsNewSeen: () => ipcRenderer.send('host:whats-new-seen'),
   openSupport: (id) => ipcRenderer.invoke('host:open-support', String(id)),
   listBackgrounds: () => ipcRenderer.invoke('host:list-backgrounds'),
+  bgImageData: (name) => ipcRenderer.invoke('host:bg-image-data', String(name || '')), // a preset picture as a data: address, for the GPU glass (a file: picture is another origin to WebGL)
   bgVideoBase,
   pickBackgroundVideo: () => ipcRenderer.invoke('host:pick-bg-video'),
   tidyBackgroundVideo: (keep) => ipcRenderer.invoke('host:tidy-bg-video', String(keep || '')),

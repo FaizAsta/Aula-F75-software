@@ -20,12 +20,15 @@
   <link rel="stylesheet" href="css/glass.css">
   <link rel="stylesheet" href="css/glass-normal.css">
   <link rel="stylesheet" href="css/glass-bend.css">
+  <link rel="stylesheet" href="css/glass-gpu.css">
   <link rel="stylesheet" href="css/glass-motion.css">
+  <link rel="stylesheet" href="css/glass-ios27.css">
   <link rel="stylesheet" href="css/glide.css">
   <link rel="icon" href="../assets/icon.png">
   <script src="js/boot.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/frost.js"></script>
+  <script src="js/glass-gpu.js"></script>
   <script src="js/glass.js"></script>
 </head>
 <body>
@@ -388,24 +391,6 @@
           <!-- Page 1: everything about the keyboard itself -->
           <div class="set-page" id="setpage-keyboard" role="tabpanel" aria-labelledby="setnav-keyboard">
 
-          <section class="set">
-            <h2>Keyboard</h2>
-            <div class="group">
-              <div class="srow">
-                <div class="srow-text"><b>Connection</b><p class="hint" id="devStatus"></p></div>
-                <div class="srow-ctl">
-                  <button class="btn small" id="devConnect" type="button">Connect</button>
-                  <button class="btn small ghost" id="devRescan" type="button">Search again</button>
-                  <button class="btn small ghost" id="devDisconnect" type="button">Disconnect</button>
-                </div>
-              </div>
-              <div class="srow">
-                <div class="srow-text"><b>Keyboard model</b><p class="hint">Sets the preview layout and which key each light belongs to. The F75, F75 Pro and F87 can report the same USB id, so the app cannot always tell them apart: pick yours if the preview looks wrong.</p></div>
-                <div class="srow-ctl"><select class="select" id="modelSel" aria-label="Keyboard model"></select></div>
-              </div>
-            </div>
-          </section>
-
 
           <section class="set">
             <h2>Keyboard tools</h2>
@@ -427,12 +412,6 @@
                   <button class="btn small ghost" id="kbReset" type="button">Reset keyboard</button>
                 </div>
                 <p class="hint reset-hotkey" id="resetHotkey"></p>
-              </div>
-              <div class="srow">
-                <div class="srow-text"><b>Demo keyboard</b><p class="hint">A simulated F75, so you can try every control without hardware. To try the F75 Max or F75 HE the same way, click the Aula logo, choose Demo keyboards, then Demo F75 Max or Demo F75 HE.</p></div>
-                <div class="srow-ctl">
-                  <button class="switch" id="swDemo" role="switch" aria-checked="false" aria-label="Demo keyboard" type="button"><i></i></button>
-                </div>
               </div>
             </div>
           </section>
@@ -503,7 +482,7 @@
                   </div>
                 </div>
                 <div class="srow">
-                  <div class="srow-text"><b>UI</b><span class="tag warn style-tag" id="styleTag" hidden>Experimental</span><p class="hint" id="styleHint">Classic is the original look. Liquid glass (experimental) makes the controls glass that blurs the picture behind them, like iOS.</p><p class="hint caution" id="styleCaution" hidden>Caution: Liquid glass is experimental. It may look off or run slower on some computers. If anything misbehaves, switch back to Classic.</p></div>
+                  <div class="srow-text"><b>UI</b><p class="hint" id="styleHint">Classic is the original look. Liquid glass makes the controls glass that blurs the picture behind them, like iOS.</p></div>
                   <div class="srow-ctl">
                     <div class="seg seg-2" id="segStyle" style="--n:2" role="radiogroup" aria-label="UI">
                       <button class="seg-btn" role="radio" data-style-pref="classic" type="button">Classic</button>
@@ -615,7 +594,7 @@
                   </div>
                 </div>
                 <div class="srow">
-                  <div class="srow-text"><b>Video or live wallpaper</b><p class="hint" id="bgVideoHint">Play a video behind the app: MP4 or WebM, or an animated GIF, up to 500 MB. It loops without sound and stops while the window is hidden or minimized. The app keeps its own copy, so it still works if you move or delete the original. A big video uses more of the graphics card; the Liquid glass style is the heaviest with it.</p></div>
+                  <div class="srow-text"><b>Video or live wallpaper</b><p class="hint" id="bgVideoHint">Play a video behind the app: MP4 or WebM, or an animated GIF, up to 500 MB. It loops without sound and pauses while the window is hidden, minimized or not in focus (a GIF cannot be paused, so it is hidden then and comes back when you return). The app keeps its own copy, so it still works if you move or delete the original.</p><p class="hint caution" id="bgVideoWarn">Warning: a video plays on the graphics card, so it can use a lot of GPU. The bigger the video, the more it uses: 4K uses the most, 2K (1440p) uses less, and 1080p uses less again. If the app feels slow or the fans get loud, choose a lower-resolution video. The Liquid glass style is the heaviest with a video.</p></div>
                   <div class="srow-ctl">
                     <button class="btn small" id="bgVideoPick" type="button">Choose video</button>
                   </div>
@@ -770,8 +749,8 @@
         <button class="sp-card" type="button" role="radio" aria-checked="false" tabindex="-1" data-style-choice="glass" aria-describedby="spGlassText" data-lock>
           <span class="sp-shot"><img src="img/ui/glass.webp" alt="The Lighting tab in the Liquid glass UI" width="720" height="480" draggable="false"></span>
           <span class="sp-meta">
-            <span class="sp-name"><b>Liquid glass</b><span class="tag warn">Experimental</span></span>
-            <span class="sp-text" id="spGlassText">Controls are see-through glass that blurs the picture behind them, like iOS. May look off or run slower on some computers.</span>
+            <span class="sp-name"><b>Liquid glass</b></span>
+            <span class="sp-text" id="spGlassText">Controls are see-through glass that blurs the picture behind them, like iOS.</span>
           </span>
           <svg class="sp-tick" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.6 12.4l3 3 5.8-6.2"/></svg>
         </button>
@@ -780,7 +759,7 @@
             <div class="sp-sliders">
               <label class="sp-rng"><span class="sp-rng-top"><b>Blur</b><output id="spGBlurVal" for="spGBlur"></output></span><input class="range" id="spGBlur" data-glass="blur" type="range" min="0" max="12" step="0.5" value="2.5" aria-label="Blur"></label>
               <label class="sp-rng" data-glass-real><span class="sp-rng-top"><b>Edge width</b><output id="spGBezelVal" for="spGBezel"></output></span><input class="range" id="spGBezel" data-glass="bezel" type="range" min="4" max="28" step="1" value="14" aria-label="Edge width"></label>
-              <label class="sp-rng" data-glass-real><span class="sp-rng-top"><b>Refraction</b><output id="spGAmountVal" for="spGAmount"></output></span><input class="range" id="spGAmount" data-glass="amount" type="range" min="0" max="60" step="1" value="30" aria-label="Refraction"></label>
+              <label class="sp-rng" data-glass-real><span class="sp-rng-top"><b>Refraction</b><output id="spGAmountVal" for="spGAmount"></output></span><input class="range" id="spGAmount" data-glass="amount" type="range" min="0" max="60" step="1" value="60" aria-label="Refraction"></label>
               <label class="sp-rng" data-glass-real><span class="sp-rng-top"><b>Colour fringe</b><output id="spGChromaVal" for="spGChroma"></output></span><input class="range" id="spGChroma" data-glass="chroma" type="range" min="0" max="100" step="5" value="30" aria-label="Colour fringe"></label>
             </div>
           </div>
@@ -875,7 +854,6 @@
 <script src="js/max.js"></script>
 <script src="js/he.js"></script>
 <script src="js/max-fx.js"></script>
-<script src="js/max-motion.js"></script>
 <script src="js/max-ui.js"></script>
 <script src="js/battery.js"></script>
 <script src="js/preview.js"></script>
@@ -893,5 +871,6 @@
 <script src="js/select.js"></script>
 <script src="js/whatsnew-ui.js"></script>
 <script src="js/glass-motion.js"></script>
+<script src="js/glass-ios27.js"></script>
 </body>
 </html>

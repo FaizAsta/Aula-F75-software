@@ -63,11 +63,13 @@ async function page(devices, opts = {}) {
     A.setTab('perkey');
     await wait(60);
     check(!doc.getElementById('mxPerkey').hidden && doc.getElementById('mxLighting').hidden, 'the Per-key section shows');
-    const keys = [...doc.querySelectorAll('#mxPerkey .mx-key')];
-    check(keys.length === 80, `80 keys drawn: ${keys.length}`);
-    const esc = keys.find((k) => k.title === 'esc');
-    esc.dispatchEvent(new w.Event('pointerdown', { bubbles: true, cancelable: true }));
-    w.dispatchEvent(new w.Event('pointerup'));
+    // The keys are on the window's own keyboard picture (a canvas, which jsdom does not draw): a click on a key reaches the screen as
+    // pick(key, event, 'down' | 'up'), with the key from the picture's key table.
+    const keys = w.AulaLayout.KEYS;
+    check(w.AulaLayout.id === 'f75max' && keys.length === 80, `the picture has the Max's 80 keys: ${w.AulaLayout.id} ${keys.length}`);
+    const esc = keys.find((k) => k.n === 'Esc');
+    A.max.pick(esc, {}, 'down');
+    A.max.pick(null, {}, 'up');
     await wait(20);
     check(A.max.max.keyColors.size === 1 && A.max.max.keyColors.has(1), 'clicking Esc paints light 1');
     doc.getElementById('mxFill').click();

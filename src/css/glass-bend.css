@@ -9,21 +9,21 @@
    hover) then has to share. Here those idle decorations stop. Nothing the person is waiting for stops: spinners, progress,
    the keyboard's own lighting and everything that answers a hover or a press keep moving.
 
-   Every rule starts with html.glass:not(.glass-normal), so Classic and light glass (Normal, and Realistic with Refraction 0, which has
+   Every rule starts with html.glass:not(.glass-normal):not(.glass-gpu), so Classic and light glass (Normal, and Realistic with Refraction 0, which has
    no filters to keep busy) keep every animation.
    ========================================================================== */
 
 /* the slow light drifting behind the keyboard: it sits inside the biggest glass box, so that box was filtered all the time */
-html.glass:not(.glass-normal) .stage::before { animation: none; }
+html.glass:not(.glass-normal):not(.glass-gpu) .stage::before { animation: none; }
 
 /* the selected effect card breathes: a steady soft glow instead, so the selection still reads */
-html.glass:not(.glass-normal) .effect[aria-checked="true"]::after {
+html.glass:not(.glass-normal):not(.glass-gpu) .effect[aria-checked="true"]::after {
   animation: none;
   box-shadow: 0 0 16px 0 rgb(var(--glow) / 0.2);
 }
 
 /* the ring that pulses out of the live dot, the one that pulses out of the connection dot, the sheen that sweeps the battery bar */
-html.glass:not(.glass-normal) .effect[data-live="true"] .live-dot,
-html.glass:not(.glass-normal) .dot[data-s="ok"]::after,
-html.glass:not(.glass-normal) .dot[data-s="warn"]::after,
-html.glass:not(.glass-normal) .bat-bar i::after { animation: none; }
+html.glass:not(.glass-normal):not(.glass-gpu) .effect[data-live="true"] .live-dot,
+html.glass:not(.glass-normal):not(.glass-gpu) .dot[data-s="ok"]::after,
+html.glass:not(.glass-normal):not(.glass-gpu) .dot[data-s="warn"]::after,
+html.glass:not(.glass-normal):not(.glass-gpu) .bat-bar i::after { animation: none; }

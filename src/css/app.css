@@ -805,7 +805,6 @@ html.frost, html.frost body { background: transparent; }
 .srow-text { flex: 1 1 260px; min-width: 0; }
 .srow-text b { font-weight: 500; }
 .srow-text .hint { margin-top: 3px; }
-.srow-text .style-tag { margin-left: 8px; vertical-align: 1px; }
 .hint.caution { color: var(--warn); }
 .srow-ctl { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: none; flex-wrap: wrap; justify-content: flex-end; }
 .reset-hotkey { flex: 1 0 100%; margin: 0; text-align: right; }

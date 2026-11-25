@@ -9,6 +9,11 @@
  * button; its Keyboard section has no settings, because the Hall-effect settings are not driven (he.js).
  *
  * One instance of the screen per keyboard family (FAMILIES below); the object `create` returns lets the app treat them as one.
+ *
+ * The keyboard picture at the top is not drawn here. It is the F75 window's own (preview.js, the canvas the F75, F75 Pro and F87 use), so
+ * the hover, the lean, the click ripples, the lights-on sweep, the key presses, the Live / Picture switch, the send animation and the
+ * tint of the window are one piece of code for every keyboard and cannot drift apart. This screen only tells it which layout to draw
+ * (layout.js define()), what each key shows (state.paint) and which keys the pointer picks on the Per-key page.
  */
 (function () {
   'use strict';
@@ -50,8 +55,6 @@
 
   // The little animated keyboard on each effect card (max-fx.js). The F75 screen has the same on its cards.
   const FX = window.AulaMaxFx || null;
-  // The pointer and key motion of the picture (max-motion.js): the F75 preview's lean, spotlight, rising keys, ripples, key presses and lights-on sweep.
-  const MM = window.AulaMaxMotion || null;
 
   /** One line on what each of the F75 Max's 20 effects does (the hover text and the line under "Effect"). */
   const EFFECT_INFO_MAX = {
@@ -90,6 +93,7 @@
       api: window.AulaMax || null,
       session: 'MaxSession',
       skin: 'max',
+      layout: 'f75max', // the id its key table goes by in layout.js
       effectInfo: EFFECT_INFO_MAX,
       note: 'Support for the F75 Max is experimental. It follows protocol notes confirmed on real keyboards by other projects, and it has not been tried on one by this app’s author. If something does not behave, tell me what you saw.',
       fxNote: 'The small pictures and the keyboard picture only show roughly what each effect does; the keyboard’s own look may differ a little.',
@@ -107,6 +111,7 @@
       api: window.AulaHe || null,
       session: 'HeSession',
       skin: 'f75he',
+      layout: 'f75he',
       effectInfo: Object.fromEntries([...((window.AulaHe && window.AulaHe.EFFECTS) || []), ...((window.AulaHe && window.AulaHe.SOFT_EFFECTS) || [])].map((e) => [e.mode, e.info])), // said no more than the vendor's names say
       note: 'Support for the F75 HE is experimental. Reading from the keyboard (who it is, its lighting, its per-key colours) has been checked against a real F75 HE, firmware V1.55, over USB-C and over 2.4G. The effects and the lighting bytes written for each are the ones AULA’s own driver was seen to write to a real F75 HE. The app’s own writes have not been confirmed on a real F75 HE yet. The picture follows photos of the real board; which key number belongs to which cap is still provisional. If something does not behave, tell me what you saw.',
       fxNote: 'The small pictures and the keyboard picture are the F75 Max’s drawings and only roughly show what each effect does; the keyboard’s own look will differ.',
@@ -197,6 +202,16 @@
       }
     };
     const LAYOUT = MX.keyLayout();
+    // The shared keyboard picture: the keys go to layout.js under the labels the F75 uses, so its legends, rendered caps and key map serve
+    // this keyboard too. Registering only adds the table; the app switches to it when this screen takes the window (stage()).
+    const L = ctx.L || window.AulaLayout || null;
+    const LAYOUT_ID = FAM.layout;
+    const skinOf = window.AulaSkins ? window.AulaSkins.get(FAM.skin) : null;
+    if (L && L.define) {
+      const grid = MX.GRID || { w: 16, h: 6 }; // the key block in key units (the F75 HE's function row sits apart, so it is taller than 6)
+      L.define(LAYOUT_ID, { name: FAM.name, skin: FAM.skin, width: grid.w, height: grid.h, knob: !!(skinOf && skinOf.knob), keys: LAYOUT.map((k) => ({ n: k.legend, led: k.led, x: k.x, y: k.y, w: k.w })) });
+    }
+    const getView = () => (ctx.canvasView ? ctx.canvasView() : null);
     const BYLED = new Map(LAYOUT.map((k) => [k.led, k]));
 
     function pkColourAt(t) {
@@ -265,92 +280,6 @@
       const sw = el('div', { class: 'swatches small', 'aria-label': 'Quick colours' });
       for (const q of QUICK) sw.append(el('button', { class: 'swatch', type: 'button', title: q, 'aria-label': `Use ${q}`, style: `background:${q}`, onclick: () => setRgb(rgbOf(q)) }));
       return { input, text, sw, node: el('div', {}, el('div', { class: 'color-edit' }, el('label', { class: 'color-pick' }, el('span', { class: 'sr', text: 'Colour' }), input), text), swatches ? sw : null) };
-    }
-
-    // The picture of the board. It is the same one on two pages: the Per-key page (keys you can paint) and the top of the
-    // Lighting page (just a picture, `interactive` false). Each family has its own look (skins.js): the F75 Max a graphite
-    // case with green-sided Esc / Enter / arrows, a knob and a small screen; the F75 HE a black case with white and grey caps and a knob.
-    // The rendered picture (src/img/board, made by scripts/render-board/render.py, the same kind of picture the F75, F75 Pro
-    // and F87 have): the case, plate, knob and screen are one image behind the keys, and each key wears the sprite of its
-    // keycap. Without the pictures (or if one fails to load) the board is drawn with CSS.
-    function makeBoard(interactive) {
-      const GRID = MX.GRID || { w: 16, h: 6 }; // the key block, in key units (the F75 HE's function row sits apart, so it is taller than 6)
-      const gridAspect = `${GRID.w} / ${GRID.h}`;
-      const grid = el('div', { class: 'mx-grid', role: interactive ? 'group' : null, 'aria-label': interactive ? 'Keys' : null, style: `aspect-ratio:${gridAspect}` });
-      const box = el('div', { class: 'mx-board' }, grid);
-      const keys = new Map();
-      const lamps = new Map(); // the under-key lights (skins with `underlight`), by key index
-      // All the lamps are in one layer that comes first in the grid, so every key paints over it (plain document order: no z-index
-      // to depend on, which would put them behind the picture if the grid were not a stacking context).
-      const lampLayer = window.AulaSkins && window.AulaSkins.get(FAM.skin) && window.AulaSkins.get(FAM.skin).underlight ? el('div', { class: 'mx-lamps', 'aria-hidden': 'true' }) : null;
-      if (lampLayer) grid.append(lampLayer);
-      const SK = window.AulaSkins;
-      const skin = SK ? SK.get(FAM.skin) : null;
-      const man = window.AulaBoardManifest;
-      const pics = man && man.skins && man.skins[FAM.skin] && man.skins[FAM.skin].base ? man.skins[FAM.skin] : null;
-      const picUrl = (file) => `url(\"${(man.dir || '') + file}\")`;
-      for (const k of MX.keyLayout()) {
-        const attrs = { class: 'mx-key', 'data-led': k.led, text: k.label, style: `left:${(k.x / GRID.w) * 100}%;top:${(k.y / GRID.h) * 100}%;width:${(k.w / GRID.w) * 100}%;height:${(1 / GRID.h) * 100}%` };
-        if (interactive) Object.assign(attrs, { type: 'button', title: k.name });
-        const b = el(interactive ? 'button' : 'div', attrs);
-        const acc = skin && SK.accentOf(skin, k.name);
-        if (pics) {
-          const cap = pics.caps[`${k.w}|${acc ? acc.name : '-'}`] || pics.caps[`${k.w}|-`];
-          if (cap) b.style.setProperty('--cap', picUrl(cap.file));
-          b.style.setProperty('--kw', String(k.w));
-          if (k.w < 1.3 && String(k.label).length > 2) b.dataset.long = '1'; // PgUp, End, Del: a smaller print so they fit a 1u cap
-        }
-        if (acc) {
-          b.style.setProperty('--body-a', acc.body[0]);
-          b.style.setProperty('--body-b', acc.body[1]);
-          if (acc.legend) b.style.setProperty('--sk-ink', acc.legend); // a cap of another colour prints its legend in its own ink
-        }
-        const blend = acc ? acc.blend : skin && skin.cap.blend; // how a painted colour lies on this cap (white caps need multiply)
-        if (blend) {
-          b.style.setProperty('--blend', blend);
-          b.dataset.tint = '1'; // a light cap: the Lighting page washes it with the light's colour (css/max.css)
-        }
-        if (skin && skin.underlight) {
-          // The light of the key, as on the F75. A glow at the foot of the cap's front wall goes in the key, over its cap. The glow on
-          // the plate and the thin line of light in the gaps round the cap (the lamp) must sit under every cap, and each key is its own
-          // stacking context (isolation), so the lamp goes in the lamp layer beneath all the keys, with the key's size and place.
-          b.append(el('i', { class: 'mx-foot', 'aria-hidden': 'true' }));
-          const lamp = el('i', { class: 'mx-lamp', 'aria-hidden': 'true', style: attrs.style });
-          lamps.set(k.led, lamp);
-          lampLayer.append(lamp);
-        }
-        keys.set(k.led, b);
-        grid.append(b);
-      }
-      if (skin) {
-        const pos = (o) => Object.entries(o).map(([key, v]) => `${key}:${v}`).join(';');
-        const sc = skin.screen;
-        const kn = skin.knob;
-        if (sc) grid.append(el('div', { class: 'mx-screen', 'aria-hidden': 'true', style: pos({ left: `${(sc.x / GRID.w) * 100}%`, top: `${(sc.y / GRID.h) * 100}%`, width: `${(sc.w / GRID.w) * 100}%`, height: `${(sc.h / GRID.h) * 100}%` }) }));
-        if (kn) grid.append(el('div', { class: 'mx-knob', 'aria-hidden': 'true', style: pos({ left: `${(('x' in kn ? kn.x : GRID.w - 0.5) / GRID.w) * 100}%`, top: `${(('y' in kn ? kn.y : 0.5) / GRID.h) * 100}%`, width: `${((kn.r * 2) / GRID.w) * 100}%` }) }));
-        for (const [name, v] of Object.entries(SK.cssVars(skin))) box.style.setProperty(name, v);
-      }
-      if (pics) {
-        const base = pics.base;
-        const bx = (v) => `${(v / base.w) * 100}%`;
-        const by = (v) => `${(v / base.h) * 100}%`;
-        box.classList.add('mx-photo');
-        if (skin && skin.underlight) box.classList.add('mx-under');
-        box.style.backgroundImage = picUrl(base.file);
-        box.style.aspectRatio = `${base.w} / ${base.h}`;
-        box.style.setProperty('--ar', String(base.w / base.h)); // the stage fits the picture to its height with this
-        // the keys' grid sits where the picture has its key block: GRID key units, `scale` pixels each
-        grid.style.cssText = `left:${bx(base.ox)};top:${by(base.oy)};width:${bx(GRID.w * man.scale)};height:${by(GRID.h * man.scale)}`;
-        const probe = new Image();
-        probe.onerror = () => {
-          box.classList.remove('mx-photo');
-          box.style.backgroundImage = box.style.aspectRatio = grid.style.cssText = '';
-          grid.style.aspectRatio = gridAspect;
-          box.style.removeProperty('--ar');
-        };
-        probe.src = (man.dir || '') + base.file;
-      }
-      return { box, grid, keys, lamps, under: !!(pics && skin && skin.underlight) };
     }
 
     /** The F75 Max's Keyboard page: key response, sleep and the key locks (what the app last sent: the Max cannot be read back). */
@@ -467,68 +396,8 @@
             el('div', { class: 'field' }, el('div', { class: 'btn-row first' }, refs.applyL)))));
 
       // ---- per-key
-      // The painting happens on the keyboard picture at the top of the window (the F75 screen does the same), so this page
-      // only holds the paint colour and the presets.
-      const pkBoard = makeBoard(true);
-      refs.board = pkBoard.grid;
-      refs.boardBox = pkBoard.box;
-      refs.keys = pkBoard.keys;
-      refs.lamps = pkBoard.lamps;
-      refs.stageBox = el('div', { class: 'stage-max', id: 'stageMax' }, pkBoard.box);
-      const stageEl = document.querySelector('.stage');
-      const canvasWrap = stageEl && stageEl.querySelector('.stage-canvas');
-      for (const old of document.querySelectorAll('#stageMax')) old.remove();
-      if (canvasWrap) canvasWrap.after(refs.stageBox);
-
-      // The picture moves like the F75's (max-motion.js). It may move while animations are on and the view is Live; the pointer effects
-      // stay off on the Per-key page, so the board is square under the brush; and your own key presses only sink a cap on the Lighting page.
-      refs.motion = MM
-        ? MM.create({
-            host: refs.stageBox,
-            board: refs.boardBox,
-            grid: refs.board,
-            keys: refs.keys,
-            layout: LAYOUT,
-            gridW: (MX.GRID || { w: 16 }).w,
-            enabled: () => active && canAnimate() && !stillPicture() && (!ctx.shown || ctx.shown()),
-            pointerFx: () => tab !== 'perkey',
-            typing: () => tab === 'lighting',
-            tint: () => lightMean(lightMoves() ? performance.now() : null),
-            repaint: () => {
-              if (!lightMoves()) paintKeys(null); // a moving effect repaints itself every frame
-            },
-          })
-        : null;
-
-      // Click or drag on the picture: Select adds (or, starting on a picked key, removes) keys; Brush paints them.
-      const ledOf = (e) => {
-        const b = e.target.closest && e.target.closest('.mx-key');
-        return b && b.dataset.led ? Number(b.dataset.led) : null;
-      };
-      const touch = (led) => {
-        if (led === null) return;
-        if (drag === 'brush') paintLeds([led]);
-        else {
-          if (drag === 'add') sel.add(led);
-          else sel.delete(led);
-          refreshPerkey();
-        }
-      };
-      refs.board.addEventListener('pointerdown', (e) => {
-        if (tab !== 'perkey') return;
-        const led = ledOf(e);
-        if (led === null) {
-          if (pk.tool === 'select' && sel.size) {
-            sel.clear();
-            refreshPerkey();
-          }
-          return;
-        }
-        drag = pk.tool === 'brush' ? 'brush' : sel.has(led) ? 'del' : 'add';
-        touch(led);
-        e.preventDefault();
-      });
-      refs.board.addEventListener('pointerover', (e) => drag && touch(ledOf(e)));
+      // The painting happens on the keyboard picture at the top of the window (the F75 screen does the same): the picture's pointer goes to
+      // pick() below, so this page only holds the paint colour and the presets.
 
       // The card: the same one the F75's Per-key page has (keys.css), in three columns: Tool and Selection, Colour, then Direction,
       // Presets and the two actions.
@@ -729,69 +598,13 @@
       if (FX && !fxRaf && active && tab === 'lighting') fxRaf = requestAnimationFrame(fxLoop);
     }
 
-    // ------------------------------------------------------------------ the window's tint
-    // The whole window takes the colour of the keyboard's light, as on the F75 screen (app.js setGlow, the CSS --glow and
-    // --glow-ink): the board's average light, measured the same way. Static is its one colour, Per-key is the painted keys, and a
-    // moving effect follows its own drawing at the same moment its card shows, so Spectrum Cycle walks the window through the colours.
+    // ------------------------------------------------------------------ the keyboard picture (the F75 window's canvas)
+    // The window's tint needs nothing here: the picture reports the average light of what it draws, every frame, and the app tints the
+    // window with it (app.js setGlow), for this keyboard as for the F75. Static is its one colour, Per-key is the painted keys, and a moving
+    // effect walks the window through its colours as it plays.
 
-    const stillPicture = () => (ctx.getView ? ctx.getView() : 'live') === 'picture'; // Picture: a still image, nothing moves
-    /** True while a moving effect is playing on the picture: Live, animations on, an effect that moves, and not the Per-key page. */
-    const lightMoves = () => !!FX && canAnimate() && !stillPicture() && tab !== 'perkey' && max.present && max.lighting.mode >= 2;
-
-    /** The board's average light as [r, g, b]. [0, 0, 0] when it is dark: the window then keeps its default light blue. */
-    function lightMean(now) {
-      if (tab === 'perkey') {
-        let r = 0;
-        let g = 0;
-        let b = 0;
-        for (const k of LAYOUT) {
-          const c = max.keyColors.get(k.led);
-          if (c) {
-            r += c[0];
-            g += c[1];
-            b += c[2];
-          }
-        }
-        return [r / LAYOUT.length, g / LAYOUT.length, b / LAYOUT.length];
-      }
-      if (!max.present) return [0, 0, 0];
-      const l = max.lighting;
-      if (l.mode === 0) return [0, 0, 0];
-      if (l.mode === 1 && !l.colorful) return l.rgb;
-      if (!FX) return l.colorful ? [128, 128, 128] : l.rgb;
-      const m = FAM.fxMode(l.mode);
-      return FX.mean(m, now === null ? undefined : FX.stillTime(m) + now / 1000, fxState());
-    }
-
-    function updateGlow(now = performance.now(), force = true) {
-      if (active && ctx.glow) ctx.glow(lightMean(lightMoves() ? now : null), force);
-    }
-
-    // A moving effect plays on the picture's keys and tints the window as it goes (about 25 frames a second; the loop ends when the
-    // page is left, hidden or still, and render() starts it again).
-    let playRaf = 0;
-    let playLast = 0;
-    let glowLast = 0;
-    function playLoop(now) {
-      playRaf = 0;
-      if (!active || (ctx.shown && !ctx.shown())) return;
-      if (!lightMoves()) {
-        refs.stageBox.dataset.play = '';
-        paintKeys(null); // the effect was stopped (Picture, a new effect that stands still, animations off): the keys settle on its still moment
-        return;
-      }
-      playRaf = requestAnimationFrame(playLoop);
-      if (document.hidden || now - playLast < 40) return;
-      playLast = now;
-      paintKeys(now);
-      if (now - glowLast >= 120) {
-        glowLast = now;
-        updateGlow(now, false);
-      }
-    }
-    function kickPlay() {
-      if (!playRaf && active && (!ctx.shown || ctx.shown()) && lightMoves()) playRaf = requestAnimationFrame(playLoop);
-    }
+    /** Picture: a still image, nothing moves. The app decides (it is the Live / Picture switch, and key editing is always live). */
+    const stillPicture = () => (ctx.pictureOnly ? ctx.pictureOnly() : (ctx.getView ? ctx.getView() : 'live') === 'picture');
 
     // ------------------------------------------------------------------ drawing
 
@@ -842,7 +655,7 @@
             ? 'Painting only changes the picture. Over 2.4G the colours go in 21 small pieces, which is the least tried way: the USB-C cable is the safer one.'
             : 'Per-key colours need the USB-C cable: the 2.4G dongle only carries 32 bytes at a time.'
           : '';
-      $('#mxPkHint').textContent = `${max.keyColors.size} of ${refs.keys.size} keys lit. ${note}`.trim();
+      $('#mxPkHint').textContent = `${max.keyColors.size} of ${LAYOUT.length} keys lit. ${note}`.trim();
       refs.paintSel.disabled = sel.size === 0;
       refs.selNone.disabled = sel.size === 0;
     }
@@ -854,65 +667,33 @@
     // ------------------------------------------------------------------ the keyboard picture (the F75 screen's stage)
 
     /**
-     * What each key shows on the picture: the painted colours on the Per-key page, the one colour of the Static effect, and, for
-     * the moving effects, the same drawing the effect's card plays (max-fx.js), as the F75 screen's picture plays its effects. The
-     * keyboard keeps these effects to itself and the app cannot read them back, so this is the app's picture of what the effect
-     * does, not a capture of the real thing (the note under the effects says so). `now` is the time of the frame (ms); null draws
-     * the effect's still moment, which is what Picture and a window with animations off show.
+     * What each key shows on the picture, as the function the shared preview calls for every key and frame (state.paint): the painted
+     * colours on the Per-key page, the one colour of the Static effect, and, for the moving effects, the same drawing the effect's card
+     * plays (max-fx.js), as the F75 screen's picture plays its effects. The keyboard keeps these effects to itself and the app cannot
+     * read them back, so this is the app's picture of what the effect does, not a capture of the real thing (the note under the effects
+     * says so). `t` is the picture's own clock in seconds; while the picture is still (Picture, animations off) `eff.animating` is false
+     * and the effect shows its still moment. A key you press on your own keyboard lights too, with the effects that answer key presses.
      */
-    function litColours(now = null) {
-      if (tab === 'perkey') return (led) => max.keyColors.get(led) || null; // painting always shows its colours
+    function makePaint() {
+      if (tab === 'perkey') return (k) => max.keyColors.get(k.led) || null; // painting always shows its colours
       const l = max.lighting;
       if (!max.present || l.mode === 0) return null;
-      if (l.mode === 1 && !l.colorful) return () => l.rgb;
+      if (l.mode === 1 && !l.colorful) {
+        const rgb = l.rgb;
+        return () => rgb;
+      }
       if (!FX) return null;
       const m = FAM.fxMode(l.mode);
-      const t = now === null ? undefined : FX.stillTime(m) + now / 1000;
+      const reactive = !!(MX.effect(l.mode) || {}).reactive;
       const st = { ...fxState(), layout: LAYOUT }; // the effects that follow a path through the keys (the Snake) walk this picture's own keys
-      // A key you press on your own keyboard lights on the picture too, with the effects that answer key presses (as on the F75 screen).
-      const mo = now !== null && (MX.effect(l.mode) || {}).reactive ? refs.motion : null;
-      return (led) => {
-        const k = BYLED.get(led);
-        const c = k ? FX.lit(m, k, t, st) : null;
-        const g = mo ? mo.glow(led) : 0;
+      return (k, t, eff) => {
+        const mk = BYLED.get(k.led);
+        const c = mk ? FX.lit(m, mk, eff.animating ? FX.stillTime(m) + t : undefined, st) : null;
+        const g = reactive && eff.animating ? eff.pressed(k.led, t) : 0;
         if (g < 0.03) return c;
-        const real = st.colorful ? hue((led * 53) % 360).map((v) => Math.round(v * g)) : st.rgb.map((v) => Math.round(v * g));
+        const real = st.colorful ? hue((k.led * 53) % 360).map((v) => Math.round(v * g)) : st.rgb.map((v) => Math.round(v * g));
         return !c || real[0] + real[1] + real[2] > c[0] + c[1] + c[2] ? real : c;
       };
-    }
-
-    /**
-     * Not every colour shows equally: blue and red on a white cap are far fainter than yellow or cyan, and as light on a dark cap it is the other
-     * way round. So that all the lighting effects look equally lit, each light colour (at full strength) gets two gains, set next to --hue:
-     *   --g   for a light cap, where the colour is laid on as a wash (multiply): the gain that gives every colour the same distance from white (CIE Lab)
-     *   --gl  for the light itself (the glow in the gaps, under the caps, on a dark cap): bright colours are easier to see, so dark ones are lifted
-     * Both are 1 for a mid colour, and cached per colour.
-     */
-    const GAINS = new Map();
-    function lightGains(rgb) {
-      const key = rgb.join();
-      let g = GAINS.get(key);
-      if (g) return g;
-      const lin = (v) => ((v /= 255) > 0.04045 ? ((v + 0.055) / 1.055) ** 2.4 : v / 12.92);
-      const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
-      const lab = (c) => {
-        const r = lin(c[0]);
-        const gg = lin(c[1]);
-        const b = lin(c[2]);
-        const x = f((0.4124 * r + 0.3576 * gg + 0.1805 * b) / 0.95047);
-        const y = f(0.2126 * r + 0.7152 * gg + 0.0722 * b);
-        const z = f((0.0193 * r + 0.1192 * gg + 0.9505 * b) / 1.08883);
-        return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
-      };
-      const w = lab([255, 255, 255]);
-      const out = rgb.map((v) => 255 - 0.1 * (255 - v)); // a 10% wash of this colour on white
-      const l = lab(out);
-      const dE = Math.hypot(l[0] - w[0], l[1] - w[1], l[2] - w[2]);
-      const luma = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
-      const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-      g = { g: +clamp(10.3 / Math.max(3, dE), 0.7, 1.5).toFixed(3), gl: +clamp(Math.sqrt(0.55 / Math.max(0.05, luma)), 0.8, 1.8).toFixed(3) };
-      GAINS.set(key, g);
-      return g;
     }
 
     /** How much of full strength the picture's light is drawn at: the brightness level as a share of the keyboard's levels (1 / levels .. 1). */
@@ -922,49 +703,68 @@
       return Number.isFinite(v) ? Math.min(1, Math.max(1 / n, v / n)) : 1;
     }
 
-    /** Lights the keys (and the under-key lamps) of the picture. Only a key whose light has changed is touched, so a moving effect costs little. */
-    function paintKeys(now = null) {
-      const colourOf = litColours(now);
-      const underlit = refs.boardBox.classList.contains('mx-under') && refs.boardBox.classList.contains('mx-photo');
+    const NO_KEYS = new Set();
+    /** The state the shared picture is drawn from (what app.js previewState() gives for the F75): this keyboard's lighting, as `paint`. */
+    function previewState() {
       const perkey = tab === 'perkey';
-      // The brightness level dims everything the picture shows, the way the keyboard does: level 1 is the faintest light, the top level full strength.
-      const share = brightShare();
-      for (const [led, b] of refs.keys) {
-        const c = colourOf ? colourOf(led) : null; // the key's colour at full strength (also what the legend's ink is chosen against)
-        const selected = perkey && sel.has(led);
-        const sh = refs.motion ? share * refs.motion.lightFactor(led) : share; // while the lights sweep on, each key is part way lit
-        const sig = `${c ? c.join() : ''}|${sh.toFixed(3)}|${perkey ? 1 : 0}${selected ? 1 : 0}${underlit ? 1 : 0}`;
-        if (b._sig === sig) continue;
-        b._sig = sig;
-        const cd = c ? c.map((v) => Math.round(v * sh)) : null; // the colour as the keyboard shows it at this brightness
-        b.style.setProperty('--c', cd ? hexOf(cd) : '');
-        // The key's light as hue and strength (as the F75's preview takes it): the hue at full strength, and how bright the key is.
-        const peak = cd ? Math.max(cd[0], cd[1], cd[2]) : 0;
-        const strength = peak ? (peak / 255).toFixed(3) : '0';
-        const fullRgb = peak ? c.map((v) => Math.round((v * 255) / Math.max(1, Math.max(c[0], c[1], c[2])))) : null;
-        const full = fullRgb ? hexOf(fullRgb) : '';
-        const gains = fullRgb ? lightGains(fullRgb) : null;
-        for (const t of [b, refs.lamps.get(led)]) {
-          if (!t) continue;
-          t.style.setProperty('--b', strength);
-          t.style.setProperty('--hue', full);
-          t.style.setProperty('--g', gains ? gains.g : '1');
-          t.style.setProperty('--gl', gains ? gains.gl : '1');
-          t.dataset.on = c ? '1' : '';
-        }
-        // Painting (the Per-key page) prints the legend to suit the painted cap; lighting leaves the cap and its print as they are
-        // and the style sheet lets the legend take a little of the light.
-        b.style.color = c && !(underlit && tab !== 'perkey') ? ink(c) : '';
-        b.dataset.on = c ? '1' : '';
-        b.dataset.sel = selected ? '1' : '';
+      return {
+        mode: 0, // the F75's own effect numbers do not apply: `paint` says what each key shows
+        speed: 2,
+        colorIndex: 7,
+        palette: [],
+        colors: null,
+        legends: null,
+        brightness: brightShare() * 4, // the picture's scale is 0..4 whatever the keyboard offers
+        dim: !stillPicture() && !perkey && (!max.present || max.lighting.mode === 0), // Live: dark while the lights are off. Picture shows what it has
+        selection: perkey ? sel : NO_KEYS,
+        paint: makePaint(),
+      };
+    }
+
+    /** Gives the shared picture this keyboard's layout, how it is drawn (flat while painting) and what each key shows. */
+    function syncStage() {
+      const view = getView();
+      if (!view) return;
+      if (ctx.stage) ctx.stage(LAYOUT_ID);
+      view.opts.flat = tab === 'perkey';
+      view.setState(previewState());
+    }
+
+    // Click or drag on the picture: Select adds (or, starting on a picked key, removes) keys; Brush paints them. The picture's pointer
+    // is the F75's (preview.js); it asks `picking()` whether it is a brush right now and reports each key it crosses to `pick()`.
+    const touch = (led) => {
+      if (led === null || led === undefined) return;
+      if (drag === 'brush') paintLeds([led]);
+      else {
+        if (drag === 'add') sel.add(led);
+        else sel.delete(led);
+        refreshPerkey();
       }
+    };
+    const picking = () => active && tab === 'perkey';
+    function pick(k, e, phase) {
+      if (!picking()) return;
+      if (phase === 'up') {
+        drag = null;
+        return;
+      }
+      if (phase === 'down') {
+        if (!k) {
+          if (pk.tool === 'select' && sel.size) {
+            sel.clear();
+            refreshPerkey();
+          }
+          return;
+        }
+        drag = pk.tool === 'brush' ? 'brush' : sel.has(k.led) ? 'del' : 'add';
+        touch(k.led);
+        return;
+      }
+      if (phase === 'move' && k && drag) touch(k.led);
     }
 
     function paintStage() {
-      paintKeys(lightMoves() ? performance.now() : null);
-      refs.stageBox.dataset.paint = tab === 'perkey' ? '1' : '';
-      refs.stageBox.dataset.play = lightMoves() ? '1' : ''; // a moving effect is playing on the picture (the style sheet drops the key fades then)
-      updateGlow(); // the window's tint follows what was just painted or chosen
+      syncStage();
 
       // the chips along the foot of the picture and the Live / Picture switch: the same ones the F75 screen has
       const $$ = (sel) => document.querySelector(sel);
@@ -1001,15 +801,10 @@
         br.hidden = !perkey && l.mode === 0;
         set('#sbBright', `Brightness ${l.brightness}/${FAM.brightLevels}`);
       }
+      // The Live / Picture switch is the app's (it hides it while painting, presses the right button and sets the stage to Picture, app.js
+      // renderStageView); only the dot beside it is this keyboard's: lit while its lights are on.
       const sv = $$('#stageView');
-      if (sv) {
-        const picture = (ctx.getView ? ctx.getView() : 'live') === 'picture';
-        sv.hidden = perkey || tab === 'keyboard'; // painting and the keyboard page always show the board, as on the F75
-        for (const b of sv.querySelectorAll('.sv-btn')) b.setAttribute('aria-pressed', String((b.dataset.view === 'picture') === picture));
-        sv.dataset.live = picture ? 'pic' : !max.present || l.mode === 0 ? 'off' : 'on';
-        const stage = sv.closest('.stage');
-        if (stage) stage.dataset.pic = picture && !sv.hidden ? '1' : ''; // Picture: only the image, as on the F75 screen
-      }
+      if (sv) sv.dataset.live = stillPicture() ? 'pic' : !max.present || l.mode === 0 ? 'off' : 'on';
     }
 
     /** The F75 HE's Keyboard page: what the keyboard said about itself (nothing is invented: unread things say so). */
@@ -1038,14 +833,13 @@
      * the sweep's first moment is what gets painted.
      */
     function motionCue(l) {
-      const m = refs.motion;
-      if (!m) return;
+      const view = getView();
+      if (!view) return;
       const pic = stillPicture();
-      if (lastMode === null) m.intro(false);
-      else if ((l.mode !== lastMode && tab === 'lighting') || (lastPic && !pic)) m.intro(true);
+      if (lastMode === null) view.playIntro(false);
+      else if ((l.mode !== lastMode && tab === 'lighting') || (lastPic && !pic)) view.playIntro(true);
       lastMode = l.mode;
       lastPic = pic;
-      m.sync(); // starts or stops the motion to match animations on / off and Live / Picture
     }
 
     function render() {
@@ -1108,7 +902,6 @@
 
       // per-key, and the keyboard picture at the top
       paintStage();
-      kickPlay(); // a moving effect keeps playing on the picture and tinting the window (the loop ends when the page is left or hidden; this starts it again)
       syncPaint({ keepHex: document.activeElement === refs.pkHex });
       renderPerkey();
 
@@ -1177,7 +970,7 @@
       if (!max.present) return false;
       if (!active) build(); // built when it takes the window: the other keyboard's screen shares the same panel
       active = true;
-      if (ctx.idlePreview) ctx.idlePreview(true);
+      if (ctx.stage) ctx.stage(LAYOUT_ID); // the F75 window's picture draws this keyboard's layout from now on
       shell.dataset.family = 'max'; // the F75 HE uses the Max's screen layout, so the same styles apply
       shell.dataset.kb = FAM.id;
       shell.dataset.maxView = 'max';
@@ -1201,8 +994,6 @@
 
     /** Takes this screen's pieces out of the shared panel and the picture (the next keyboard builds its own). */
     function unbuild() {
-      if (refs.motion) refs.motion.destroy();
-      for (const old of document.querySelectorAll('#stageMax')) old.remove();
       root.textContent = '';
       for (const k of Object.keys(refs)) delete refs[k];
     }
@@ -1212,7 +1003,7 @@
       active = false;
       lastMode = lastPic = null; // the next keyboard's first picture sweeps on again
       if (ctx.glow) ctx.glow([0, 0, 0], true); // back to the default light blue until the F75 preview (or the next keyboard) sets its own
-      if (ctx.idlePreview) ctx.idlePreview(false);
+      if (ctx.stage) ctx.stage(null); // and back to the F75's
       shell.dataset.family = '';
       shell.dataset.kb = '';
       shell.dataset.maxView = '';
@@ -1308,6 +1099,24 @@
       tick().catch(() => {});
     }
 
+    // The data-link animation on the keyboard picture, the F75 window's own (motion.js): a send while something the person applied is on the
+    // wire, a read for the quiet jobs (the battery poll), then the short done / failed flash.
+    const link = (kind, text) => ctx.link && ctx.link(kind, text);
+    let linkQuiet = null; // the kind of job the animation is showing: true for a read, false for a send, null for none
+    max.on('busy', () => {
+      const job = max.job;
+      if (max.busy && job) {
+        linkQuiet = !!job.quiet;
+        link(linkQuiet ? 'rx' : 'tx', linkQuiet ? 'Reading battery' : job.name === 'read' ? 'Reading' : 'Sending');
+      } else if (!max.busy && linkQuiet !== null) {
+        if (linkQuiet) link(''); // a send is followed by its 'result', which flashes done or failed
+        linkQuiet = null;
+      }
+    });
+    max.on('result', () => {
+      const r = max.last;
+      if (r) link(r.ok ? 'ok' : 'bad', r.ok ? (r.name === 'read' ? 'Read' : 'Sent') : 'Failed');
+    });
     max.on('change', render);
     max.on('presence', render);
     max.on('busy', render);
@@ -1325,6 +1134,9 @@
       render,
       paintTop,
       show,
+      picking,
+      pick,
+      previewState,
       refresh: async () => {
         await max.scan();
         if (max.dongle) await max.pollBattery();
@@ -1381,6 +1193,8 @@
       render: () => current() && current().render(),
       paintTop: () => current() && current().paintTop(),
       show: (appTab) => current() && current().show(appTab),
+      picking: () => !!current() && current().picking(),
+      pick: (k, e, phase) => current() && current().pick(k, e, phase),
       refresh: () => (current() ? current().refresh() : Promise.resolve()),
     };
   }

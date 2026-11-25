@@ -9,7 +9,7 @@ const path = require('node:path');
 const src = (...p) => fs.readFileSync(path.join(__dirname, '..', 'src', ...p), 'utf8');
 const noComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
-test('glass-bend.css: loaded after glass-normal.css, and every rule starts with html.glass:not(.glass-normal)', () => {
+test('glass-bend.css: loaded after glass-normal.css, and every rule starts with html.glass:not(.glass-normal):not(.glass-gpu)', () => {
   const html = src('index.html');
   assert.ok(html.includes('href="css/glass-bend.css"'));
   assert.ok(html.indexOf('css/glass-normal.css') < html.indexOf('css/glass-bend.css'), 'after glass-normal.css');
@@ -18,7 +18,7 @@ test('glass-bend.css: loaded after glass-normal.css, and every rule starts with 
   for (const m of css.matchAll(/([^{}]+)\{/g)) {
     for (const sel of m[1].split(',')) {
       selectors++;
-      assert.ok(/^\s*html\.glass:not\(\.glass-normal\)\s/.test(sel), `selector outside the bending glass: ${sel.trim()}`);
+      assert.ok(/^\s*html\.glass:not\(\.glass-normal\):not\(\.glass-gpu\)\s/.test(sel), `selector outside the bending glass: ${sel.trim()}`);
     }
   }
   assert.ok(selectors >= 5);

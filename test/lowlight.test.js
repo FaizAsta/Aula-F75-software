@@ -17,7 +17,14 @@ const { installFakeHid, DONGLE, wait } = require('./fake-hid.js');
 
 const BREATHING = P.effectOf(LOW_LIGHT.mode);
 
-async function withDongle(body, { battery = 15, storage = memoryStorage(), kbOpts = {} } = {}) {
+// the numbers below are for a 4-level setup (the app starts with nine unless a smaller range was chosen), so the stored choice is pinned to 4
+const fourLevels = () => {
+  const st = memoryStorage();
+  st.setItem('aula.bright.max', '4');
+  return st;
+};
+
+async function withDongle(body, { battery = 15, storage = fourLevels(), kbOpts = {} } = {}) {
   const [hid, restore] = installFakeHid();
   const kb = new MockKeyboard({ battery, ...kbOpts });
   hid.add({ ...DONGLE, collections: [{ usagePage: 0xff02, usage: 0x02 }] }, kb);

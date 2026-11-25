@@ -19,6 +19,7 @@
   const LINKS = [
     { id: 'discord', label: 'Discord', hint: 'Join the server, ask for help or share an idea', url: 'https://discord.gg/BdeQygyRwN' },
     { id: 'github', label: 'GitHub', hint: 'Source code and the latest releases', url: 'https://github.com/FaizAsta/Aula-F75-software' },
+    { id: 'website', label: 'Website', hint: 'Screenshots and what the app can do', url: 'https://faizasta.github.io/Aula-F75-software/#screenshots' },
     { id: 'instagram', label: 'Instagram', hint: 'Follow along', url: '' },
     { id: 'email', label: 'Email', hint: 'Write to the author', url: '' }, // e.g. 'mailto:name@example.com'
   ];

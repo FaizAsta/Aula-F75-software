@@ -34,7 +34,7 @@ for (const [id, file] of [['max', '../../src/js/max.js'], ['f75he', '../../src/j
     const KB = require(file);
     const skin = S.get(id);
     if (!skin || skin.id !== id || out[id]) continue;
-    const keys = KB.keyLayout().map((k) => ({ n: k.name, x: k.x, y: k.y, w: k.w }));
+    const keys = KB.keyLayout().map((k) => ({ n: k.legend, x: k.x, y: k.y, w: k.w })); // by the label the preview prints (layout.js), as the skins list them
     const caps = new Set();
     for (const k of keys) {
       const acc = S.accentOf(skin, k.n);

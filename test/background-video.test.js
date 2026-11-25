@@ -164,10 +164,14 @@ test('the Theme page has the video picker and layer: the layer sits right behind
   const html = read('src', 'index.html');
   const theme = html.indexOf('id="setpage-theme"');
   const debug = html.indexOf('id="setpage-debug"');
-  for (const id of ['bgVideoPick', 'bgVideoFile', 'bgVideoHint']) {
+  for (const id of ['bgVideoPick', 'bgVideoFile', 'bgVideoHint', 'bgVideoWarn']) {
     const i = html.indexOf(`id="${id}"`);
     assert.ok(i > theme && i < debug, `${id} is on the Theme page`);
   }
+  const warn = html.match(/<p class="hint caution" id="bgVideoWarn">([^<]*)<\/p>/);
+  assert.ok(warn, 'the video row has a warning note');
+  assert.match(warn[1], /GPU/, 'it says a video uses the GPU');
+  assert.ok(/4K/.test(warn[1]) && /2K/.test(warn[1]) && /1080p/.test(warn[1]), 'it says how the load drops from 4K to 2K to 1080p');
   assert.match(html, /<input type="file" id="bgVideoFile" accept="[^"]*video\/mp4[^"]*video\/webm[^"]*\.gif[^"]*" hidden>/);
   const picture = html.indexOf('id="appBg"');
   const video = html.indexOf('id="appBgVideo"');
@@ -201,15 +205,18 @@ test('app.js plays the video only while it can be seen, shares the opacity, and 
   const app = read('src', 'js', 'app.js');
   assert.match(app, /BG_VIDEO_KEY = 'aula\.bgVideo'/);
   assert.match(app, /\$\('#appBgVideo'\)\.style\.setProperty\('--bg-opacity'/, 'the slider moves the video layer too (it is not a child of #appBg)');
-  // playback follows: window shown, tab visible, an app screen up
+  // playback follows: window shown, tab visible, window in focus, an app screen up
   const sync = app.slice(app.indexOf('function syncBgMedia()'), app.indexOf('function renderBackground()'));
-  assert.match(sync, /windowShown && !document\.hidden/);
+  assert.match(sync, /windowShown && !document\.hidden && windowFocused\(\)/, 'it plays only while the window is shown, visible and in focus');
+  assert.match(app, /const windowFocused = \(\) => typeof document\.hasFocus !== 'function' \|\| document\.hasFocus\(\);/);
   assert.match(sync, /dataset\.screen === 'app'/);
   assert.match(sync, /\.pause\(\)/);
   assert.match(sync, /\.play\(\)/);
   // and is re-checked whenever any of those changes
   assert.match(app, /syncBgMedia\(\); \/\/ a video behind the app stops while the window is in the tray/);
   assert.match(app, /document\.addEventListener\('visibilitychange', syncBgMedia\)/);
+  assert.match(app, /window\.addEventListener\('focus', syncBgMedia\)/, 'coming back to the window plays the video again');
+  assert.match(app, /window\.addEventListener\('blur', syncBgMedia\)/, 'clicking another program pauses it');
   assert.match(app, /MutationObserver\(syncBgMedia\)\.observe\(\$\('\.shell'\), \{ attributes: true, attributeFilter: \['data-screen'\] \}\)/);
   assert.match(app.slice(app.indexOf('function renderBackground()')), /syncBgMedia\(\);\n  \}/, 'renderBackground() ends by syncing');
   // a video that fails is dropped with a message

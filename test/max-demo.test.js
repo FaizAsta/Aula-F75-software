@@ -137,5 +137,5 @@ test('the Start screen has a small Demo keyboards button beside Search again tha
   const app = read('src/js/app.js');
   assert.match(app, /MXU\.max\.demo\) MXU\.leave\(\)/, 'turning the demo F75 on ends the demo F75 Max / F75 HE');
   assert.match(html, /id="hmTitle"/, 'the heading can say Demo keyboards');
-  assert.match(html, /choose Demo keyboards, then Demo F75 Max or Demo F75 HE/, 'Settings says where to find them');
+  assert.doesNotMatch(html, /id="swDemo"/, 'Settings has no demo switch: the demo keyboards start from the Start screen');
 });

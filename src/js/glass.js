@@ -37,13 +37,18 @@
 //    tinted, and the edge is a thin light line that is brightest at the top left and the bottom right. Nothing here measures,
 //    draws a map or builds a filter for it: the page only carries one blur on <html> (--ag-filter) and marks the surfaces (.ag,
 //    .ag-panel) so css/glass.css and css/glass-normal.css can paint them. It is cheap, so it never lags.
-//  - REALISTIC is everything above: each surface gets its own SVG filter that bends the picture at the rim, with a colour fringe
-//    and a reflection. It looks like thick glass and costs a lot more.
+//  - REALISTIC is thick glass: each surface bends the picture at the rim, with a colour fringe and a reflection. The graphics card
+//    draws it: one WebGL shader per surface (js/glass-gpu.js), so it stays smooth and nothing is encoded when a setting changes.
+//    The few surfaces that must bend HTML (the slider lens, the tab highlight, the scroll thumb, menus, messages, dialogs and the apply bar) cannot be
+//    drawn on a canvas, so they use an SVG filter each. If WebGL, or the picture, is not available, every surface uses its SVG filter
+//    instead (gpuFailed below), so Realistic still looks the same, only heavier.
 //    The sliders cannot make those filters cheaper: they only change numbers inside each filter (how far it shifts, how wide the
 //    rim is), never whether it runs, and a filter that shifts by 0 still blurs, draws a rim map and runs the reflection on every
 //    surface, again every frame the picture behind it moves (a scroll, a page change). So with Refraction at 0 (nothing to bend)
 //    Realistic takes the NORMAL path instead (isLight below): one plain blur, a painted edge, no filter at all. It keeps
 //    Realistic's own blur scale, so the frost looks the same as it did, and it is as light as Normal.
+//    (Older versions had a separate "GPU" type next to an SVG-only "Realistic". They are one type now: a saved 'gpu' is Realistic,
+//    and so is a saved 'realistic'.)
 //
 // app.js owns the saved choice (prefs.style, prefs.glassType, prefs.glass) and calls set() / setType() / setParams(). Classic: nothing here runs.
 (() => {
@@ -51,22 +56,24 @@
   const root = document.documentElement;
   const host = window.aulaHost || null;
   const PREF_KEY = 'aula.prefs';
-  const DEFAULTS = { blur: 2.5, bezel: 14, amount: 30, chroma: 30 }; // px, px, px, percent
+  const DEFAULTS = { blur: 2.5, bezel: 14, amount: 60, chroma: 30 }; // px, px, px, percent
   const LIMITS = { blur: [0, 12], bezel: [4, 28], amount: [0, 60], chroma: [0, 100] };
   // The ready-made looks in Settings > Theme > Liquid glass (the same four numbers the sliders set). Blur glass is the default look.
-  // Clear: no frost at all and a strong, sharp bend, so the picture shows through. Frosted: heavy blur, a gentle edge and no
-  // colour fringe, so it reads like frosted glass. Default: the Blur glass frost and edge width with the strongest bend (Refraction at
-  // its top, 60) and no colour fringe. A look the sliders land on by hand is "custom".
+  // All four share the Default look's edge width (14) and its strongest bend (Refraction at its top, 60); they differ only in Blur
+  // and Colour fringe. Clear: no frost at all and a colour fringe, so the picture shows through. Blur glass: a soft frost and a
+  // fringe. Frosted: heavy blur and no colour fringe, so it reads like frosted glass. Default: the Blur glass frost with no colour
+  // fringe. A look the sliders land on by hand is "custom".
   const PRESETS = {
-    clear: { blur: 0, bezel: 16, amount: 40, chroma: 35 },
+    clear: { blur: 0, bezel: 14, amount: 60, chroma: 35 },
     blur: { ...DEFAULTS },
-    frosted: { blur: 9, bezel: 10, amount: 12, chroma: 0 },
+    frosted: { blur: 9, bezel: 14, amount: 60, chroma: 0 },
     default: { blur: 2.5, bezel: 14, amount: 60, chroma: 0 },
   };
-  // The two types of glass (see the header). Normal is the default, and anything unknown counts as Normal.
+  // The two types of glass (see the header). Normal is the default, and anything unknown counts as Normal. A saved 'gpu' (the name
+  // the graphics card type had before it became Realistic) is Realistic.
   const TYPES = ['normal', 'realistic'];
   const DEFAULT_TYPE = 'normal';
-  const cleanType = (t) => (t === 'realistic' ? 'realistic' : DEFAULT_TYPE);
+  const cleanType = (t) => (t === 'realistic' || t === 'gpu' ? 'realistic' : DEFAULT_TYPE);
   // Normal glass has nothing that bends the picture, so the Blur slider is the whole look. A blur is far more visible as the only
   // thing between you and the picture than it was inside a bending filter, so a point of the slider is worth NORMAL.blur px of blur:
   // the default 2.5 is about 11 px, Frosted (9) about 40 px, 0 stays clear.
@@ -77,7 +84,7 @@
     '.chip, .sb-chip, .stage-view, .exp-badge, .bat-bar', // pills, status chips, the battery bar
     '.effect, .hm-dev, .sp-card, .toast, .sup-pop, .sel-pop, .upd-card, .upd-bar', // cards, device tiles, the UI choice, messages, the Support menu, the dropdown menu, dialogs, the update progress bar
   ].join(', ');
-  const PANELS = '.group, .help-body, .stage'; // boxes that hold other glass controls (see the note above)
+  const PANELS = '.group, .help-body, .stage, .applybar'; // boxes that hold other glass controls (see the note above); the Unsaved changes bar holds Revert and Apply
   // A box is big next to its rim, so the same numbers that look right on a pill read as a thin outline on it. Panels get a
   // wider, stronger bending rim and a little more frost (they carry paragraphs of text) on top of the person's settings.
   const PANEL = { bezel: 1.6, amount: 0.6, blur: 2 };
@@ -183,6 +190,35 @@
   // light while Refraction is 0 (see the header). Everything below that used to ask "is it Normal?" asks this.
   const isLight = () => type === 'normal' || params.amount === 0;
   const syncClass = () => root.classList.toggle('glass-normal', on && isLight()); // css/glass-normal.css reads it; Classic and a bending Realistic never carry it
+
+  // Realistic is drawn by the graphics card: the renderer (js/glass-gpu.js) and what it may not take. It draws the surfaces that sit on the page; these bend HTML (the
+  // controls and text under them, which a canvas below the page cannot see), so they keep their SVG filters.
+  let gpu = null; // the renderer while the graphics card is drawing Realistic, otherwise null
+  let gpuFailed = false; // WebGL or the picture refused: Realistic uses the SVG filters on every surface until the page is reloaded
+  const GPU_NOT = '.toast, .sup-pop, .sel-pop, .upd-card, .upd, .applybar, .range-lens, .tab-ind, .ag-scroll-thumb';
+  const gpuWanted = () => on && type === 'realistic' && !isLight() && !gpuFailed && !!window.AulaGpuGlass;
+  const gpuTakes = (el) => !!gpu && !el.closest(GPU_NOT);
+  function initGpu() {
+    if (gpu || !gpuWanted()) return;
+    gpu = window.AulaGpuGlass.create({
+      shell: document.querySelector('.shell'),
+      onFail: () => {
+        // WebGL was lost or the picture cannot be read: carry on with the SVG filters, in the next turn of the event loop
+        gpuFailed = true;
+        setTimeout(() => {
+          if (on) rebuild();
+        }, 0);
+      },
+    });
+    if (!gpu) gpuFailed = true;
+    root.classList.toggle('glass-gpu', !!gpu);
+  }
+  function stopGpu() {
+    if (gpu) gpu.destroy();
+    gpu = null;
+    root.classList.toggle('glass-gpu', false);
+    for (const el of live) if (el.classList) el.classList.toggle('ag-gpu', false);
+  }
   root.classList.toggle('glass', on);
   syncClass();
 
@@ -206,7 +242,7 @@
     // Realistic's boxes carry a little more frost than its controls (panelFrost), and keep it without the bending. Normal glass has
     // one blur for every surface, so nothing is set on the surface itself (and an old one is removed).
     if (el.style) {
-      if (panel && type === 'realistic') el.style.setProperty('--ag-filter', `blur(${Math.round((params.blur + panelFrost(true)) * 100) / 100}px)`);
+      if (panel && type !== 'normal') el.style.setProperty('--ag-filter', `blur(${Math.round((params.blur + panelFrost(true)) * 100) / 100}px)`);
       else if (el.style.getPropertyValue('--ag-filter')) el.style.removeProperty('--ag-filter');
     }
   }
@@ -568,6 +604,7 @@
   let warmTimer = 0;
   let warmRun = 0;
   function warmUp(list, delay) {
+    if (gpu) return; // the GPU draws the big surfaces: no filters to build ahead of time for them
     const run = ++warmRun;
     clearTimeout(warmTimer);
     let i = 0;
@@ -1022,7 +1059,20 @@
     return Number.isFinite(rest) ? rest : parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
   }
   let rootBlurStale = false; // set when Realistic takes over from Normal, cleared once the surfaces have been painted
+  // A surface the GPU draws: the filter's numbers go to the renderer, and the element only keeps its tint (css/glass-gpu.css).
+  function paintGpu(el, w, h, radius) {
+    const panel = el.matches(PANELS);
+    const d = describe(w, h, radius, panel, false, false);
+    const spec = rimSpec(w, h, panel ? 'panel' : false);
+    const rr = panel ? PANEL_RIM : RIM;
+    drop(el);
+    el.style.removeProperty('--ag-filter');
+    el.classList.add(panel ? 'ag-panel' : 'ag', 'ag-gpu');
+    gpu.set(el, { w, h, r: d.r, bezel: d.bezel, blur: d.blur, amount: d.amount, ca: d.ca, panel, rimW: spec.width, pull: spec.pull, rimGain: rr.gain, rimLift: rr.lift, rimFloor: rr.floor, rimSat: RIM.sat });
+  }
   function paint(el, w, h, radius) {
+    if (gpuTakes(el)) return paintGpu(el, w, h, radius);
+    if (el.classList.contains('ag-gpu')) el.classList.remove('ag-gpu'); // it was the GPU's and is not any more (a menu that opened inside it)
     const panel = el.matches(PANELS);
     el.style.setProperty('--ag-filter', `url(#${acquire(el, w, h, radius, panel, !panel && el.matches(LENSES), !panel && el.matches(SLIDER_LENS))})`);
     el.classList.add(panel ? 'ag-panel' : 'ag');
@@ -1036,6 +1086,7 @@
         ro.unobserve(el);
         clearTimeout(settle.get(el));
         drop(el);
+        if (gpu) gpu.remove(el);
       }
     }
     for (const el of document.querySelectorAll(`${TARGETS}, ${PANELS}`)) {
@@ -1108,6 +1159,7 @@
     }
   }
   function release() {
+    stopGpu();
     mo.disconnect();
     if (window.removeEventListener) window.removeEventListener('resize', onResize);
     clearTimeout(scanTimer);
@@ -1133,6 +1185,8 @@
   }
   function start() {
     if (!document.body) return;
+    initGpu(); // before the first scan, so the surfaces it takes are never given a filter
+    syncClass();
     if (isLight()) applyNormal();
     else ensureDefs(); // before the observer, so adding the holder does not start a scan
     mo.observe(document.body, { childList: true, subtree: true });
@@ -1145,6 +1199,7 @@
   // ---- changing the type while glass is on (Settings > Theme > Liquid glass > Glass type): the surfaces stay marked and in place, only
   // what paints them changes, so nothing is rebuilt from scratch.
   function leaveRealistic() {
+    stopGpu();
     clearTimeout(warmTimer);
     warmRun++; // a warm-up in progress is for the filters that are about to go
     dirty.clear();
@@ -1162,6 +1217,7 @@
     for (const el of live) markNormal(el);
   }
   function enterRealistic() {
+    initGpu();
     ensureDefs();
     seenDpr = dpr();
     rootBlurStale = true; // the blur on <html> keeps the glass blurred until each surface has its own filter (the next frame)
@@ -1172,6 +1228,12 @@
 
   // After the type or the numbers changed: from the filters to light glass, from light glass to the filters, or on the same path, where
   // everything is just painted again.
+  // From or to the GPU type, or when the GPU gave up: everything is let go and found again, so each surface lands on the right path.
+  function rebuild() {
+    release();
+    syncClass();
+    start();
+  }
   function moveTo(wasLight) {
     const light = isLight();
     if (light && !wasLight) leaveRealistic();
@@ -1196,6 +1258,9 @@
     rimLight,
     isOn: () => on,
     type: () => type,
+    gpuActive: () => !!gpu,
+    gpuFailed: () => gpuFailed,
+    gpuStats: () => (gpu ? gpu.stats() : null),
     params: () => ({ ...params }),
     set(next) {
       next = !!next;
@@ -1211,9 +1276,13 @@
       next = cleanType(next);
       if (next === type) return;
       const wasLight = isLight();
+      if (next === 'realistic') gpuFailed = false; // choosing it again is a new try (WebGL, or the picture, may be fine now)
       type = next;
       syncClass();
       if (!on) return;
+      // The graphics card draws Realistic where it can: to or from it, everything is let go and found again, so each surface lands on
+      // the right path. Without a renderer (no WebGL module) only the paint changes.
+      if (gpu || (next === 'realistic' && window.AulaGpuGlass)) return rebuild();
       moveTo(wasLight);
     },
     setParams(p) {

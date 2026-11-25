@@ -166,14 +166,14 @@ test('app.js turns Picture into a still image: loop stopped, animation and hover
   assert.match(fn, /view\.opts\.hoverFx = !pic/);
   assert.match(fn, /if \(pic\) \{\s*view\.stop\(\)/);
   assert.match(fn, /view\.ripples = \[\]/);
-  assert.match(fn, /else if \(prefs\.animate && !\(MXU && MXU\.active\(\)\)\) view\.start\(\)/);
+  assert.match(fn, /else if \(prefs\.animate\) view\.start\(\)/, 'Live starts it again for every keyboard, the Max and HE included');
   // it runs before every draw, and before the Live sweep that follows a click on the switch
-  assert.match(js, /syncPicture\(\);\s*view\.setState\(previewState\(\)\)/);
+  assert.match(js, /syncPicture\(\);\s*if \(MXU && MXU\.active\(\)\) MXU\.show\(tab\);[^\n]*\n\s*else view\.setState\(previewState\(\)\)/);
   assert.match(js, /syncPicture\(\);[^\n]*\n\s*if \(next === 'live' && prefs\.animate/);
   // nothing else may start the loop while Picture is on
   assert.match(js, /if \(prefs\.animate && prefs\.view !== 'picture'\) view\.start\(\)/);
   // ... including coming back from hidden / minimized: that asks the same question instead of remembering an old answer
-  assert.match(js, /const wantLoop = \(\) => prefs\.animate && !pictureOnly\(\) && !\(MXU && MXU\.active\(\)\)/);
+  assert.match(js, /const wantLoop = \(\) => prefs\.animate && !pictureOnly\(\)/);
   assert.match(js, /if \(wantLoop\(\)\) view\.start\(\)/);
 });
 
@@ -182,7 +182,7 @@ test('Picture hides what lies over the image (status chips, link animation) and 
   const css = read('src', 'css', 'detail.css');
   assert.match(js, /stage\.dataset\.pic = pictureOnly\(\) \? '1' : ''/);
   assert.match(css, /\.stage\[data-pic="1"\] \.stage-bar,\s*\.stage\[data-pic="1"\] \.stage-tx\s*\{\s*display:\s*none !important/);
-  assert.match(css, /\.stage\[data-pic="1"\] \.stage-canvas,\s*\.stage\[data-pic="1"\] \.stage-max\s*\{\s*pointer-events:\s*none/);
+  assert.match(css, /\.stage\[data-pic="1"\] \.stage-canvas\s*\{\s*pointer-events:\s*none/);
   assert.doesNotMatch(css, /\.stage\[data-pic="1"\] \.stage-view/, 'the Live / Picture switch itself is never hidden');
   assert.match(read('src', 'index.html'), /Nothing moves and nothing reacts to the pointer/);
 });

@@ -410,8 +410,12 @@
   function demoItems() {
     const s = session;
     const out = [];
-    const live = prefs.demo && s.status === 'ready';
-    out.push({ kind: 'kb', name: 'Demo keyboard', sub: 'Simulated · try every control without hardware', supported: true, demo: true, pic: modelPic(), st: live ? 'Connected' : prefs.demo ? 'Starting' : 'Available', k: live ? 'ok' : prefs.demo ? 'busy' : 'idle', bat: live ? s.battery.percent : null });
+    // One card per model of the F75 family, named exactly as the layout list names them; the one being simulated is the connected one.
+    for (const m of (window.AulaLayout && window.AulaLayout.MODELS) || []) {
+      const mine = prefs.demo && prefs.model === m.id;
+      const live = mine && s.status === 'ready';
+      out.push({ kind: 'kb', name: `Demo ${m.name}`, sub: 'Simulated · try every control without hardware', supported: true, demo: true, demoModel: m.id, pic: m.id, st: live ? 'Connected' : mine ? 'Starting' : 'Available', k: live ? 'ok' : mine ? 'busy' : 'idle', bat: live ? s.battery.percent : null });
+    }
     if (A.max) {
       for (const [fam, name] of [['max', 'F75 Max'], ['he', 'F75 HE']]) {
         if (!A.max.session(fam)) continue;
@@ -642,7 +646,9 @@
     if (A.max && A.max.active()) A.max.leave(); // choosing an F75 or the demo leaves the Max screen
     go('app', { from: node });
     try {
-      if (it.demo) {
+      if (it.demoModel && A.startDemo) {
+        await A.startDemo(it.demoModel);
+      } else if (it.demo) {
         if (!prefs.demo) await A.setDemo(true);
       } else if (prefs.demo) {
         await A.setDemo(false);

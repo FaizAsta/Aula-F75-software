@@ -189,8 +189,7 @@
    no pointer at all (the Live / Picture switch sits above it and keeps working). Set by app.js (data-pic on .stage). */
 .stage[data-pic="1"] .stage-bar,
 .stage[data-pic="1"] .stage-tx { display: none !important; }
-.stage[data-pic="1"] .stage-canvas,
-.stage[data-pic="1"] .stage-max { pointer-events: none; }
+.stage[data-pic="1"] .stage-canvas { pointer-events: none; }
 
 /* A narrow window drops the least important chips first. */
 @media (max-width: 880px) { #sbSpeed, #sbModel { display: none; } }

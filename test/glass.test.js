@@ -322,13 +322,13 @@ test('update progress bar: Classic keeps its flat fill, Liquid glass gets a glas
 // ---- Small surfaces: frost only. No bending and no red/blue split (the blue line on pills, chips, knobs and scroll thumbs) ----
 
 test('glass.js: the smallest surfaces are only frosted, and no control splits colours (no blue edge line)', () => {
-  const { G } = loadGlass({ style: 'glass' }); // the default settings: amount 30, chroma 30
+  const { G } = loadGlass({ style: 'glass', glass: { amount: 30, chroma: 30 } }); // pinned to amount 30, chroma 30 (the app default is now amount 60)
   // A status chip, the Live/Picture switch, a switch knob and the 12 px scroll thumb: the cases from the bug report.
   for (const [w, h] of [[120, 28], [96, 26], [80, 22], [12, 318], [38, 26], [42, 28], [60, 35]]) {
     assert.deepStrictEqual({ ...G.rim(w, h, false) }, { amount: 0, ca: 0 }, `${w}x${h}: frost only`);
   }
   // Pills, buttons, inputs and the tab bar (36 to 63 px) bend a little but never split into colours, even at 100% fringe.
-  const strong = loadGlass({ style: 'glass', glass: { chroma: 100 } }).G;
+  const strong = loadGlass({ style: 'glass', glass: { amount: 30, chroma: 100 } }).G;
   for (const [w, h] of [[200, 36], [160, 44], [300, 52], [66, 44], [90, 63]]) {
     for (const g of [G, strong]) {
       const r = g.rim(w, h, false);
@@ -521,6 +521,13 @@ test('glass.js: Clear, Blur, Frosted and Default are ready-made looks, each insi
   assert.strictEqual(G.PRESETS.frosted.chroma, 0, 'Frosted glass has no colour fringe');
   // Default: the numbers of the Default button in Settings (Blur 2.5 px, Edge width 14 px, Refraction 60 px, Colour fringe 0%)
   assert.deepStrictEqual({ ...G.PRESETS.default }, { blur: 2.5, bezel: 14, amount: 60, chroma: 0 });
+  // Clear, Blur and Frosted share Default's edge width and refraction; only their Blur and Colour fringe are their own
+  for (const name of ['clear', 'blur', 'frosted']) {
+    assert.strictEqual(G.PRESETS[name].bezel, G.PRESETS.default.bezel, `${name} has the Default edge width`);
+    assert.strictEqual(G.PRESETS[name].amount, G.PRESETS.default.amount, `${name} has the Default refraction`);
+  }
+  assert.deepStrictEqual({ ...G.PRESETS.clear }, { blur: 0, bezel: 14, amount: 60, chroma: 35 });
+  assert.deepStrictEqual({ ...G.PRESETS.frosted }, { blur: 9, bezel: 14, amount: 60, chroma: 0 });
   // the four looks differ from each other, or one button would light for two of them
   const keys = Object.values(G.PRESETS).map((l) => JSON.stringify([l.blur, l.bezel, l.amount, l.chroma]));
   assert.strictEqual(new Set(keys).size, 4);
@@ -536,7 +543,7 @@ test('glass.js: presetOf names the look the four numbers make, and says custom f
   assert.strictEqual(G.presetOf({ ...G.PRESETS.default, amount: 59 }), 'custom');
   assert.strictEqual(G.presetOf({ blur: '2.5', bezel: '14', amount: '60', chroma: '0' }), 'default');
   // values the page keeps as text (from a slider) still count, and values past a limit are held to it first
-  assert.strictEqual(G.presetOf({ blur: '0', bezel: '16', amount: '40', chroma: '35' }), 'clear');
+  assert.strictEqual(G.presetOf({ blur: '0', bezel: '14', amount: '60', chroma: '35' }), 'clear');
   assert.strictEqual(G.presetOf({ blur: 99, bezel: 10, amount: 12, chroma: 0 }), 'custom');
   // a look saved by an older version (any four numbers) is kept as it is, not forced onto a preset
   const old = loadGlass({ style: 'glass', glass: { blur: 4, bezel: 20, amount: 45, chroma: 10 } }).G;

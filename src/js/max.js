@@ -117,6 +117,18 @@
   const labelOf = (name) => LABELS[name] || (/^f\d+$/.test(name) ? name.toUpperCase() : name.length === 1 ? name.toUpperCase() : name);
 
   /**
+   * What the shared keyboard picture (layout.js, preview.js) calls each key: the F75's own labels, so the same legends, rendered caps
+   * and key map serve every keyboard ('Backspace' not 'Bksp', 'Left' not an arrow).
+   */
+  const LEGENDS = {
+    grave: '`', minus: '-', equal: '=', backspace: 'Backspace', bracketleft: '[', bracketright: ']', backslash: '\\', capslock: 'Caps',
+    semicolon: ';', quote: "'", enter: 'Enter', shiftleft: 'Shift', shiftright: 'Shift', comma: ',', period: '.', slash: '/',
+    ctrlleft: 'Ctrl', ctrlright: 'Ctrl', winleft: 'Win', altleft: 'Alt', altright: 'Alt', space: 'Space', fn: 'Fn', left: 'Left',
+    down: 'Down', up: 'Up', right: 'Right', pageup: 'PgUp', pagedown: 'PgDn', delete: 'Del', end: 'End', tab: 'Tab', esc: 'Esc',
+  };
+  const legendOf = (name) => LEGENDS[name] || (/^f\d+$/.test(name) ? name.toUpperCase() : name.length === 1 ? name.toUpperCase() : name);
+
+  /**
    * Where each key sits, in key units on a 16 x 6 board (a 75% layout with a navigation column). Only for drawing the
    * painter: the keyboard cares about the light index alone.
    */
@@ -134,7 +146,7 @@
       let x = 0;
       for (const item of row) {
         const [name, w] = Array.isArray(item) ? item : [item, 1];
-        if (name !== '_') out.push({ name, led: KEYS[name], label: labelOf(name), x, y, w, h: 1 });
+        if (name !== '_') out.push({ name, led: KEYS[name], label: labelOf(name), legend: legendOf(name), x, y, w, h: 1 });
         x += w;
       }
     });
@@ -531,6 +543,7 @@
       this.keyColors = new Map();
       this.settings = { ...DEFAULT_SETTINGS };
       this.busy = false;
+      this.job = null; // { name, quiet } while something is on the wire
       this.last = null; // the result of the last apply
       this.confirmed = new Set(); // 'vid:pid' the person said are an F75 Max although the name does not say so
       this.pending = [];
@@ -768,6 +781,7 @@
     _run(name, fn, quiet = false) {
       const job = this._queue.then(async () => {
         this.busy = true;
+        this.job = { name, quiet }; // what is on the wire now: the window shows a send for what the person applied, a read for the battery poll
         this._emit('busy');
         let result;
         try {
@@ -776,6 +790,7 @@
           result = { name, at: Date.now(), ok: false, error: (err && err.message) || String(err), detail: err && err.detail };
         } finally {
           this.busy = false;
+          this.job = null;
           this._emit('busy');
         }
         if (!quiet) {

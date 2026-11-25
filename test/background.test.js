@@ -141,13 +141,12 @@ test('main.js lists the folder, the page can ask for it, and the Theme page has 
   assert.match(html, /<section class="set" id="bgPresetSet" hidden>/, 'hidden until the folder has pictures');
 });
 
-test('the README version badge shows the version in package.json', () => {
+test('the README version badge is live from GitHub releases (no version number typed into the README)', () => {
   const root = path.join(__dirname, '..');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  // shields.io writes a hyphen inside the value as two, so 1.5.3-beta.1 is badge/version-1.5.3--beta.1-blue
-  const badge = fs.readFileSync(path.join(root, 'README.md'), 'utf8').match(/badge\/version-(\d+\.\d+\.\d+(?:--[0-9A-Za-z.]+)*)-blue/);
-  assert.ok(badge, 'the README has a version badge');
-  assert.equal(badge[1].replace(/--/g, '-'), pkg.version);
+  const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+  assert.ok(readme.includes(`img.shields.io/github/v/release/${pkg.aulaControl.updateRepo}`), 'the README has a live version badge');
+  assert.doesNotMatch(readme, /badge\/version-/, 'a fixed version number is written into the README');
 });
 
 test('every picture shipped in the presets folder is a name the app accepts', () => {

@@ -29,6 +29,7 @@ html.glass .panels {
 @keyframes glassField { from { transform: translateY(8px); } }
 @keyframes glassPanel { from { transform: translateX(var(--dx, 0px)); } }
 @keyframes glassCard  { from { transform: translateY(10px) scale(0.96); } }
+@keyframes glassBar   { from { transform: translate(-50%, 18px) scale(0.96); } }
 @keyframes glassFade  { from { background-color: transparent; } }
 html.glass .stage,
 html.glass .split > *,
@@ -38,6 +39,7 @@ html.glass .group > .field { animation-name: glassField; }
 html.glass .panel:not([hidden]) { animation-name: glassPanel; }
 html.glass .shell[data-family="max"] #maxRoot:not([hidden]) { animation-name: glassIn; }
 html.glass .overlay-card { animation-name: glassCard; }
+html.glass .applybar:not(.leaving) { animation-name: glassBar; } /* the bar holds glass buttons: it rises without fading, like the boxes above */
 html.glass :is(.overlay, .upd) { animation-name: glassFade; }
 
 /* ---- 2. Panels: real liquid glass, on a layer behind the content ---------------------------------------------------
@@ -92,6 +94,28 @@ html.glass[data-theme="light"] .stage.ag-panel::after {
   background:
     linear-gradient(135deg, rgb(255 255 255 / 0.28), rgb(255 255 255 / 0) 36%, rgb(255 255 255 / 0) 72%, rgb(255 255 255 / 0.1)),
     rgb(255 255 255 / 0.1);
+}
+
+/* The apply bar (the "Unsaved changes" bar) floats over the page and holds the Revert and Apply buttons, so it is a panel too: its glass is the ::after
+   layer, and the buttons look through it. A panel is position: relative (above), but the bar sits at the foot of the page, so it keeps its own place and
+   its place in front of the page (z-index 5, app.css). It must not blur anything itself (app.css gives it a blur), or it would hide the picture from its
+   own layer. Its tint is a little stronger than a box's: it lies over cards and colour swatches, and its words must stay easy to read. */
+html.glass .applybar { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+html.glass .applybar:not(.ag-panel) {
+  background: color-mix(in srgb, rgb(var(--pop)) 50%, transparent);
+  box-shadow: var(--ag-rim), 0 14px 32px rgb(var(--shade) / 0.35);
+}
+html.glass .applybar.ag-panel,
+html.glass .applybar.ag-panel:hover {
+  position: absolute;
+  z-index: 5;
+  box-shadow: 0 14px 32px rgb(var(--shade) / 0.35);
+}
+html.glass .applybar.ag-panel::after,
+html.glass[data-theme="light"] .applybar.ag-panel::after {
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0) 34%, rgb(255 255 255 / 0) 72%, rgb(255 255 255 / 0.05)),
+    color-mix(in srgb, rgb(var(--pop)) 34%, transparent);
 }
 
 /* No lighting glow on the stage in Liquid glass: the glass behind the keyboard stays clear, so the picture shows through untinted.

@@ -14,7 +14,14 @@ const P = require('../src/js/protocol.js');
 const W = require('../src/js/webhid.js');
 const T = require('../src/js/transport.js');
 const { MockKeyboard } = require('../src/js/mock.js');
-const { Session, memoryStorage } = require('../src/js/engine.js');
+const { Session, memoryStorage: plainStorage } = require('../src/js/engine.js');
+
+// These tests are about a 4-level setup (the app now starts with nine unless a smaller range was chosen), so the stored choice is pinned to 4.
+const memoryStorage = () => {
+  const st = plainStorage();
+  st.setItem('aula.bright.max', '4');
+  return st;
+};
 const { installFakeHid, SilentBackend, DONGLE, CABLE, wait } = require('./fake-hid.js');
 const { CableKeyboard } = require('./fake-cable.js');
 

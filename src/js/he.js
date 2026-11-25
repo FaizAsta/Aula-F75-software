@@ -202,6 +202,18 @@
   const labelOf = (name) => LABELS[name] || (/^f\d+$/.test(name) ? name.toUpperCase() : name.length === 1 ? name.toUpperCase() : name);
 
   /**
+   * What the shared keyboard picture (layout.js, preview.js) calls each key: the F75's own labels, so the same legends, rendered caps
+   * and key map serve every keyboard ('Backspace' not 'Bksp', 'Left' not an arrow).
+   */
+  const LEGENDS = {
+    grave: '`', minus: '-', equal: '=', backspace: 'Backspace', bracketleft: '[', bracketright: ']', backslash: '\\', capslock: 'Caps',
+    semicolon: ';', quote: "'", enter: 'Enter', shiftleft: 'Shift', shiftright: 'Shift', comma: ',', period: '.', slash: '/',
+    ctrlleft: 'Ctrl', ctrlright: 'Ctrl', winleft: 'Win', altleft: 'Alt', altright: 'Alt', space: 'Space', fn: 'Fn', left: 'Left',
+    down: 'Down', up: 'Up', right: 'Right', pageup: 'PgUp', pagedown: 'PgDn', delete: 'Del', end: 'End', tab: 'Tab', esc: 'Esc',
+  };
+  const legendOf = (name) => LEGENDS[name] || (/^f\d+$/.test(name) ? name.toUpperCase() : name.length === 1 ? name.toUpperCase() : name);
+
+  /**
    * The board is 16 key units wide. The function row sits slightly apart (ROW_GAP), with a gap after Esc and a small one between
    * the F-key groups, as photos of the real F75 HE show (the same spacing as the F75). The knob sits at the right end of that row.
    */
@@ -224,7 +236,7 @@
       let x = 0;
       for (const item of row) {
         const [name, w] = Array.isArray(item) ? item : [item, 1];
-        if (name !== '_') out.push({ name, led: KEYS[name], label: labelOf(name), x, y, w, h: 1 });
+        if (name !== '_') out.push({ name, led: KEYS[name], label: labelOf(name), legend: legendOf(name), x, y, w, h: 1 });
         x += w;
       }
     });
@@ -715,6 +727,7 @@
       this.info = null; // what the keyboard said about itself last: { vid, pid, version, ... }
       this.fromKeyboard = false; // true once the lighting shown was read back from the keyboard
       this.busy = false;
+      this.job = null; // { name, quiet } while something is on the wire
       this.last = null; // the result of the last apply
       this.confirmed = new Set(); // 'vid:pid' the person said are an F75 HE although the name does not say so
       this.pending = [];
@@ -956,6 +969,7 @@
       const job = this._queue.then(async () => {
         if (!silent) {
           this.busy = true;
+          this.job = { name, quiet }; // what is on the wire now (the window shows a send, or a read for the quiet jobs)
           this._emit('busy');
         }
         let result;
@@ -966,6 +980,7 @@
         } finally {
           if (!silent) {
             this.busy = false;
+            this.job = null;
             this._emit('busy');
           }
         }

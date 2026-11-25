@@ -183,11 +183,13 @@
         animate: () => !!prefs.animate && !reduceMotion, // the effect cards' little keyboards play only when animation is on
         shown: () => windowShown, // false while the window is in the tray or minimised: nothing is drawn then
         glow: (mean, force) => setGlow(mean, force), // the window takes the colour of the keyboard's light, as on the F75 screen
-        // the F75 preview has nothing to draw while a Max is connected (the Max's own picture is in the stage), so it rests
-        idlePreview: (on) => {
-          if (on) view.stop();
-          else if (prefs.animate && prefs.view !== 'picture') view.start(); // Picture is a still image: no loop
-        },
+        link: (kind, text) => MO && MO.link(kind, text), // the data-link animation on the picture while something is sent to / read from the keyboard
+        // The Max and the HE are drawn by this window's own keyboard picture (the canvas `view`): the same hover, lean, ripples, sweep, key
+        // presses and Live / Picture. They only say which layout it draws (L.define in max-ui.js) and what each key shows (state.paint).
+        L,
+        canvasView: () => view, // looked up when used: the picture is made further down
+        pictureOnly: () => pictureOnly(),
+        stage: (id) => useLayout(id),
         onLeave: () => scheduleRender(),
       })
     : null;
@@ -199,6 +201,22 @@
     ALL_LEDS = L.KEYS.map((k) => k.led);
   };
   rebuildKeyCaches();
+
+  /**
+   * Which layout the keyboard picture draws: a keyboard of the Max's / HE's screen names its own (`id`), null goes back to the model
+   * chosen for the F75 family. The picture, its pointer effects and its loop are the same for all of them; only the keys differ.
+   */
+  function useLayout(id) {
+    if (!L.use(id || prefs.model)) return false;
+    rebuildKeyCaches();
+    sel.clear();
+    drag = null;
+    view.hover = null;
+    view.ripples = [];
+    view.pressedAt.clear();
+    view.resize();
+    return true;
+  }
 
   let tab = 'lighting';
   let applying = false;
@@ -274,8 +292,8 @@
     animate: prefs.animate,
     inset: { top: 16, bottom: 38 }, // room for the status bar under the keyboard
     flat: false,
-    enabled: () => (tab === 'perkey' || tab === 'keys') && session.ready && !applying,
-    onPick: handlePick,
+    enabled: () => (MXU && MXU.active() ? MXU.picking() : (tab === 'perkey' || tab === 'keys') && session.ready && !applying),
+    onPick: (k, e, phase) => (MXU && MXU.active() ? MXU.pick(k, e, phase) : handlePick(k, e, phase)),
     onHover: () => {},
   });
   /**
@@ -323,7 +341,7 @@
       view.pressedAt.clear();
       view.hm.ta = 0;
       view.hm.a = 0;
-    } else if (prefs.animate && !(MXU && MXU.active())) view.start();
+    } else if (prefs.animate) view.start();
   }
   /**
    * The real keyboard is off: asleep, unplugged, not found, or nothing read from it yet. While the app is only
@@ -342,7 +360,7 @@
   function previewState() {
     const s = session;
     if (!s.cur) {
-      return { mode: 0, dim: true, brightness: 4, speed: 2, colorIndex: 7, palette: M.DEFAULT_PALETTE, colors: null, selection: sel, legends: null };
+      return { mode: 0, dim: true, brightness: 4, speed: 2, colorIndex: 7, palette: M.DEFAULT_PALETTE, colors: null, selection: sel, legends: null, paint: null };
     }
     const e = s.effect();
     const perKey = tab === 'perkey' || tab === 'keys'; // both draw the board flat, as it is typed on, in the colours painted per key
@@ -358,6 +376,7 @@
       colors: s.cur.colors,
       selection: tab === 'perkey' ? sel : tab === 'keys' && KUI ? KUI.selection() : new Set(),
       legends: tab === 'keys' && KUI ? KUI.legends() : null,
+      paint: null, // only the F75 Max / F75 HE screen sets this: what each key shows, for keyboards with effects of their own
     };
   }
 
@@ -465,8 +484,6 @@
       }
       render();
     }
-    const box = $('#modelSel');
-    if (box) box.value = id;
   }
 
   // Once per connection: when the USB product name says which model this is and nobody picked one by hand, follow it.
@@ -759,8 +776,8 @@
     if (MO) MO.writing(applying || session.restoring);
     view.opts.flat = tab === 'perkey' || tab === 'keys';
     syncPicture();
-    view.setState(previewState());
-    if (MXU && MXU.active()) MXU.show(tab); // also repaints the header chips with the Max's link and battery
+    if (MXU && MXU.active()) MXU.show(tab); // sets the picture's state from the Max's lighting, and repaints the header chips with its link and battery
+    else view.setState(previewState());
   }
 
   function renderTabs() {
@@ -1036,14 +1053,23 @@
     }
     $('#effName').textContent = e ? e.name : '';
     $('#effDesc').textContent = e ? (e.unknown ? '' : EFFECT_INFO[e.mode] || '') : '';
+    // The chips are rebuilt only when what they say changes (another effect), not on every render: moving the brightness
+    // slider renders the page many times a second, and in Liquid glass a chip made anew shows without its glass for a
+    // moment, so all of them blinked.
     const chips = $('#effChips');
-    chips.textContent = '';
+    const chipList = [];
     if (e && !e.unknown && !e.off) {
       const tag = effectTag(e);
-      if (tag) chips.append(el('span', { class: 'chip accent', text: tag }));
-      chips.append(el('span', { class: 'chip', text: e.speed ? 'Adjustable speed' : 'Fixed speed' }));
-      if (e.slot >= 0) chips.append(el('span', { class: 'chip', text: 'Own brightness' }));
-      chips.append(el('span', { class: 'chip mono', text: `Mode ${e.mode}` }));
+      if (tag) chipList.push(['chip accent', tag]);
+      chipList.push(['chip', e.speed ? 'Adjustable speed' : 'Fixed speed']);
+      if (e.slot >= 0) chipList.push(['chip', 'Own brightness']);
+      chipList.push(['chip mono', `Mode ${e.mode}`]);
+    }
+    const chipSig = JSON.stringify(chipList);
+    if (chips.dataset.sig !== chipSig || chips.childElementCount !== chipList.length) {
+      chips.dataset.sig = chipSig;
+      chips.textContent = '';
+      for (const [cls, text] of chipList) chips.append(el('span', { class: cls, text }));
     }
     // Switching effect sweeps the new look across the big preview once.
     if (cur && lastMode !== null && mode !== lastMode && tab === 'lighting' && !pictureOnly()) view.playIntro(true);
@@ -1491,34 +1517,8 @@
 
   // --------------------------------------------------------------- device tab
 
-  /** What the USB-C cable did not hand over, in words (empty on the dongle, where everything is read). */
-  function cableGaps(s) {
-    const gone = [];
-    if (s.unread.includes('rgb')) gone.push('colour palette (shown with typical colours, never written)');
-    if (s.unread.includes('colors')) gone.push('per-key colours (written only when you paint keys)');
-    if (!gone.length) return '';
-    return ` Over the cable the keyboard did not hand over its ${gone.join(' or its ')}. The 2.4G dongle reads everything.`;
-  }
-
   function renderDevice() {
     const s = session;
-    const lines = {
-      ready: s.mode === 'demo'
-        ? 'Using the demo keyboard. Nothing here touches real hardware.'
-        : `Connected through the ${s.iface}. Settings were read and can be edited.${cableGaps(s)}`,
-      asleep: 'The keyboard is connected but asleep. Press any key to wake it.',
-      searching: 'Looking for a keyboard.',
-      connecting: 'Connecting.',
-      reading: 'Reading settings.',
-      idle: 'No keyboard found. Plug in the dongle or the cable and switch the keyboard to that mode.',
-      unsupported: `Found ${s.statusDetail}, which this app does not support.`,
-      error: s.statusDetail || 'The keyboard did not respond.',
-    };
-    $('#devStatus').textContent = lines[s.status] || '';
-    $('#devConnect').disabled = prefs.demo || !W.hasHid();
-    $('#devDisconnect').disabled = !s.connected;
-    $('#swDemo').setAttribute('aria-checked', prefs.demo ? 'true' : 'false');
-    $('#modelSel').value = prefs.model;
     const cur = !!s.cur;
     $('#bkExport').disabled = !cur;
     $('#bkImport').disabled = !s.ready;
@@ -1550,16 +1550,16 @@
       custom: 'Custom: your own blur. Pick a look above to go back to a ready-made one.',
     },
     realistic: {
-      clear: 'Clear glass: no blur, so the picture shows through sharply and the edge bends it.',
-      blur: 'Blur glass: a soft blur and a gentle bend. This is the default look.',
-      frosted: 'Frosted glass: a heavy blur and a soft edge, like frosted glass. No colour fringe.',
+      clear: 'Clear glass: no blur, so the picture shows through sharply and the edge bends it strongly.',
+      blur: 'Blur glass: a soft blur and the strong bend at the edge. This is the default look.',
+      frosted: 'Frosted glass: a heavy blur and the strong bend at the edge, like frosted glass. No colour fringe.',
       default: 'Default: a soft blur and the strongest bend at the edge. No colour fringe.',
       custom: 'Custom: your own settings. Pick a look above to go back to a ready-made one.',
     },
   };
   const GLASS_TYPE_HINT = {
     normal: 'Normal: soft blurred glass with a light edge. Light on the computer.',
-    realistic: 'Realistic: thick glass that bends the picture at its edge, with a colour fringe. Heavier, and slower on some computers.',
+    realistic: 'Realistic: thick glass that bends the picture at its edge, with a colour fringe. Drawn by the graphics card, so it stays smooth. Heavier if the card cannot do it.',
   };
   const GLASS_CUSTOM_HINT = {
     normal: 'Set how much the glass blurs the picture yourself.',
@@ -1592,16 +1592,14 @@
     $('#blurRow').hidden = glass; // the Blur switch is a Classic setting; Liquid glass has its own Blur slider
     $('#stageBgRow').hidden = glass; // so is Keyboard background: Liquid glass always shows its glass behind the keyboard picture
     $('#swBlur').setAttribute('aria-checked', prefs.blur ? 'true' : 'false');
-    $('#styleTag').hidden = !glass; // the experimental tag and caution only while Liquid glass is on
-    $('#styleCaution').hidden = !glass;
     $('#styleHint').textContent = glass
       ? 'Liquid glass blurs the picture behind the controls. Looks best with a background picture.'
-      : 'Classic is the original look. Liquid glass (experimental) makes the controls glass that blurs the picture behind them, like iOS.';
+      : 'Classic is the original look. Liquid glass makes the controls glass that blurs the picture behind them, like iOS.';
     // the glass type: Realistic has three more sliders (edge width, refraction, colour fringe), which Normal has nothing for
     const gt = $('#segGlassType');
-    const realistic = prefs.glassType === 'realistic';
+    const realistic = prefs.glassType !== 'normal'; // only Realistic bends
     for (const b of $$('.seg-btn', gt)) b.setAttribute('aria-checked', b.dataset.glassType === prefs.glassType ? 'true' : 'false');
-    gt.style.setProperty('--i', realistic ? 1 : 0);
+    gt.style.setProperty('--i', Math.max(0, G.TYPES.indexOf(prefs.glassType)));
     $('#glassTypeHint').textContent = GLASS_TYPE_HINT[prefs.glassType];
     $('#glassCustomHint').textContent = GLASS_CUSTOM_HINT[prefs.glassType];
     for (const row of $$('#glassSection [data-glass-real]')) row.hidden = !realistic;
@@ -1629,7 +1627,7 @@
     renderStyle();
     renderBackground(); // the frosted window steps aside while the glass paints its own backdrop
   }
-  // Glass type (Settings > Theme > Liquid glass): the same surfaces, painted by a plain blur (Normal) or by the bending filters (Realistic).
+  // Glass type (Settings > Theme > Liquid glass): the same surfaces, painted by a plain blur (Normal) or by bending glass (Realistic).
   function setGlassType(type) {
     if (!G) return;
     prefs.glassType = G.cleanType(type);
@@ -1759,12 +1757,15 @@
       t.remove();
     }
   }
-  // What plays behind the app right now. A video or GIF only runs while somebody can see it: the window shown (not in the tray or
-  // minimised), the tab visible and an app screen up (the start screen hides the layer). The person chose it themselves, so
-  // "reduce motion" is not applied to it; Remove is one click away.
+  // Whether this window is the one in front (the person is using it, not another program). Where there is no way to ask, it counts as yes.
+  const windowFocused = () => typeof document.hasFocus !== 'function' || document.hasFocus();
+  // What plays behind the app right now. A video or GIF only runs while somebody can see it and is using the app: the window shown
+  // (not in the tray or minimised), the tab visible, the window in focus (it pauses when another program is clicked) and an app
+  // screen up (the start screen hides the layer). The person chose it themselves, so "reduce motion" is not applied to it; Remove
+  // is one click away.
   function syncBgMedia() {
     const shell = $('.shell');
-    const go = windowShown && !document.hidden && !!shell && shell.dataset.screen === 'app';
+    const go = windowShown && !document.hidden && windowFocused() && !!shell && shell.dataset.screen === 'app';
     const v = $('#appBgVideo');
     if (bgCur.kind === 'video' && bgCur.media === 'video') {
       if (!go) v.pause();
@@ -1773,7 +1774,7 @@
         if (p && p.catch) p.catch(() => {}); // a video that cannot play is reported by its error event
       }
     } else if (bgCur.kind === 'video') {
-      $('#appBg').style.backgroundImage = go ? bgCur.css : ''; // a GIF cannot be paused, so it is taken away while nobody looks
+      $('#appBg').style.backgroundImage = go ? bgCur.css : ''; // a GIF cannot be paused, so it is taken away while nobody looks or the window is out of focus
     }
   }
   function renderBackground() {
@@ -2219,16 +2220,42 @@
     refreshIfaces();
   }
 
-  async function setDemo(on) {
+  // The model the person had before a demo of one particular model (a card on the Demo keyboards screen) started. It is put back when the
+  // demo ends, unless they picked a model by hand in Settings meanwhile, so trying the demo F87 does not leave a real F75 drawn as an F87.
+  let modelBeforeDemo = null;
+
+  async function setDemo(on, label = 'Demo keyboard') {
     if (on && MXU && MXU.active() && MXU.max.demo) MXU.leave(); // the demo F75 Max gives way to the demo F75
     prefs.demo = !!on;
+    if (!on && modelBeforeDemo !== null) {
+      const back = modelBeforeDemo;
+      modelBeforeDemo = null;
+      if (!prefs.modelSet && back !== prefs.model) applyModel(back);
+    }
     savePrefs();
     session.disconnect();
     demoKb = null;
     sel.clear();
     await session.connectAuto();
     refreshIfaces();
-    if (on) toast('Demo keyboard on. Changes stay in the demo.', 'info');
+    if (on) toast(`${label} on. Changes stay in the demo.`, 'info');
+  }
+
+  /** The simulated keyboard as one exact model: 'f75', 'f75pro' or 'f87' (the cards of the Demo keyboards screen). */
+  async function startDemo(modelId) {
+    if (!L.hasModel(modelId)) return setDemo(true);
+    if (modelBeforeDemo === null) modelBeforeDemo = prefs.model;
+    const label = `Demo ${L.modelName(modelId)}`;
+    if (prefs.demo) {
+      // Already simulating: applyModel starts the simulated keyboard again on the new model.
+      if (prefs.model !== modelId) {
+        applyModel(modelId);
+        toast(`${label} on. Changes stay in the demo.`, 'info');
+      }
+      return undefined;
+    }
+    applyModel(modelId); // the demo is off, so this only switches the layout; the demo then starts on it
+    return setDemo(true, label);
   }
 
   async function readBatteryNow() {
@@ -2532,20 +2559,6 @@
 
     // device
     const withTask = (sel, fn) => (MO ? MO.task($(sel), fn) : fn());
-    $('#devConnect').addEventListener('click', () =>
-      withTask('#devConnect', async () => {
-        await connectFlow();
-        return session.ready ? true : null;
-      }),
-    );
-    $('#devRescan').addEventListener('click', () =>
-      withTask('#devRescan', async () => {
-        await session.connectAuto();
-        refreshIfaces();
-        return session.ready ? true : null;
-      }),
-    );
-    $('#devDisconnect').addEventListener('click', () => session.disconnect());
     $('#devList').addEventListener('click', refreshIfaces);
     // What the app saw while looking for the keyboard (which interface answered, what each one said), for troubleshooting.
     $('#devLog').addEventListener('click', async () => {
@@ -2554,7 +2567,6 @@
       const ok = await saveText(`aula-connection-log-${new Date().toISOString().slice(0, 10)}.txt`, text);
       if (ok) toast('Log saved.', 'ok');
     });
-    $('#swDemo').addEventListener('click', () => setDemo(!prefs.demo));
     // theme: Settings has the three choices (dark, light, system)
     for (const b of $$('#segTheme .seg-btn')) b.addEventListener('click', () => setTheme(b.dataset.themePref));
     // style: Classic or Liquid glass, and the glass sliders (the picture follows the slider while it moves; saved on release)
@@ -2709,11 +2721,6 @@
     }
     renderStyle();
     renderStageBg();
-    const modelSel = $('#modelSel');
-    for (const m of L.MODELS) modelSel.append(el('option', { value: m.id, text: m.name }));
-    modelSel.value = prefs.model;
-    modelSel.addEventListener('change', () => applyModel(modelSel.value, { manual: true }));
-
     const brightSel = $('#brightMaxSel');
     for (let n = P.LEVEL_MAX; n <= P.BRIGHT_CAP; n++) brightSel.append(el('option', { value: n, text: `${n} levels` }));
     brightSel.value = session.brightMax;
@@ -2976,6 +2983,8 @@
     window.addEventListener('focus', nudge);
     document.addEventListener('visibilitychange', nudge);
     document.addEventListener('visibilitychange', syncBgMedia);
+    window.addEventListener('focus', syncBgMedia); // a video or GIF behind the app pauses when another program is in front, and goes on when this window is back
+    window.addEventListener('blur', syncBgMedia);
     // The start screen hides the background layer, so nothing plays behind it; an app screen starts it again.
     new MutationObserver(syncBgMedia).observe($('.shell'), { attributes: true, attributeFilter: ['data-screen'] });
 
@@ -2984,7 +2993,7 @@
       // Whether the keyboard picture should be running right now, whatever stopped it (this used to be remembered as
       // "was it running when the window was hidden", which went wrong whenever that memory and the real state differed
       // and left the picture without a loop for good).
-      const wantLoop = () => prefs.animate && !pictureOnly() && !(MXU && MXU.active());
+      const wantLoop = () => prefs.animate && !pictureOnly();
       const setShown = (shown) => {
         if (shown === windowShown) return;
         windowShown = shown;
@@ -3048,7 +3057,7 @@
     if (MXU) MXU.watch();
   }
 
-  window.aulaApp = { session, view, prefs, setTab, setDemo, toast, keys: KUI, max: MXU, styleOwed, styleStart, chooseStyle, styleOptions, previewBg, theme: () => (T ? T.resolved() : 'dark') };
+  window.aulaApp = { session, view, prefs, setTab, setDemo, startDemo, toast, keys: KUI, max: MXU, styleOwed, styleStart, chooseStyle, styleOptions, previewBg, theme: () => (T ? T.resolved() : 'dark') };
 
   // Preview mode (see PV above): follow the page around this one, and say when the picture is worth showing.
   if (PV) {

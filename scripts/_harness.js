@@ -257,7 +257,7 @@ async function showDevice(page, card) {
 }
 
 /** Start -> device list -> pick the card whose text matches -> the main screen. */
-async function enter(page, card = /Demo keyboard/, { ready = true } = {}) {
+async function enter(page, card = /Demo AULA F75(?! Pro)/, { ready = true } = {}) {
   await page.click('#hmStart');
   const wantsDemo = /demo/i.test(card instanceof RegExp ? card.source : String(card));
   await page.waitForSelector(wantsDemo ? '#hmDemos' : '#hmList .hm-dev');

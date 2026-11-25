@@ -1,0 +1,81 @@
+/* =====================================================================================================================
+   iOS 27 Liquid Glass motion, second layer. Loaded after glass-motion.css (it reuses its springs: --ag-spring-*,
+   --ag-t-*) and before glide.css. Every rule starts with html.glass, so the Classic UI never sees any of it, and every
+   movement sits in prefers-reduced-motion: no-preference, so a person who asked for less motion gets none of it.
+   js/glass-ios27.js adds the few things CSS cannot know (which page you came from, which button opened a dialog).
+
+   What is here, by the behaviour of iOS 26/27 it follows:
+
+   app launch                      the window opens with a bouncy zoom, like an app leaving the Home Screen  -> section 1
+   page change                     the new page slides in from the side you are going to, on a smooth spring -> section 2
+                                   (tab pages, and the four pages of Settings)
+   dialogs (alert, sheet)          the dialog grows out of the button that opened it, and folds back into it
+                                   on the way out; the dimming behind it fades with it                       -> section 3
+   show / hide                     the Customise box opens and closes by height, on a spring                  -> section 4
+
+   Nothing here fades something that holds glass. An element with opacity below 1 (or a filter, mask or clip-path) becomes
+   a backdrop root, and the glass inside it would show clear until the fade ends (see glass.css, section 1). So the
+   boxes below move (translate, scale) and the dimming behind them fades its background colour, the same rule as the
+   entrance animations in glass.css.
+   ===================================================================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* ------------------------------------------------------------------------------------------ 1. app launch
+     The whole window zooms up from a little smaller, on the bouncy spring. It replaces the fade-and-grow of the Classic
+     UI (app.css), which would flash the glass clear: this one only moves. */
+  @keyframes agLaunch { from { transform: scale(0.94) translateY(14px); } }
+  html.glass .shell {
+    animation: agLaunch var(--ag-t-bouncy) var(--ag-spring-bouncy) backwards;
+  }
+
+  /* ----------------------------------------------------------------------------------------- 2. page change
+     --dx is +22 px when the new page lies to the right (forward) and -22 px when it lies to the left; app.js sets it on
+     .panels for the tab pages, and js/glass-ios27.js on the page itself for the pages of Settings (.ag-turn, only while
+     it is being turned to, so a Settings page does not move again when its whole tab arrives). The page travels about
+     twice the old distance and settles from slightly smaller. */
+  @keyframes agPage { from { transform: translateX(calc(var(--dx, 0px) * 2.2)) scale(0.985); } }
+  html.glass .panel:not([hidden]),
+  html.glass .set-page.ag-turn:not([hidden]) {
+    animation: agPage var(--ag-t-smooth) var(--ag-spring-smooth) backwards;
+  }
+
+  /* ------------------------------------------------------------------------------ 3. dialogs grow out of their button
+     The Software Update dialog. Both ways are transitions on the hidden attribute (display is switched with
+     allow-discrete, so the dialog stays on screen while it folds away): in, the card springs up from the button that
+     opened it (--ag-ox / --ag-oy, set by the script, are that button's centre inside the card); out, it goes quickly and
+     without a bounce, as an iOS alert does. The dimming fades its colour; the card only scales and slides. */
+  html.glass .upd {
+    animation: none; /* the entrance is the transition below, not glassFade */
+    transition: display 0.34s allow-discrete, background-color 0.3s ease;
+  }
+  html.glass .upd[hidden] { background-color: transparent; }
+  html.glass .upd-card {
+    transform-origin: var(--ag-ox, 50%) var(--ag-oy, 50%);
+    transition: translate var(--ag-t-bouncy) var(--ag-spring-bouncy), scale var(--ag-t-bouncy) var(--ag-spring-bouncy);
+  }
+  html.glass .upd[hidden] .upd-card {
+    translate: 0 10px;
+    scale: 0.92;
+    transition-duration: 0.22s;
+    transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+  }
+  @starting-style {
+    html.glass .upd:not([hidden]) { background-color: transparent; }
+    html.glass .upd:not([hidden]) .upd-card { translate: 0 18px; scale: 0.9; }
+  }
+
+  /* ------------------------------------------------------------------------------------ 4. show / hide by height
+     The Customise box in Settings > Theme opens and closes by height, on the smooth spring (no bounce: a box that
+     overshoots its height would shove the rows under it). overflow: clip keeps its rows inside while it is shorter than
+     they are; the margin leaves room for the shadow and the glow of a slider thumb. interpolate-size (glass-motion.css)
+     lets the height travel from and to auto. */
+  html.glass .glass-custom {
+    overflow: clip;
+    overflow-clip-margin: 16px;
+    transition: height var(--ag-t-smooth) var(--ag-spring-smooth), display var(--ag-t-smooth) allow-discrete;
+  }
+  html.glass .glass-custom[hidden] { height: 0; }
+  @starting-style {
+    html.glass .glass-custom:not([hidden]) { height: 0; }
+  }
+}

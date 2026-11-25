@@ -29,7 +29,7 @@ test('index.html loads the menu: select.css before lite.css and glass.css, selec
 
 test('every <select> in the page is a .select, so every dropdown gets the menu', () => {
   const tags = html.match(/<select\b[^>]*>/g) || [];
-  assert.ok(tags.length >= 4, `found ${tags.length} selects`);
+  assert.ok(tags.length >= 3, `found ${tags.length} selects`);
   for (const t of tags) assert.match(t, /class="[^"]*\bselect\b/, `${t} is not a .select`);
 });
 

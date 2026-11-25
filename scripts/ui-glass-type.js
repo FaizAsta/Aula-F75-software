@@ -18,7 +18,7 @@ async function enterDemo(page) {
   await page.click('#hmDemos');
   await page.waitForFunction(() => document.getElementById('hmTitle').textContent === 'Demo keyboards');
   await wait(700);
-  await page.locator('#hmList .hm-dev', { hasText: /Demo keyboard/ }).first().click();
+  await page.locator('#hmList .hm-dev', { hasText: /Demo AULA F75(?! Pro)/ }).first().click();
   await page.waitForFunction(() => window.aulaApp.session.ready, null, { timeout: 15000 });
   await wait(2200);
 }
@@ -31,6 +31,7 @@ const read = (page) =>
     const prefs = JSON.parse(window.aulaHost.loadMemory()['aula.prefs'] || '{}');
     return {
       type: window.AulaGlass.type(),
+      gpu: window.AulaGlass.gpuActive(),
       classes: [...root.classList].filter((c) => /^glass/.test(c)).join(' '),
       rootBlur: root.style.getPropertyValue('--ag-filter'),
       svgFilters: document.querySelectorAll('svg defs filter').length,
@@ -85,16 +86,18 @@ async function settingsRun() {
   await wait(300);
   console.log('  ok (Blur slider)');
 
-  // 3. Realistic: its filters are built, each surface has its own, the blur on <html> is gone, the three sliders show, it is saved
+  // 3. Realistic: the graphics card draws the surfaces (or, where WebGL is not available, each surface has its own SVG filter), the blur
+  // on <html> is gone, the three sliders show, it is saved. There is only this one bending type.
   await page.click('#segGlassType [data-glass-type="realistic"]');
   await wait(1800);
   s = await read(page);
   assert.equal(s.type, 'realistic');
-  assert.equal(s.classes, 'glass');
+  assert.equal(s.classes, s.gpu ? 'glass glass-gpu' : 'glass');
   assert.equal(s.rootBlur, '', 'no blur left on <html>');
-  assert.ok(s.svgFilters > 5, `Realistic builds its filters (${s.svgFilters})`);
-  assert.ok(s.inlineFilters > 5);
-  assert.match(s.backdrop, /^url\(/, 'the surfaces bend their backdrop through a filter');
+  // with the graphics card only the few surfaces it cannot draw (slider lens, tab highlight, menus...) have an SVG filter
+  assert.ok(s.svgFilters > (s.gpu ? 0 : 5), `the SVG filters are built (${s.svgFilters})`);
+  if (!s.gpu) assert.ok(s.inlineFilters > 5);
+  if (!s.gpu) assert.match(s.backdrop, /^url\(/, 'the surfaces bend their backdrop through a filter');
   assert.equal(s.realRowsHidden, false, 'the three Realistic sliders show');
   assert.deepEqual(s.lit, ['realistic']);
   assert.equal(s.saved, 'realistic');
@@ -106,6 +109,7 @@ async function settingsRun() {
   s = await read(page);
   assert.equal(s.type, 'normal');
   assert.equal(s.classes, 'glass glass-normal');
+  assert.equal(s.gpu, false, 'the graphics card renderer is stopped');
   assert.equal(s.svgFilters, 0, 'the Realistic filters are removed');
   assert.equal(s.inlineFilters, 0);
   assert.match(s.rootBlur, /^blur\(/);
@@ -123,13 +127,19 @@ async function settingsRun() {
   await page.ctx.close();
 }
 
-// A start that already has Realistic saved (an older choice) comes up Realistic, and a saved glass setting with no type is Normal.
+// A start that already has Realistic saved comes up Realistic, a saved 'gpu' (the old name of the graphics card type) is Realistic too,
+// and a saved glass setting with no type is Normal.
 async function restartRun() {
-  const real = await open('demo', { theme: 'dark', extra: { style: 'glass', glassType: 'realistic' }, memory: BG });
-  await wait(800);
-  let s = await real.evaluate(() => ({ type: window.AulaGlass.type(), classes: [...document.documentElement.classList].filter((c) => /^glass/.test(c)).join(' ') }));
-  assert.deepEqual(s, { type: 'realistic', classes: 'glass' });
-  await real.ctx.close();
+  for (const saved of ['realistic', 'gpu']) {
+    const real = await open('demo', { theme: 'dark', extra: { style: 'glass', glassType: saved }, memory: BG });
+    await wait(800);
+    const s0 = await real.evaluate(() => ({ type: window.AulaGlass.type(), gpu: window.AulaGlass.gpuActive(), classes: [...document.documentElement.classList].filter((c) => /^glass/.test(c)).join(' '), lit: [...document.querySelectorAll('#segGlassType .seg-btn')].filter((b) => b.getAttribute('aria-checked') === 'true').map((b) => b.dataset.glassType) }));
+    assert.equal(s0.type, 'realistic', `a saved ${saved} is Realistic`);
+    assert.equal(s0.classes, s0.gpu ? 'glass glass-gpu' : 'glass');
+    assert.deepEqual(s0.lit, ['realistic']);
+    await real.ctx.close();
+  }
+  let s;
   const old = await open('demo', { theme: 'dark', extra: { style: 'glass', glass: { blur: 4, bezel: 20, amount: 45, chroma: 10 } }, memory: BG });
   await wait(800);
   s = await old.evaluate(() => ({ type: window.AulaGlass.type(), classes: [...document.documentElement.classList].filter((c) => /^glass/.test(c)).join(' '), pref: window.aulaApp.prefs.glassType }));

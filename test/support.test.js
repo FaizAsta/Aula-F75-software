@@ -27,6 +27,13 @@ test('the menu has the Discord invite from the README', () => {
   assert.equal(discord.label, 'Discord');
 });
 
+test('the menu has the website link', () => {
+  const site = Links.find('website');
+  assert.ok(site, 'the menu has a Website entry');
+  assert.equal(site.label, 'Website');
+  assert.equal(site.url, 'https://faizasta.github.io/Aula-F75-software/#screenshots');
+});
+
 test('every link is https: or mailto:, has a name, and no id appears twice', () => {
   const list = Links.list();
   assert.ok(list.length >= 1);

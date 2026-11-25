@@ -48,7 +48,7 @@
       if (out) out.textContent = `${v}${UNITS[k]}`;
     }
     // Normal glass only blurs, so edge width, refraction and colour fringe have nothing to do: they show only for Realistic
-    for (const row of $$('[data-glass-real]')) row.hidden = draftState.glassType !== 'realistic';
+    for (const row of $$('[data-glass-real]')) row.hidden = draftState.glassType === 'normal';
   }
 
   // ------------------------------------------------------------------- the live picture

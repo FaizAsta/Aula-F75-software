@@ -8,7 +8,7 @@
  *   f75     black case, navy caps with black modifiers, yellow Esc / Enter / arrows / space, orange legends, round metal knob
  *   f75pro  silver case, light caps, blue-sided Esc / Enter / arrows, larger metal knob
  *   f87     blue-black case, graphite caps, orange-sided Esc / Enter / Backspace / arrows, no knob (TKL)
- *   max     graphite case, grey caps, green-sided Esc / Enter / arrows, metal knob and a small TFT screen
+ *   max     white case, white caps with sky-blue print, blue modifiers, purple Esc / Enter / arrows / space, silver knob and a small TFT screen (the colours of the real board)
  *   f75he   black case, white caps with grey modifiers, darker grey F5-F8, black Esc / Enter / arrows / space, round metal knob (the colours of the real board)
  *
  * Positions are in key units (1u = one key) measured from the top-left corner of the key block, the same space layout.js
@@ -99,41 +99,58 @@
       usb: true,
     },
 
-    // ---------------------------------------------------------------- AULA F75 Max: graphite / green, knob and TFT screen
+    // ---------------------------------------------------------------- AULA F75 Max: white case, white caps with sky-blue print, blue modifiers, purple Esc / Enter / arrows / space (the colours of the real board)
+    // Pictured from photos of the white / blue / purple F75 Max: a white case, white letter caps printed in sky blue, steel-blue
+    // modifiers, navigation column and F5-F8, lilac Esc / Enter / arrows / space (their print is white), a nearly square colour
+    // screen right of F12 and a silver knob with a white top beside it. The key names are the ones the preview prints (layout.js: 'Del', 'PgUp', 'Caps', 'Shift' ...).
     max: {
       id: 'max',
-      colourway: 'Graphite and green',
-      case: { top: '#2b302d', bottom: '#131715', edge: 'rgba(140,255,190,0.16)', shine: 'rgba(140,255,190,0.05)' },
-      plate: { fill: '#070908', edge: 'rgba(140,255,190,0.10)' },
-      slot: '#030504',
-      cap: { face: ['#7f8389', '#63676d'], body: ['#191c1b', '#0a0c0b'], legend: '#ffffff', lit: 0.045 },
+      colourway: 'White, blue and purple',
+      case: { top: '#f5f4f7', bottom: '#d1d1d9', edge: 'rgba(255,255,255,0.85)', shine: 'rgba(255,255,255,0.35)' },
+      plate: { fill: '#111218', edge: 'rgba(255,255,255,0.14)' },
+      slot: '#050508',
+      cap: { face: ['#f9f7fc', '#eeedf5'], body: ['#e0dfea', '#c2c5d6'], legend: '#4fb6ee', lit: 0.035 },
       accents: {
-        green: { body: ['#46e08c', '#1c9658'], keys: ['Esc', 'Enter', 'Up', 'Left', 'Down', 'Right'] },
+        // an accent cap is coloured all over; its print is white
+        blue: {
+          face: ['#a3bee9', '#93afe0'], body: ['#7f9fd5', '#5a7bb3'], legend: '#ffffff',
+          keys: ['F5', 'F6', 'F7', 'F8', 'Backspace', 'Del', 'Tab', 'PgUp', 'Caps', 'PgDn', 'Shift', 'End', 'Ctrl', 'Win', 'Alt', 'Fn'],
+        },
+        purple: { face: ['#ab9fe4', '#9c90d9'], body: ['#8c81c8', '#7165b0'], legend: '#ffffff', keys: ['Esc', 'Enter', 'Up', 'Left', 'Down', 'Right', 'Space'] },
       },
-      knob: { r: 0.36, ring: ['#f1f3f6', '#9399a2', '#4b4f57', '#c3c7ce'], face: '#0d0e12', dent: 'rgba(255,255,255,0.08)', x: 15.45, y: 0.5 },
-      // The small colour screen sits beside the knob, in the corner right of the function row.
-      screen: { x: 13.3, y: 0.1, w: 1.7, h: 0.8 },
+      // `faceR`: the white top of the knob, as a fraction of its radius (the silver ring is wide and slopes down to it); `dot`: no marker on it.
+      knob: { r: 0.52, ring: ['#f4f5f8', '#aeb3bc', '#6a707a', '#d9dce2'], face: '#e3e3e9', dent: 'rgba(255,255,255,0.12)', x: 15.5, y: 0.5, faceR: 0.6, dish: true, dot: false },
+      // The colour screen sits between F12 and the knob. On the real board it is almost square, in a white panel that is level with the case.
+      screen: { x: 13.5, y: 0.02, w: 1.0, h: 0.96, ui: { date: '12/02', battery: 91, time: '16:26:21', mode: 'WIN', link: 'BT' } },
+      // The case-coloured panel the screen and the knob stand in (the plate does not run under them): from x to the right edge, down to y.
+      island: { x: 13.08, y: 1.0 },
+      // the caps nearly touch and the dark plate shows only as a thin line round the key block (render.py: capGap, wellPad, wellR); the white of the case does the framing
+      capGap: 0.022, wellPad: 0.05, wellR: 0.12,
+      // and the white gap in the bottom row, between Fn and the arrow keys (x 12.5 to 13): case material down to the bottom rim, a thin dark line each side
+      panels: [{ x: 12.54, y: 5.03, w: 0.42, h: 1.0, r: 0.05, toRim: true }],
       indicators: [{ kind: 'dot', x: -0.26, key: 'Caps' }],
       usb: true,
+      usbAt: 4.95, // the real board has a small pale tab on the back edge, left of centre (render.py), not a dark notch in the middle
+      usbInk: '#d9d4f2',
+      exposure: 0.87, // how bright render.py picks the picture up: a white board matches its photos at this level
     },
 
     // ---------------------------------------------------------------- AULA F75 HE: black case, white and grey caps, round knob (the colours of the real board)
     // Pictured from photos of the black / white / grey F75 HE: white letter caps with dark print, mid-grey modifiers and
     // navigation column, a darker grey F5-F8 block, near-black Esc / Enter / arrows / space, and a round knob with a metal ring at
-    // the right end of the function row. The key names are the ones in he.js (lower case; matching ignores case).
+    // the right end of the function row. The key names are the ones the preview prints (layout.js: 'Del', 'PgUp', 'Caps', 'Shift' ...).
     f75he: {
       id: 'f75he',
       colourway: 'Black, white and grey',
       case: { top: '#26272b', bottom: '#101113', edge: 'rgba(255,255,255,0.12)', shine: 'rgba(255,255,255,0.04)' },
       plate: { fill: '#0a0a0c', edge: 'rgba(255,255,255,0.08)' },
       slot: '#040405',
-      // `blend`: how a painted colour is laid on this cap in the HTML board (max-ui.js). Multiply keeps a colour true on white; the default (hard-light) is true on mid-grey and vivid on black, but clips on white.
-      cap: { face: ['#ffffff', '#f1f1f3'], body: ['#d6d7da', '#a4a6ab'], legend: '#16171a', lit: 0.035, blend: 'multiply' },
+      cap: { face: ['#ffffff', '#f1f1f3'], body: ['#d6d7da', '#a4a6ab'], legend: '#16171a', lit: 0.035 },
       accents: {
         // an accent cap is coloured all over; its print is white
         grey: {
           face: ['#8d8e92', '#78797d'], body: ['#6c6d71', '#4b4c50'], legend: '#ffffff',
-          keys: ['Tab', 'CapsLock', 'ShiftLeft', 'ShiftRight', 'CtrlLeft', 'WinLeft', 'AltLeft', 'Fn', 'CtrlRight', 'Backspace', 'Delete', 'PageUp', 'PageDown', 'End'],
+          keys: ['Tab', 'Caps', 'Shift', 'Ctrl', 'Win', 'Alt', 'Fn', 'Backspace', 'Del', 'PgUp', 'PgDn', 'End'],
         },
         dark: { face: ['#6d6e72', '#58595d'], body: ['#505155', '#37383b'], legend: '#ffffff', keys: ['F5', 'F6', 'F7', 'F8'] },
         black: { face: ['#2b2c2f', '#1b1c1e'], body: ['#202123', '#0c0d0e'], legend: '#ffffff', keys: ['Esc', 'Enter', 'Up', 'Left', 'Down', 'Right', 'Space'] },
@@ -141,9 +158,8 @@
       knob: { r: 0.54, ring: ['#eef0f3', '#a3a9b2', '#4e535b', '#cfd3d9'], face: '#0b0b0d', dent: 'rgba(255,255,255,0.07)' },
       indicators: [
         { kind: 'bar', x: 1.5, y: 0.5, len: 0.55 },
-        { kind: 'dot', x: -0.26, key: 'CapsLock' },
+        { kind: 'dot', x: -0.26, key: 'Caps' },
       ],
-      underlight: true, // lit keys glow from under and around the caps, as on the F75 (max-ui.js); the caps keep their own colour
       usb: true,
     },
   };

@@ -27,7 +27,7 @@ test('every model names Fn + Esc, held for 5 seconds, as its hard reset', () => 
 test('the note sits inside the Reset keyboard row, after its button', () => {
   const html = read('src/index.html');
   const row = html.slice(html.indexOf('<b>Reset keyboard</b>'));
-  const end = row.indexOf('<b>Demo keyboard</b>');
+  const end = row.indexOf('</section>'); // the Reset keyboard row is the last one of the section
   const part = row.slice(0, end);
   assert.ok(part.indexOf('id="kbReset"') > -1, 'the button is in the row');
   assert.ok(part.indexOf('id="resetHotkey"') > part.indexOf('id="kbReset"'), 'the note comes after the button');

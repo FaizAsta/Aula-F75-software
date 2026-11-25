@@ -41,7 +41,7 @@
     if (id === 'max' || id === 'he') {
       const api = id === 'he' ? HE : MX;
       const grid = (api && api.GRID) || { w: 16, h: 6 };
-      const keys = ((api && api.keyLayout && api.keyLayout()) || []).map((k) => ({ n: legendName(k.name), acc: k.name, x: k.x, y: k.y, w: k.w }));
+      const keys = ((api && api.keyLayout && api.keyLayout()) || []).map((k) => ({ n: legendName(k.name), acc: legendName(k.name), x: k.x, y: k.y, w: k.w }));
       return { id, skin: id === 'he' ? 'f75he' : 'max', keys, w: grid.w, h: grid.h };
     }
     const m = L.MODELS.find((x) => x.id === id) || L.MODELS.find((x) => x.id === L.DEFAULT_MODEL);

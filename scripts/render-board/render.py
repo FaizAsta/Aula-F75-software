@@ -26,7 +26,7 @@ import sys
 import time
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from scipy import ndimage as ndi
 
 # ----------------------------------------------------------------------------------------------- camera and geometry
@@ -191,7 +191,10 @@ def add_cap(S, x, y_back_g, w, kh_ground, body_cols, face_cols, accent=False, li
     S.paint(sl, m, alb=col, rough=0.66 * fmix + 0.52 * (1 - fmix), metal=0.0, grain=0.42 * fmix + 0.2 * (1 - fmix), mid=1)
 
 
-def add_knob(S, cx, cy_g, r, top_z, ring, face, knurls=48):
+def add_knob(S, cx, cy_g, r, top_z, ring, face, knurls=48, face_frac=0.74, dish=False, dot=True):
+    """A knob. The default is a flat ring with a knurled edge and a chamfer into a dished face (the F75, F75 Pro, F75 HE). With
+    `dish` it is the F75 Max's: a smooth silver ring with a flat outer lip that slopes down into a wide, flat, light top
+    (`face_frac` is the top's radius as a fraction of the knob's)."""
     win = S.win(cx - r - 0.2, cy_g - r - 0.2, cx + r + 0.2, cy_g + r + 0.2)
     if win is None:
         return
@@ -199,17 +202,33 @@ def add_knob(S, cx, cy_g, r, top_z, ring, face, knurls=48):
     dx, dy = X - cx, Y - cy_g
     rho = np.hypot(dx, dy)
     th = np.arctan2(dy, dx)
-    ra = r * (1 + 0.012 * np.cos(knurls * th))  # knurled edge
+    ra = r * (1 + (0.0 if dish else 0.012) * np.cos(knurls * th))  # knurled edge
     inside = rho < ra
+    face_r = r * face_frac
+    if dish:
+        lip = r * 0.90  # the flat outer lip of the ring
+        depth = 0.085  # how far the top sits below the lip
+        slope = smoothstep(face_r, lip, rho)  # 0 at the top's edge, 1 at the lip
+        z = top_z - depth * (1 - slope) ** 1.35
+        z = np.where(rho < face_r, top_z - depth, z)
+        edge = np.clip((ra - rho) / 0.03, 0, 1)  # round off the outer edge
+        z = z - (1 - np.sqrt(1 - (1 - edge) ** 2)) * 0.03
+        z = np.where(inside, z, 0).astype(np.float32)
+        hsl = S.h[sl]
+        np.maximum(hsl, z, out=hsl)
+        on_face = inside & (rho < face_r * 0.97)
+        on_ring = inside & ~on_face
+        S.paint(sl, on_ring, alb=ring, rough=0.36, metal=0.6, grain=0.0, mid=6, sparkle=1.0)  # satin silver: part metal, part pale paint, so its slope is not a dark mirror
+        S.paint(sl, on_face, alb=face, rough=0.46, metal=0.0, grain=0.12, mid=7)
+        return
     base = ZP
     # ring top flat, a chamfer into the face, a dished face
-    face_r = r * 0.74
-    ch_r = r * 0.80
+    ch_r = r * (face_frac + 0.06)
     z = np.full(rho.shape, top_z, np.float32)
     ch = smoothstep(ch_r, face_r, rho)  # 0 on the ring, 1 inside the chamfer
     z = z - ch * 0.03
-    dish = np.clip(1 - (rho / face_r) ** 2, 0, 1) * 0.03
-    z = np.where(rho < face_r, top_z - 0.03 - dish, z)
+    dsh = np.clip(1 - (rho / face_r) ** 2, 0, 1) * 0.03
+    z = np.where(rho < face_r, top_z - 0.03 - dsh, z)
     # round off the top outer edge
     edge = np.clip((ra - rho) / 0.035, 0, 1)
     z = z - (1 - np.sqrt(1 - (1 - edge) ** 2)) * 0.035
@@ -220,16 +239,86 @@ def add_knob(S, cx, cy_g, r, top_z, ring, face, knurls=48):
     on_face = inside & (rho < ch_r)
     S.paint(sl, on_ring, alb=ring, rough=0.34, metal=1.0, grain=0.0, mid=6, sparkle=1.0)
     S.paint(sl, on_face, alb=face, rough=0.22, metal=0.0, grain=0.05, mid=7)
-    # a pale marker dot on the face
-    mx, my = cx + math.cos(-1.1) * r * 0.55, cy_g + math.sin(-1.1) * r * 0.55
-    dot = np.hypot(X - mx, Y - my) < r * 0.07
-    S.paint(sl, dot & on_face, alb=np.array([0.55, 0.57, 0.6], np.float32), mid=7)
+    if dot:
+        # a pale marker dot on the face
+        mx, my = cx + math.cos(-1.1) * r * 0.55, cy_g + math.sin(-1.1) * r * 0.55
+        dm = np.hypot(X - mx, Y - my) < r * 0.07
+        S.paint(sl, dm & on_face, alb=np.array([0.55, 0.57, 0.6], np.float32), mid=7)
 
 
-def add_screen(S, sc, bez=lin('#050606')):
-    """The F75 Max's small colour screen: a black bezel, a glass panel and a lit display with a few lines of text on it.
-    `sc` is {x, y, w, h} in key units, measured from the key block's top-left corner."""
-    z_b, z_g = ZP + 0.045, ZP + 0.03
+def _font(size, bold=True):
+    """A serif face for the little screen (the real one uses a pixel serif); falls back to whatever Pillow has."""
+    names = (['LiberationSerif-Bold.ttf', 'DejaVuSerif-Bold.ttf', 'timesbd.ttf', 'Times New Roman Bold.ttf'] if bold
+             else ['LiberationSerif-Regular.ttf', 'DejaVuSerif.ttf', 'times.ttf', 'Times New Roman.ttf'])
+    dirs = ['', '/usr/share/fonts/truetype/liberation/', '/usr/share/fonts/truetype/dejavu/', 'C:/Windows/Fonts/', '/Library/Fonts/', '/System/Library/Fonts/Supplemental/']
+    for d in dirs:
+        for n in names:
+            try:
+                return ImageFont.truetype(d + n, size)
+            except Exception:
+                continue
+    try:
+        return ImageFont.load_default(size)
+    except Exception:
+        return ImageFont.load_default()
+
+
+def screen_face(pw, ph, ui):
+    """What the F75 Max's screen shows, as a (ph, pw, 3) picture in display values 0..1: the date and the battery along the top,
+    the time in big figures, and a row of little boxes for the connection mode and the lock lights, as on the real board."""
+    ui = ui or {}
+    ss = 4  # draw big, then average down, so the small print is smooth
+    W, H = pw * ss, ph * ss
+    im = Image.new('RGB', (W, H), (2, 3, 6))
+    d = ImageDraw.Draw(im)
+    u = W / 100.0  # a hundredth of the screen's width
+    ink = (205, 222, 255)
+    cyan = (70, 190, 255)
+
+    def text(x, y, t, size, fill, bold=True, anchor='lm'):
+        d.text((x * u, y * H / 100.0), t, font=_font(int(size * u), bold), fill=fill, anchor=anchor)
+
+    # top row: date at the left, battery percentage and a battery at the right
+    text(9, 17, ui.get('date', '12/02'), 11.5, ink, False)
+    pct = max(0, min(100, int(ui.get('battery', 91))))
+    text(46, 17, f'{pct}%', 11.5, ink, False)
+    bx0, bx1, by0, by1 = 69, 88, 11.5, 22.5  # battery body
+    d.rounded_rectangle([bx0 * u, by0 * H / 100, bx1 * u, by1 * H / 100], radius=1.4 * u, outline=cyan, width=max(2, int(1.0 * u)))
+    d.rectangle([bx1 * u, 15 * H / 100, (bx1 + 1.6) * u, 19 * H / 100], fill=cyan)
+    n = 4
+    for i in range(n):
+        if (i + 0.5) / n <= pct / 100.0 + 0.12:
+            x0 = (bx0 + 2.0 + i * (bx1 - bx0 - 4.0) / n) * u
+            x1 = (bx0 + 2.0 + (i + 1) * (bx1 - bx0 - 4.0) / n - 0.9) * u
+            d.rectangle([x0, (by0 + 2.2) * H / 100, x1, (by1 - 2.2) * H / 100], fill=cyan)
+    # the time
+    text(50, 46, ui.get('time', '16:26:21'), 19.5, (246, 248, 255), True, 'mm')
+    # the row of boxes: the connection mode and link (lit), then caps lock, shift lock and num lock (dim)
+    bw, gap, y0, y1 = 14.2, 2.9, 66, 66 + 14.2 * W / H
+    x = 8.5
+    labels = [(ui.get('mode', 'WIN'), True), (ui.get('link', 'BT'), True), ('', False), ('A', False), ('1', False)]
+    for i, (lab, lit) in enumerate(labels):
+        box = [x * u, y0 * H / 100, (x + bw) * u, y1 * H / 100]
+        if lit:
+            d.rounded_rectangle(box, radius=1.8 * u, fill=(14, 60, 110), outline=(80, 190, 255), width=max(2, int(0.7 * u)))
+            text(x + bw / 2, (y0 + y1) / 2, lab, 5.3, (225, 242, 255), True, 'mm')
+        else:
+            d.rounded_rectangle(box, radius=1.8 * u, fill=(34, 36, 14), outline=(98, 100, 44), width=max(2, int(0.7 * u)))
+            if lab:
+                text(x + bw / 2, (y0 + y1) / 2, lab, 8.2, (176, 178, 90), True, 'mm')
+            else:  # a padlock
+                cxm, cym = (x + bw / 2) * u, (y0 + y1) / 2 * H / 100
+                d.rectangle([cxm - 2.6 * u, cym - 0.2 * u, cxm + 2.6 * u, cym + 3.4 * u], fill=(176, 178, 90))
+                d.arc([cxm - 1.9 * u, cym - 3.4 * u, cxm + 1.9 * u, cym + 1.0 * u], 180, 360, fill=(176, 178, 90), width=max(2, int(0.7 * u)))
+        x += bw + gap
+    im = im.resize((pw, ph), Image.LANCZOS)
+    return np.asarray(im, np.float32) / 255.0
+
+
+def add_screen(S, sc, bez=lin('#050606'), base_z=ZP):
+    """The F75 Max's small colour screen: a black bezel, a glass panel and a lit display (date, battery, time and mode lights).
+    `sc` is {x, y, w, h, ui} in key units, measured from the key block's top-left corner. `base_z` is the surface it sits in."""
+    z_b, z_g = base_z + 0.014, base_z - 0.004
     zs = KAPPA * z_b
     win = S.win(sc['x'] - 0.2, sc['y'] + zs - 0.2, sc['x'] + sc['w'] + 0.2, sc['y'] + sc['h'] + zs + 0.2)
     if win is None:
@@ -238,36 +327,34 @@ def add_screen(S, sc, bez=lin('#050606')):
     cx, cy = sc['x'] + sc['w'] / 2, sc['y'] + sc['h'] / 2 + zs
     hw, hh = sc['w'] / 2, sc['h'] / 2
     # the bezel: a slightly raised black frame with a rounded edge
-    bsd = sd_rrect(X, Y, cx, cy, hw, hh, 0.07)
+    bsd = sd_rrect(X, Y, cx, cy, hw, hh, 0.085)
     bm = bsd < 0
     hs = S.h[sl]
     hs[bm] = z_b - 0.02 * np.clip(1 + bsd[bm] / 0.03, 0, 1)
     S.paint(sl, bm, alb=bez, rough=0.35, metal=0.0, grain=0.05, mid=8)
     # the glass: inset, smooth, with the display lit under it
-    m = 0.055
-    gsd = sd_rrect(X, Y, cx, cy, hw - m, hh - m, 0.035)
+    m = 0.045
+    gsd = sd_rrect(X, Y, cx, cy, hw - m, hh - m, 0.05)
     gm = gsd < 0
     hs[gm] = z_g
-    # the display: dark green at the bottom, a soft glow at the top left, and three lines of text
-    u = np.clip((X - (cx - hw + m)) / max(2 * (hw - m), 1e-3), 0, 1)
-    v = np.clip((Y - (cy - hh + m)) / max(2 * (hh - m), 1e-3), 0, 1)
-    glow = np.clip(1 - np.hypot(u * 1.0, v * 1.4) * 1.05, 0, 1) ** 1.6
-    em = np.zeros(X.shape + (3,), np.float32)
-    base_c = np.array([0.0012, 0.012, 0.006], np.float32)
-    glow_c = np.array([0.02, 0.18, 0.085], np.float32)
-    em += base_c + glow[..., None] * glow_c
-    for (v0, v1, u1, c) in ((0.22, 0.34, 0.34, (0.55, 0.62, 0.58)), (0.45, 0.57, 0.58, (0.10, 0.70, 0.36)), (0.68, 0.80, 0.44, (0.30, 0.34, 0.32))):
-        bar = (v > v0) & (v < v1) & (u > 0.10) & (u < 0.10 + u1)
-        # soft ends
-        em[bar] = np.array(c, np.float32) * 0.55
-    S.paint(sl, gm, alb=np.array([0.004, 0.006, 0.005], np.float32), rough=0.1, metal=0.0, grain=0.0, mid=8)
+    gw, gh = (sc['w'] - 2 * m), (sc['h'] - 2 * m)
+    pw, ph = int(round(gw * S.R)), int(round(gh * S.R))
+    face = screen_face(pw, ph, sc.get('ui'))
+    iu = np.clip(np.floor((X - (cx - gw / 2)) / gw * pw).astype(np.int32), 0, pw - 1)
+    iv = np.clip(np.floor((Y - (cy - gh / 2)) / gh * ph).astype(np.int32), 0, ph - 1)
+    em = (face[iv, iu] ** 2.2) * 1.4  # display values -> light
+    # a soft light across the glass, brighter at the top left
+    u = np.clip((X - (cx - gw / 2)) / gw, 0, 1)
+    v = np.clip((Y - (cy - gh / 2)) / gh, 0, 1)
+    em = em + (np.clip(1 - np.hypot(u * 1.0, v * 1.2), 0, 1) ** 2.0)[..., None] * np.array([0.0015, 0.004, 0.012], np.float32)
+    S.paint(sl, gm, alb=np.array([0.004, 0.005, 0.007], np.float32), rough=0.1, metal=0.0, grain=0.0, mid=8)
     S.emit[sl][gm] = em[gm]
 
 
 def build_base(S, skin, model, mb):
     """Case, plate well, key slots, knob and usb port. The key block's top-left is (0, 0) in screen units."""
     W, H = model['width'], model['height']
-    pad, pp = 0.42, 0.14
+    pad, pp = 0.42, skin.get('wellPad', 0.14)  # the case's width round the key block, and how far the dark plate well reaches beyond the keys (a skin can say: the F75 Max's is small)
     case_top = lin(skin['case']['top'])
     case_bot = lin(skin['case']['bottom'])
     plate = lin(skin['plate']['fill'])
@@ -291,15 +378,23 @@ def build_base(S, skin, model, mb):
     col = case_top[None, None, :] * (1 - sy[..., None]) + case_bot[None, None, :] * sy[..., None]
     S.paint(sl, inside, alb=col, rough=0.42, metal=0.0, grain=0.22, mid=2)
 
-    # usb port: a notch in the back rim
+    # usb port: a notch in the back rim. A skin can set `usbAt` (its x, in key units) and `usbInk` (a colour): the F75 Max has a
+    # small pale tab left of centre instead of a dark notch in the middle.
     if skin.get('usb'):
-        pwin = S.win(W / 2 - 0.7, -pad + shift - 0.1, W / 2 + 0.7, -pad + shift + 0.4)
+        ux = skin.get('usbAt', W / 2)
+        half = 0.28 if 'usbAt' in skin else 0.52
+        pwin = S.win(ux - half - 0.2, -pad + shift - 0.1, ux + half + 0.2, -pad + shift + 0.4)
         psl, PX, PY = pwin
-        psd = sd_rrect(PX, PY, W / 2, -pad + shift + 0.06, 0.52, 0.12, 0.06)
+        psd = sd_rrect(PX, PY, ux, -pad + shift + 0.06, half, 0.12, 0.06)
         pm = psd < 0
         hpl = S.h[psl]
-        hpl[pm] = ZTOP - 0.16
-        S.paint(psl, pm, alb=np.array([0.012, 0.012, 0.014], np.float32), rough=0.5, metal=0.0, grain=0.0, mid=5)
+        if skin.get('usbInk'):
+            crown_e = 0.10 * (((ux - ccx) / hw) ** 2 + ((-pad + 0.06 + shift - ccy) / hh) ** 2)
+            hpl[pm] = ZTOP - crown_e + 0.02
+            S.paint(psl, pm, alb=lin(skin['usbInk']), rough=0.5, metal=0.0, grain=0.1, mid=2)
+        else:
+            hpl[pm] = ZTOP - 0.16
+            S.paint(psl, pm, alb=np.array([0.012, 0.012, 0.014], np.float32), rough=0.5, metal=0.0, grain=0.0, mid=5)
 
     # plate well, cut into the case with a small chamfer
     wshift = shift
@@ -307,7 +402,7 @@ def build_base(S, skin, model, mb):
     whw, whh = W / 2 + pp, H / 2 + pp
     win = S.win(wcx - whw - 0.1, wcy - whh - 0.1, wcx + whw + 0.1, wcy + whh + 0.1)
     sl, X, Y = win
-    wsd = sd_rrect(X, Y, wcx, wcy, whw, whh, 0.26)
+    wsd = sd_rrect(X, Y, wcx, wcy, whw, whh, skin.get('wellR', 0.26))
     wd = -wsd
     inw = wd > 0
     ch = 0.035
@@ -316,6 +411,41 @@ def build_base(S, skin, model, mb):
     h_sl[inw] = zw[inw]
     S.paint(sl, inw, alb=plate, rough=0.55, metal=0.0, grain=0.4, mid=3)
     # a thin bright chamfer on the well's lip is what the reflections pick up; it is geometry, so nothing to paint
+
+    # a panel level with the case that the plate does not run under (the F75 Max: the screen and the knob stand in white case
+    # material to the right of F12, not on the dark plate). It rises out of the well with the same small chamfer as the lip, and
+    # follows the case's slight crown, so it has no step against the rim.
+    def crown_at(xx, yy):
+        return 0.10 * (((xx - ccx) / hw) ** 2 + ((yy - ccy) / hh) ** 2)
+
+    base_z = ZP
+    isl = skin.get('island')
+    # every panel as (x0, y0, x1, y1, corner radius) in key units: the big one right of F12, and any small ones the skin lists in
+    # `panels` ({x, y, w, h, r}; `toRim: true` carries one down into the case's bottom rim). The F75 Max has one in the bottom row,
+    # between Fn and the arrow keys: on the real board that gap is white case, not the dark plate.
+    panel_rects = []
+    if isl:
+        panel_rects.append((isl['x'], -pad + 0.2, W + pad - 0.2, isl['y'], 0.14))
+    for pn in skin.get('panels', []):
+        panel_rects.append((pn['x'], pn['y'], pn['x'] + pn['w'], (H + pad - 0.2) if pn.get('toRim') else pn['y'] + pn['h'], pn.get('r', 0.05)))
+    for (ix0, iy0, ix1, iy1, irr) in panel_rects:
+        icx, icy = (ix0 + ix1) / 2, (iy0 + iy1) / 2 + shift
+        iw, ih = (ix1 - ix0) / 2, (iy1 - iy0) / 2
+        iwin = S.win(ix0 - 0.2, iy0 + shift - 0.1, ix1 + 0.1, iy1 + shift + 0.3)
+        if iwin is not None:
+            isl_sl, IX, IY = iwin
+            isd = sd_rrect(IX, IY, icx, icy, iw, ih, irr)
+            zi = (ZTOP - crown_at(IX, IY)) - (ZTOP - ZP) * np.clip(isd / ch, 0, 1)
+            zi = np.where(isd < ch, zi, 0)  # only the panel and its small ramp: nothing is raised outside them (the case's own edge slope stays)
+            him = S.h[isl_sl]
+            np.maximum(him, zi.astype(np.float32), out=him)
+            top_m = isd < 0.5 * ch
+            sy2 = np.clip((IY - shift + pad - 0.0) / (H + 2 * pad), 0, 1)
+            col2 = case_top[None, None, :] * (1 - sy2[..., None]) + case_bot[None, None, :] * sy2[..., None]
+            S.paint(isl_sl, top_m, alb=col2, rough=0.42, metal=0.0, grain=0.22, mid=2)
+        if skin.get('screen'):
+            sc_ = skin['screen']
+            base_z = ZTOP - crown_at(sc_['x'] + sc_['w'] / 2, sc_['y'] + sc_['h'] / 2 + shift)
 
     # key slots: the plate is one flat dark surface (the real board shows no wells between the caps), so nothing is cut
     g = 0.022
@@ -338,13 +468,16 @@ def build_base(S, skin, model, mb):
         kn = skin['knob']
         kx = (kn['x'] if 'x' in kn else W - 0.5)
         ky = (kn['y'] if 'y' in kn else 0.5)
-        top_z = ZP + KNOB_H
-        # a hole round the knob, a little darker
+        if isl:
+            top_z = ZTOP - crown_at(kx, ky + shift) + 0.11  # stands on the case panel, a little proud of it
+        else:
+            top_z = ZP + KNOB_H
         add_knob(S, kx, ky + KAPPA * top_z, kn['r'], top_z,
-                 lin(kn['ring'][1]) * 0.45 + 0.55 * lin(kn['ring'][0]), lin(kn['face']))
+                 lin(kn['ring'][1]) * 0.45 + 0.55 * lin(kn['ring'][0]), lin(kn['face']),
+                 face_frac=kn.get('faceR', 0.74), dish=bool(kn.get('dish')), dot=kn.get('dot', True))
     # the F75 Max's colour screen
     if skin.get('screen'):
-        add_screen(S, skin['screen'])
+        add_screen(S, skin['screen'], base_z=base_z)
 
 
 # ----------------------------------------------------------------------------------------------- shading
@@ -504,7 +637,7 @@ def render(S, probe=False, block=384, light_scale=1.0, verbose=False):
         # the softbox reflection is cut by shadows and occlusion like the direct light
         env = env * (0.35 + 0.65 * vis_k) * (0.4 + 0.6 * ao)
         # how much reflection each material has: the plate is nearly black, the case and the PBT caps are matte
-        env = env * np.select([mid_ == 3, mid_ == 4, mid_ == 2, mid_ == 1], [0.16, 0.16, 0.55, 0.6], 1.0).astype(np.float32)
+        env = env * np.select([mid_ == 3, mid_ == 4, mid_ == 2, mid_ == 1, mid_ == 8], [0.16, 0.16, 0.55, 0.6, 0.22], 1.0).astype(np.float32)
         f0 = 0.04 * (1 - metal)[:, None] + alb * metal[:, None]
         fres = f0 + (1 - f0) * ((1 - ndv) ** 5)[:, None]
         # brushed metal: streaks across the reflection
@@ -561,6 +694,8 @@ def to_image(rgb, alpha, ss, exposure=1.0):
 # ----------------------------------------------------------------------------------------------- jobs
 def exposure_for(skin):
     """A light-coloured case or cap would clip to white under the same light, so those skins are exposed a little lower."""
+    if skin.get('exposure'):
+        return float(skin['exposure'])  # a skin can say how bright it is picked up (the F75 Max matches its photos at 0.87)
     return 0.74 if lin(skin['cap']['face'][0]).mean() > 0.5 else 1.0
 
 
@@ -595,7 +730,7 @@ def render_cap(skin, w, accent, R, ss, mc=MC, verbose=False):
     acc_face = skin['accents'][accent].get('face') if accent != '-' else None
     face_cols = [lin(c) for c in (acc_face or cap_cols['face'])]
     z_t = CAP_BASE + CAP_H
-    gap = GAP
+    gap = skin.get('capGap', GAP)  # a skin can pull its caps closer together (the F75 Max's nearly touch)
     tb = 0.045
     # ground depth so that the silhouette on screen is (1 - 2 gap) tall
     D = (1 - 2 * gap) + tb - KAPPA * CAP_H

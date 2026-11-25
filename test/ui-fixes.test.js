@@ -61,8 +61,8 @@ test('Settings: four pages, Keyboard first and Debugging last, each with its own
     assert.ok(i > from && i < to, `${id} sits on the right page`);
   };
 
-  // Keyboard page: connection, model, brightness levels, restore, demo keyboard, backup
-  for (const id of ['id="devConnect"', 'id="modelSel"', 'id="brightMaxSel"', 'id="swKeep"', 'id="swDemo"', '<h2>Backup</h2>']) within(id, kb, app);
+  // Keyboard page: brightness levels, restore, backup
+  for (const id of ['id="brightMaxSel"', 'id="swKeep"', '<h2>Backup</h2>']) within(id, kb, app);
   // App page: tray, start with Windows, updates (the light / dark chooser is on the Theme page, not here)
   for (const id of ['id="cardApp"', 'id="swTray"', 'id="swLogin"', 'id="updRow"']) within(id, app, theme);
   assert.ok(!html.slice(app, theme).includes('id="segTheme"'), 'the light / dark chooser is no longer on the App page');

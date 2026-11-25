@@ -16,7 +16,7 @@ test('the manifest has a picture of the Max case and a cap for every key of its 
   assert.ok(fs.existsSync(path.join(dir, e.base.file)), 'base file exists');
   const skin = SK.get('max');
   for (const k of MX.keyLayout()) {
-    const acc = SK.accentOf(skin, k.name);
+    const acc = SK.accentOf(skin, k.legend); // by the label the F75 window prints on the key
     const cap = e.caps[`${k.w}|${acc ? acc.name : '-'}`];
     assert.ok(cap, `a cap for ${k.name} (${k.w}u, ${acc ? acc.name : 'plain'})`);
     assert.ok(fs.existsSync(path.join(dir, cap.file)), `${cap.file} exists`);
@@ -30,28 +30,28 @@ test('the Max picture uses the same scale as the other models, so one manifest s
   assert.equal(e.oy, man.scale);
 });
 
-test('the keys of the Max screen are put on the picture (max-ui.js, max.css)', () => {
-  const js = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'max-ui.js'), 'utf8');
-  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'css', 'max.css'), 'utf8');
-  assert.match(js, /AulaBoardManifest/);
-  assert.match(js, /mx-photo/);
-  assert.match(css, /\.mx-board\.mx-photo\s*\{/);
-  assert.match(css, /\.mx-photo \.mx-key::before/);
-});
-
-test('the Max uses the F75 screen: its picture sits in the stage at the top, with the same chips and Live / Picture switch', () => {
+test('the Max is drawn by the F75 window\'s own keyboard picture: it registers its layout and says what each key shows, and no board of its own is built', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'max-ui.js'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'css', 'max.css'), 'utf8');
   const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'app.js'), 'utf8');
-  // the board is put in the stage next to the F75 canvas, and the stage is no longer hidden while a Max is connected
-  assert.match(js, /stage-max/);
-  assert.match(js, /canvasWrap\.after\(refs\.stageBox\)/);
-  assert.match(css, /\.shell\[data-family="max"\] \.stage-max\s*\{/);
-  assert.doesNotMatch(css, /\.shell\[data-family="max"\] \.stage,/);
-  // the chips and the Live / Picture switch are the F75's own, filled from what the app knows about the Max
+  const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.html'), 'utf8');
+  assert.match(js, /L\.define\(LAYOUT_ID, \{ name: FAM\.name, skin: FAM\.skin/, 'its keys go to layout.js under the F75\'s labels');
+  assert.match(js, /ctx\.canvasView/, 'the picture is the app\'s canvas');
+  assert.doesNotMatch(js, /mx-key|mx-board|stage-max|stageMax|makeBoard/, 'no second board');
+  assert.doesNotMatch(css, /\.mx-board|\.mx-key|\.stage-max/, 'no styles for one');
+  assert.ok(!html.includes('max-motion.js'), 'and no second copy of the pointer motion');
+  assert.match(app, /stage: \(id\) => useLayout\(id\)/, 'the app switches the picture to the keyboard\'s layout and back');
+  assert.match(app, /canvasView: \(\) => view/);
+  assert.match(app, /onPick: \(k, e, phase\) => \(MXU && MXU\.active\(\) \? MXU\.pick\(k, e, phase\) : handlePick\(k, e, phase\)\)/, 'the picture\'s pointer paints the Max\'s keys');
+  assert.match(app, /enabled: \(\) => \(MXU && MXU\.active\(\) \? MXU\.picking\(\)/);
+});
+
+test('the Max shows the F75 screen\'s chips and Live / Picture switch over that picture', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'max-ui.js'), 'utf8');
+  const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'js', 'app.js'), 'utf8');
   for (const id of ['#sbModel', '#sbLink', '#sbFx', '#sbColor', '#sbSpeed', '#sbBright', '#stageView']) assert.ok(js.includes(id), id);
   assert.match(app, /getView:\s*\(\)\s*=>\s*prefs\.view/);
-  // painting happens on that picture, and the picture only takes the pointer on the Per-key page
-  assert.match(js, /pointerdown[\s\S]{0,80}tab !== 'perkey'/);
-  assert.match(css, /\.stage-max:not\(\[data-paint="1"\]\) \.mx-key\s*\{\s*pointer-events:\s*none/);
+  assert.match(app, /pictureOnly: \(\) => pictureOnly\(\)/, 'Picture is decided in one place, the app\'s, for every keyboard');
+  assert.match(js, /view\.opts\.flat = tab === 'perkey'/, 'the Per-key page draws the board flat, as it is painted');
+  assert.match(js, /selection: perkey \? sel : NO_KEYS/, 'picked keys are outlined by the preview, as on the F75');
 });

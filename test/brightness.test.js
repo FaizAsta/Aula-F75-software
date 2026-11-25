@@ -15,7 +15,14 @@ const { MockKeyboard } = require('../src/js/mock.js');
 const { Session, memoryStorage } = require('../src/js/engine.js');
 const V = require('../src/js/preview.js');
 
-function make(storage = memoryStorage(), prepare = () => {}) {
+// Most of these tests are about a keyboard with the old 4 levels, so unless a test says otherwise the stored choice is 4.
+function fourLevels() {
+  const st = memoryStorage();
+  st.setItem('aula.bright.max', '4');
+  return st;
+}
+
+function make(storage = fourLevels(), prepare = () => {}) {
   const mock = new MockKeyboard();
   prepare(mock);
   const s = new Session({
@@ -41,7 +48,22 @@ test('protocol: levels above 4 are read and written as they are, up to the cap',
   assert.equal(P.getBrightness(led, e), P.LEVEL_MAX);
 });
 
-test('the app starts with 4 levels, never offers more than the setting, and remembers the setting', () => {
+test('with nothing saved the app starts with all 9 levels (0..9), on every keyboard of the family', () => {
+  const { s } = make(memoryStorage());
+  assert.equal(s.brightMax, P.BRIGHT_CAP);
+  assert.equal(s.brightMax, 9);
+  assert.equal(s.setBrightMax(4), 4, 'fewer levels can still be chosen');
+  const fresh = memoryStorage();
+  assert.equal(new Session({ storage: fresh }).brightMax, 9);
+  fresh.setItem('aula.bright.max', 'not a number');
+  assert.equal(new Session({ storage: fresh }).brightMax, 9, 'an unreadable value is the full range too');
+  fresh.setItem('aula.bright.max', '6');
+  assert.equal(new Session({ storage: fresh }).brightMax, 6, 'a level the person chose is kept');
+  fresh.setItem('aula.bright.max', '4');
+  assert.equal(new Session({ storage: fresh }).brightMax, 4, 'so is 4');
+});
+
+test('a person who chose 4 levels starts with 4, is never offered more than the setting, and the setting is remembered', () => {
   const { s, storage } = make();
   assert.equal(s.brightMax, 4);
   assert.equal(s.setBrightMax(1), 4, 'not below 4');
@@ -64,7 +86,7 @@ test('setBrightness stops at the number of levels the keyboard has', async () =>
 });
 
 test('a keyboard that is already above level 4 when the app connects is read correctly and its range is learned', async () => {
-  const { s } = make(memoryStorage(), (mock) => {
+  const { s } = make(fourLevels(), (mock) => {
     mock.led[slotOf(mock.led)] = 7;
   });
   await s.connectAuto();

@@ -1,0 +1,35 @@
+/* ==========================================================================
+   GPU glass (Settings > Theme > Liquid glass > Glass type > GPU). Loaded after glass-bend.css.
+
+   js/glass-gpu.js draws the glass of the surfaces that sit on the page (boxes, cards, pills, buttons, chips) on one <canvas> inside
+   .shell, above the background and below every control. Those surfaces keep their tint, shadow and text; only the backdrop-filter is
+   switched off here, because the canvas already shows the bent, blurred picture behind them (js/glass.js puts .ag-gpu on each one).
+   The slider lens, the tab highlight, the scroll thumb and the floating menus, messages, dialogs and the apply bar are not .ag-gpu: they bend what
+   is under them (controls and text), so they keep Realistic's SVG filters, which glass.css still sets on them.
+   Every rule needs html.glass.glass-gpu (js/glass.js sets the class only while the GPU is drawing), so Normal and Realistic are untouched.
+   ========================================================================== */
+
+.glass-gpu-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: -1; /* after the page colour, the picture and the video (all z-index -1, earlier in the page), so above them */
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+html.glass.glass-gpu .ag.ag-gpu,
+html.glass.glass-gpu[data-theme="light"] .ag.ag-gpu { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+html.glass.glass-gpu .ag-panel.ag-gpu::after,
+html.glass.glass-gpu[data-theme="light"] .ag-panel.ag-gpu::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+
+/* The tab bar holds the sliding highlight (.tab-ind), a lens with an SVG filter of its own. In Realistic the bar has a backdrop-filter, which makes it a
+   "backdrop root": the highlight sees only what is inside the bar (its tint), not the picture behind the page. The GPU draws the bar's glass on the
+   canvas instead, so without this the highlight would see the bright picture through it. will-change: filter makes the bar a backdrop root again
+   (it costs nothing: no filter runs), so the highlight looks the same in both types. */
+html.glass.glass-gpu .tabs.ag-gpu { will-change: filter; }
+
+/* The idle decorations that Realistic stops (glass-bend.css) cost the GPU glass nothing: it does not depend on what is inside a surface, so
+   they run as in Normal. (glass-bend.css leaves them alone while html.glass-gpu is set.) */
+
+/* With "reduce transparency" the canvas is hidden by js/glass-gpu.js and glass.css gives every surface a solid colour. */

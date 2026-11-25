@@ -137,8 +137,8 @@ async function run(style) {
   await tab(page, 'settings', 500);
   await settle(page, 'switching page closes the menu', () => !window.AulaSelect.isOpen());
 
-  // 8. the other selects (Battery: low battery alert; Settings: keyboard model, brightness levels) use the same menu
-  for (const [id, where] of [['#lowSel', 'battery'], ['#modelSel', 'settings'], ['#brightMaxSel', 'settings']]) {
+  // 8. the other selects (Battery: low battery alert; Settings: brightness levels) use the same menu
+  for (const [id, where] of [['#lowSel', 'battery'], ['#brightMaxSel', 'settings']]) {
     await tab(page, where, 600);
     if (where === 'settings') {
       for (const pg of ['keyboard', 'app', 'theme', 'debug']) {

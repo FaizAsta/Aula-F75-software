@@ -18,6 +18,7 @@
     if (mode === 3) return 0.1; // first colour of the cycle
     return STILL[mode] !== undefined ? STILL[mode] : 1.7;
   };
+  const DARK = [0, 0, 0];
   const LEVELS = [0, 0.25, 0.5, 0.75, 1];
   /** The glow for a brightness on the 0..4 scale; in-between values (a keyboard with more levels) fall between the steps. */
   const levelFor = (b) => {
@@ -416,18 +417,32 @@
       this.canvas.style.width = w + bleed.x * 2 + 'px';
       this.canvas.style.height = h + bleed.y * 2 + 'px';
       this.canvas.style.margin = `${-bleed.y}px 0 0 ${-bleed.x}px`;
+      const fit = this._fit(w, h, L.WIDTH, L.HEIGHT);
+      this.layout = {
+        u: fit.u, dpr, w, h,
+        bx: bleed.x, by: bleed.y, // how far the canvas reaches past the panel (left and right, top and bottom)
+        ox: fit.ox,
+        oy: fit.oy,
+      };
+      this.draw();
+    }
+
+    /** Where a keyboard of W x H key units sits in a w x h panel: { u, ox, oy } (the size of a key unit, and the corner of the key block). */
+    _fit(w, h, W, H) {
       // Room kept clear for the status pill above and the hint line below.
       const inset = this.opts.inset || { top: 0, bottom: 0 };
       const availH = Math.max(10, h - inset.top - inset.bottom);
       const pad = Math.min(w, availH) * 0.04; // the keyboard is the point of this view, so it gets nearly all of it
-      const u = Math.min(((w - pad * 2) / (L.WIDTH + 0.6)) * 0.85, (availH - pad * 2) / (L.HEIGHT + 0.6)); // 0.85: keeps the keyboard a little smaller than the full width of the stage
-      this.layout = {
-        u, dpr, w, h,
-        bx: bleed.x, by: bleed.y, // how far the canvas reaches past the panel (left and right, top and bottom)
-        ox: (w - L.WIDTH * u) / 2,
-        oy: inset.top + (availH - L.HEIGHT * u) / 2,
-      };
-      this.draw();
+      const u = Math.min(((w - pad * 2) / (W + 0.6)) * 0.85, (availH - pad * 2) / (H + 0.6)); // 0.85: keeps the keyboard a little smaller than the full width of the stage
+      return { u, ox: (w - W * u) / 2, oy: inset.top + (availH - H * u) / 2 };
+    }
+
+    /**
+     * Where a keyboard of W x H key units would sit in the panel as it is now. The glide from the device screen (glide.js) asks this for
+     * the keyboard it is about to open, before the picture has switched to that keyboard's layout.
+     */
+    fitFor(W, H) {
+      return this._fit(this.layout.w, this.layout.h, W, H);
     }
 
     destroy() {
@@ -677,7 +692,8 @@
         }
         return d;
       };
-      const eff = { ...s, pressed };
+      const eff = { ...s, pressed, animating: animate };
+      const painter = typeof s.paint === 'function' ? s.paint : null;
 
       // Lights going off (or coming back) fade over about half a second. Without animation, or on the first frame, it is instant.
       const dimTarget = s.dim ? 1 : 0;
@@ -699,7 +715,9 @@
       for (const k of L.KEYS) {
         const ia = this._introFactor((k.x + k.w / 2) / L.WIDTH);
         intro.set(k.led, ia);
-        const c = scale(keyColor(dimAmt >= 1 ? 0 : s.mode, k, t, eff), level * ia * (1 - dimAmt));
+        // `paint` (a keyboard with its own effects, the F75 Max and F75 HE): the screen says what each key shows, as [r, g, b] or null.
+        const raw = painter ? (dimAmt >= 1 ? null : painter(k, t, eff)) || DARK : keyColor(dimAmt >= 1 ? 0 : s.mode, k, t, eff);
+        const c = scale(raw, level * ia * (1 - dimAmt));
         colors.set(k.led, c);
         mr += c[0];
         mg += c[1];

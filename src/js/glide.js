@@ -72,8 +72,8 @@
   /**
    * Where the keyboard picture has to land: the rectangle the preview draws the case in, in window pixels. For the F75 family
    * that is worked out from the preview's own layout (the same numbers preview.js draws with), so the picture lands exactly on
-   * the live one. The F75 Max and F75 HE draw their board in the page instead (max-ui.js, css/max.css .stage-max), so there it
-   * is the box that board is centred in.
+   * the live one. The F75 Max and F75 HE are drawn by that same preview, but it is still showing the F75 layout when the glide
+   * starts, so their size comes from the layout they are about to switch to (view.fitFor).
    */
   function target(slide, aspect, stage) {
     const sr = stage.getBoundingClientRect();
@@ -84,11 +84,12 @@
     const host = $('.stage-canvas', stage);
     const id = slide.dataset.pic;
     const view = A && A.view;
-    if (id !== 'max' && id !== 'he' && view && view.layout && view.layout.u > 0 && DP && man && host) {
-      const fr = DP.frameOf(man, DP.modelOf(id).skin);
+    if (view && view.layout && view.layout.u > 0 && DP && man && host) {
+      const model = DP.modelOf(id);
+      const fr = DP.frameOf(man, model.skin);
       if (fr) {
         const hr = host.getBoundingClientRect();
-        const { u, ox, oy } = view.layout;
+        const { u, ox, oy } = id === 'max' || id === 'he' ? view.fitFor(model.w, model.h) : view.layout;
         const w = fr.across * u;
         const h = w / fr.aspect;
         if (w > 60 && w <= sr.width * 1.1 && h <= sr.height * 1.1) {
@@ -96,7 +97,7 @@
         }
       }
     }
-    // Centred in the stage, clear of the chips along its foot (css/max.css: padding 12px 16px 38px).
+    // No live picture to land on (too small, or no pictures): centred in the stage, clear of the chips along its foot.
     const aw = sr.width - 32;
     const ah = sr.height - 50;
     const w = Math.min(aw, ah * aspect);
@@ -163,7 +164,6 @@
     // It melts into the live keyboard: the live one comes up a little sooner than the copy goes, so the picture never dips.
     anims.push(ghost.animate([{ opacity: 1 }, { opacity: 0 }], { delay: LAND + 70, duration: 300, easing: 'linear', fill: 'forwards' }));
     enter($('.stage-canvas'), { opacity: 0 }, LAND, 260, 'linear');
-    enter($('.stage-max'), { opacity: 0 }, LAND, 260, 'linear');
 
     // ---- the device screen goes
     leave($('.hd-head', home), { opacity: 0, translate: '0 -14px' }, 0, 300);
@@ -264,7 +264,6 @@
     // It melts in over the live keyboard a little before that one goes, so the picture never dips...
     anims.push(ghost.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'linear', fill: 'both' }));
     leave($('.stage-canvas'), { opacity: 0 }, 110, 200);
-    leave($('.stage-max'), { opacity: 0 }, 110, 200);
     // ...and at the other end the box's own picture comes up under the copy, which then goes.
     enter(src, { opacity: 0 }, LAND, 260, 'linear');
     anims.push(ghost.animate([{ opacity: 1 }, { opacity: 0 }], { delay: LAND + 70, duration: 300, easing: 'linear', fill: 'forwards' }));

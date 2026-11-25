@@ -78,7 +78,9 @@ test('the page has the question, with one card for each UI, as a radio group', (
   assert.equal((html.match(/class="sp-card"[^>]*role="radio"/g) || []).length, 2);
   assert.match(html, /data-style-choice="classic"/);
   assert.match(html, /id="spGo"/, 'a Continue button');
-  assert.match(html, /Experimental/, 'Liquid glass is labelled experimental, as it is in Settings');
+  const glassCard = html.match(/data-style-choice="glass"[\s\S]*?<\/button>/)[0];
+  assert.doesNotMatch(glassCard, /experimental/i, 'Liquid glass is no longer labelled experimental');
+  assert.doesNotMatch(html, /id="styleTag"|id="styleCaution"/, 'no experimental tag or caution on the Settings UI row');
 });
 
 test('the question sits between the start screen and the device list', () => {

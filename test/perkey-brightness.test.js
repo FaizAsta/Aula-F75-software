@@ -27,10 +27,15 @@ const { CableKeyboard } = require('./fake-cable.js');
 const RED = [255, 0, 0];
 const ledsOf = (model) => model.keys.slice(0, 3).map((k) => k.led);
 const planar = (colors, led) => [colors[led], colors[led + 126], colors[led + 252]];
-const LEVELS = 4; // the app starts with four brightness levels
+const LEVELS = 4; // these tests are about a 4-level setup: the app now starts with nine, so the stored choice is pinned to four
+const fourLevels = () => {
+  const st = memoryStorage();
+  st.setItem('aula.bright.max', '4');
+  return st;
+};
 const dim = (rgb, level) => rgb.map((v) => Math.round((v * level) / LEVELS));
 
-async function withCable(model, kbOpts, body, storage = memoryStorage()) {
+async function withCable(model, kbOpts, body, storage = fourLevels()) {
   const [hid, restore] = installFakeHid();
   let s;
   try {
@@ -96,7 +101,7 @@ for (const m of L.MODELS) {
 
   test(`${m.id} on the dongle: the per-key colours are written again with a brightness change`, async () => {
     const kb = new MockKeyboard({ ledCount: 126, layoutKeys: m.keys });
-    const s = new Session({ storage: memoryStorage(), transportTimeout: 150, discover: async () => [{ io: kb, meta: { mode: 'dongle', label: '2.4G dongle' } }] });
+    const s = new Session({ storage: fourLevels(), transportTimeout: 150, discover: async () => [{ io: kb, meta: { mode: 'dongle', label: '2.4G dongle' } }] });
     try {
       assert.equal(await s.connectAuto(), true);
       const leds = ledsOf(m);
@@ -161,7 +166,7 @@ test('cable that cannot hand over the colours: the ones this app wrote are sent 
 });
 
 test('cable that cannot hand over the colours: after the app is closed and opened again the colours are still sent', async () => {
-  const storage = memoryStorage();
+  const storage = fourLevels();
   const model = L.MODELS[0];
   const leds = ledsOf(model);
   await withCable(model, { serves: ['led'] }, async ({ s }) => {
@@ -194,7 +199,7 @@ test('cable that cannot hand over the colours and nothing painted yet: the resul
 });
 
 test('the demo keyboard never stores per-key colours for the real keyboard', async () => {
-  const storage = memoryStorage();
+  const storage = fourLevels();
   const kb = new MockKeyboard({ ledCount: 126, layoutKeys: L.MODELS[0].keys });
   const s = new Session({ storage, transportTimeout: 150, discover: async () => [{ io: kb, meta: { mode: 'demo', label: 'Demo keyboard' } }] });
   try {
@@ -249,7 +254,7 @@ test('painting keys while the brightness is lowered sends them dimmed, and the a
 });
 
 test('after the app is opened again the colours show at full strength, not as the dimmed copy the keyboard holds', async () => {
-  const storage = memoryStorage();
+  const storage = fourLevels();
   const model = L.MODELS[0];
   const leds = ledsOf(model);
   let held;
@@ -276,7 +281,7 @@ test('after the app is opened again the colours show at full strength, not as th
 });
 
 test('colours that something else put on the keyboard are taken as they are', async () => {
-  const storage = memoryStorage();
+  const storage = fourLevels();
   const model = L.MODELS[0];
   const leds = ledsOf(model);
   await withCable(model, {}, async ({ kb, s }) => {

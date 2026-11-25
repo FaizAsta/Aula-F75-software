@@ -262,7 +262,7 @@ async function showDevice(page, card) {
 }
 
 /** Start -> device list -> pick the card whose text matches -> the main screen. */
-async function enter(page, card = /Demo keyboard/, { ready = true } = {}) {
+async function enter(page, card = /Demo AULA F75(?! Pro)/, { ready = true } = {}) {
   await page.click('#hmStart');
   const wantsDemo = /demo/i.test(card instanceof RegExp ? card.source : String(card));
   await page.waitForSelector(wantsDemo ? '#hmDemos' : '#hmList .hm-dev');
@@ -372,7 +372,7 @@ const SHOTS = {
     await page.waitForSelector('#hmDemos');
     await wait(500);
     await page.click('#hmDemos');
-    await page.waitForFunction(() => document.querySelectorAll('#hmList .hm-dev').length === 3 && document.getElementById('hmTitle').textContent === 'Demo keyboards');
+    await page.waitForFunction(() => document.querySelectorAll('#hmList .hm-dev').length === 5 && document.getElementById('hmTitle').textContent === 'Demo keyboards');
     await wait(1800);
     await snap(page, 'demo-keyboards');
     check(page, 'demo-keyboards');
@@ -402,7 +402,7 @@ const SHOTS = {
   },
 
   // The Support button in the header, with its menu open.
-  // Liquid glass (experimental) needs a picture to bend, so this one runs over the preset background that ships with the app.
+  // Liquid glass needs a picture to bend, so this one runs over the preset background that ships with the app.
   async 'lighting-glass'() {
     const preset = BACKGROUNDS[0];
     const page = await open('demo', { extra: { style: 'glass' }, memory: preset ? { 'aula.bgPreset': preset, 'aula.bgOpacity': '0.5' } : {} });
@@ -553,6 +553,18 @@ const SHOTS = {
     await wait(500);
     await snap(page, 'settings-theme');
     check(page, 'settings-theme');
+    await page.ctx.close();
+  },
+
+  // The F75 Max (experimental): a simulated one on its 2.4G dongle, found and opened the way a real one is. Its picture is the white / blue /
+  // purple board (src/img/board, made by scripts/render-board/render.py).
+  async max() {
+    const page = await open('max');
+    await enter(page, /F75 Max/i);
+    await wait(800);
+    await snap(page, 'max');
+    // Known and harmless: while this screen is up, the hidden F75 preview's roundRect() is given a negative radius (arcTo throws).
+    check(page, 'max', /arcTo/);
     await page.ctx.close();
   },
 

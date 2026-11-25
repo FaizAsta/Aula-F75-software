@@ -18,12 +18,18 @@
 -->
 
 <!--
-  BUMPING THE VERSION (note for anyone who edits this project, people and AI assistants alike).
+  THE VERSION (note for anyone who edits this project, people and AI assistants alike).
 
-  When the version is bumped, change only the version number: in package.json ("version") and in the Version
-  badge below (the X.Y.Z in badge/version-X.Y.Z-blue). The only other edit is the new header at the top of
-  RELEASE_NOTES.md (see the note at the top of that file). Change nothing else: no README text, no screenshots,
-  no tests. `npm test` checks that the two numbers agree.
+  Do not bump or edit the version by hand. The "Build and release" workflow (.github/workflows/build.yml) is the only
+  place a version is chosen: when it is run it asks for the version (for example X.Y.Z or X.Y.Z-beta.1) and the release
+  type (stable or pre-release), writes that version into package.json ("version"), builds the app with it and publishes
+  the release v<version>. The app reads its version from package.json, and its update check compares it with the
+  releases the workflow publishes. The 0.0.0 in package.json is only a placeholder that the workflow replaces: leave it
+  alone (the key must stay, because the workflow edits it).
+  The Version badge below is live: it asks GitHub for the latest stable release (pre-releases are not counted), so
+  there is no version to edit in this README either.
+  The only other edit when releasing is the new header at the top of RELEASE_NOTES.md (see the note at the top of that
+  file). `npm test` checks that the badge is the live one and that no version number is typed into the README.
 -->
 
 <div align="center">
@@ -34,7 +40,7 @@
 Battery, lighting effects, per-key RGB and a live preview.
 
 [![Website](https://img.shields.io/badge/website-open-0053f1)](https://faizasta.github.io/Aula-F75-software/)
-[![Version](https://img.shields.io/badge/version-1.5.3--beta.1-blue)](../../releases)
+[![Version](https://img.shields.io/github/v/release/FaizAsta/Aula-F75-software?label=version&color=blue)](../../releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20%7C%20Linux-0078d4)](#download)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20server-5865F2?logo=discord&logoColor=white)](https://discord.gg/BdeQygyRwN)
 
@@ -44,7 +50,7 @@ Battery, lighting effects, per-key RGB and a live preview.
 
 </div>
 
-## New: Liquid glass UI (experimental)
+## New: Liquid glass UI
 
 A second look for the app: panels, buttons, sliders and switches become glass that blurs the picture behind them, a bit
 like iOS or Telegram. **Classic** is still the default.
@@ -53,7 +59,10 @@ like iOS or Telegram. **Classic** is still the default.
   Pick one and press **Continue**. You can change it any time in **Settings > Theme > UI**.
 - **Two types of glass** (**Settings > Theme > Liquid glass > Glass type**): **Normal** (the default) is a soft blur with a
   thin light edge, like the bars in iOS and Telegram, and it is light on the computer. **Realistic** is thick glass that
-  also bends the picture at its edge, with a colour fringe: it looks deeper but is heavier.
+  also bends the picture at its edge, with a colour fringe: it looks deeper. It is drawn by the graphics card (one small
+  WebGL shader per surface), so it stays smooth while it moves, with far less work for the processor. If WebGL or the
+  background picture is not available it draws the same look in software, which is heavier. (The slider lens, the tab
+  highlight, the scroll thumb, the floating menus and messages and the Unsaved changes bar are always drawn in software; they are small.)
 - **Four looks:** **Clear glass** (no blur), **Blur glass** (soft blur, the default), **Frosted glass** (heavy blur) and
   **Default** (soft blur, the strongest bend at the edge and no colour fringe; the bend shows with Realistic glass).
   Press **Customise** for the sliders: blur for Normal glass, plus edge width, refraction and colour fringe for Realistic
@@ -64,10 +73,9 @@ like iOS or Telegram. **Classic** is still the default.
   to the open tab when you scroll down (point at it to open it again), and menus grow out of their button. Nothing to switch on. It follows your
   system's **reduce motion** setting and Classic is not affected.
 
-> [!CAUTION]
-> **Experimental:** it is **not stable**, and **Realistic** glass **can be laggy**, more so on older computers. It may glitch in places.
-> It looks best with a background picture (Settings > Theme). If anything misbehaves, switch back to **Classic** in the
-> same place. Nothing else is affected.
+> [!TIP]
+> It looks best with a background picture (Settings > Theme). On an older computer, **Normal** glass is the lighter
+> of the two types. You can switch back to **Classic** any time in the same place.
 
 ## Picture and video backgrounds
 
@@ -75,11 +83,14 @@ like iOS or Telegram. **Classic** is still the default.
 
 - **Choose picture:** PNG, JPEG or WebP. The app keeps a shrunk copy, so it still works if you move or delete the original.
 - **Choose video:** MP4 or WebM (H.264, VP8, VP9 and AV1 normally play; some `.mov` files do not), or an animated GIF, up to 500 MB. The
-  app copies it into its own data folder, plays it without sound in a loop, and stops it while the window is hidden in the tray
-  or minimized, so it does not use the graphics card then. **Remove** deletes the copy.
+  app copies it into its own data folder, plays it without sound in a loop, and pauses it while the window is hidden in the tray,
+  minimized or not in focus (you are using another program), so it does not use the graphics card then. A GIF cannot be paused,
+  so it is hidden in those cases and comes back when you return to the app. **Remove** deletes the copy.
 - **Opacity** works for both, and **Preset backgrounds** below it lists the pictures built into the app.
-- A big video uses more of the graphics card, and the Liquid glass style (which blurs what is behind it) is the heaviest with it.
-  If the video stutters, try a lower resolution (1080p is plenty), a shorter file, or Classic.
+- **Warning: a video can use a lot of GPU.** It plays on the graphics card, and the bigger the video the more it uses: 4K uses
+  the most, 2K (1440p) less, and 1080p less again (1080p is plenty for a background). The Liquid glass style, which blurs what
+  is behind it, is the heaviest with a video. If the video stutters or the app feels slow, try a lower resolution, a shorter
+  file, or Classic.
 - Video files you drop into `src/img/backgrounds` are not presets: only pictures are. Use **Choose video** for those.
 
 ## Read this first
@@ -105,7 +116,7 @@ Everything is on the [Releases](../../releases) page.
 1. Download **Aula-Control-Setup.exe** and run it. No admin needed. (Or **Aula-Control-Portable.exe**, which needs no install.)
 2. If Windows warns about an unknown publisher (the app isn't code-signed), choose **More info**, then **Run anyway**.
 
-No keyboard? Try the demo: **Settings, Demo keyboard**, or click the Aula logo, choose **Demo keyboards**, then **Demo keyboard** (an F75), **Demo F75 Max** or **Demo F75 HE**.
+No keyboard? Try the demo: click the Aula logo, choose **Demo keyboards**, then **Demo AULA F75**, **Demo AULA F75 Pro**, **Demo AULA F87 / F87 Pro**, **Demo F75 Max** or **Demo F75 HE**.
 
 To uninstall, use Windows Settings, Apps. That also deletes the app's data (your settings and what it remembers);
 updating keeps it. The portable build has no uninstaller, so delete its data folder yourself.
@@ -186,31 +197,27 @@ with a simulated keyboard (the Demo keyboard, or a simulated dongle). Click a pi
 <table>
 <tr>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/start.png"><img src="docs/screenshots/start.png" alt="The start screen" width="260"></a><br><sub>Start screen</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/devices.png"><img src="docs/screenshots/devices.png" alt="The connected devices, shown one at a time with arrows" width="260"></a><br><sub>Connected devices</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/light-theme.png"><img src="docs/screenshots/light-theme.png" alt="The Lighting tab in the light theme" width="260"></a><br><sub>Light theme</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/sending.png"><img src="docs/screenshots/sending.png" alt="Sending settings to the keyboard, with the transfer animation" width="260"></a><br><sub>Apply: transfer animation</sub></td>
 </tr>
 <tr>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/sending.png"><img src="docs/screenshots/sending.png" alt="Sending settings to the keyboard, with the transfer animation" width="260"></a><br><sub>Apply: transfer animation</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/per-key.png"><img src="docs/screenshots/per-key.png" alt="The Per-key tab with every key painted" width="260"></a><br><sub>Per-key</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/keys.png"><img src="docs/screenshots/keys.png" alt="The Keys tab with Caps Lock changed to F13" width="260"></a><br><sub>Key assignment</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/charging.png"><img src="docs/screenshots/charging.png" alt="The Battery screen while charging over the cable on the 2.4G dongle" width="260"></a><br><sub>Charging, 2.4G dongle</sub></td>
 </tr>
 <tr>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/charging.png"><img src="docs/screenshots/charging.png" alt="The Battery screen while charging over the cable on the 2.4G dongle" width="260"></a><br><sub>Charging, 2.4G dongle</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="Settings, Keyboard page" width="260"></a><br><sub>Settings: Keyboard</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/settings-theme.png"><img src="docs/screenshots/settings-theme.png" alt="Settings, Theme page with the background pictures" width="260"></a><br><sub>Settings: Theme</sub></td>
-</tr>
-<tr>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/connecting.png"><img src="docs/screenshots/connecting.png" alt="Reading your keyboard, waking it up" width="260"></a><br><sub>Reading the keyboard</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/asleep.png"><img src="docs/screenshots/asleep.png" alt="Keyboard is asleep" width="260"></a><br><sub>Keyboard asleep</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/he.png"><img src="docs/screenshots/he.png" alt="The Lighting tab of an F75 HE on its 2.4G dongle" width="260"></a><br><sub>F75 HE (experimental): Lighting</sub></td>
 </tr>
 <tr>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/asleep.png"><img src="docs/screenshots/asleep.png" alt="Keyboard is asleep" width="260"></a><br><sub>Keyboard asleep</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/he-perkey.png"><img src="docs/screenshots/he-perkey.png" alt="The Per-key tab of an F75 HE with every key painted" width="260"></a><br><sub>F75 HE: Per-key</sub></td>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/he-keyboard.png"><img src="docs/screenshots/he-keyboard.png" alt="The Keyboard page of an F75 HE: what the keyboard reports about itself" width="260"></a><br><sub>F75 HE: Keyboard</sub></td>
 <td align="center" valign="top" width="33%"><a href="docs/screenshots/demo-keyboards.png"><img src="docs/screenshots/demo-keyboards.png" alt="The demo keyboards, shown one at a time with arrows, opened from the Demo keyboards button" width="260"></a><br><sub>Demo keyboards</sub></td>
 </tr>
 <tr>
-<td align="center" valign="top" width="33%"><a href="docs/screenshots/lighting-glass-realistic.png"><img src="docs/screenshots/lighting-glass-realistic.png" alt="The Lighting tab in the Liquid glass UI with Realistic glass, dark theme" width="260"></a><br><sub>Liquid glass: Realistic (experimental)</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/lighting-glass-realistic.png"><img src="docs/screenshots/lighting-glass-realistic.png" alt="The Lighting tab in the Liquid glass UI with Realistic glass, dark theme" width="260"></a><br><sub>Liquid glass: Realistic</sub></td>
+<td align="center" valign="top" width="33%"><a href="docs/screenshots/max.png"><img src="docs/screenshots/max.png" alt="The Lighting tab of an F75 Max on its 2.4G dongle, with the picture of the white, blue and purple board" width="260"></a><br><sub>F75 Max (experimental): Lighting</sub></td>
 </tr>
 </table>
 

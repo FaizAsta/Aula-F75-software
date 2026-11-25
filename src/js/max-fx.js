@@ -237,30 +237,6 @@
     return fx ? fx(key, t === undefined ? stillTime(mode) : t, withDefaults(st)) : null;
   }
 
-  /**
-   * The board's average light at time t (seconds) as [r, g, b], 0..255 each. A key the effect leaves dark counts as black (not
-   * the dim grey of the drawing), so an effect that lights few keys gives a dim average and Off gives [0, 0, 0]. This is what the
-   * window is tinted with, the same measure the F75 screen takes from its own preview.
-   */
-  function mean(mode, t, st) {
-    const fx = FX[mode];
-    const s = withDefaults(st);
-    let r = 0;
-    let g = 0;
-    let b = 0;
-    if (fx) {
-      for (const k of KEYS) {
-        const c = fx(k, t === undefined ? stillTime(mode) : t, s);
-        if (c) {
-          r += c[0];
-          g += c[1];
-          b += c[2];
-        }
-      }
-    }
-    return [r / KEYS.length, g / KEYS.length, b / KEYS.length];
-  }
-
   function draw(canvas, mode, t, st) {
     const tt = t === undefined ? stillTime(mode) : t;
     const g = canvas.getContext('2d');
@@ -278,5 +254,5 @@
     }
   }
 
-  return { keyColor, lit, mean, draw, stillTime, WIDTH: W, HEIGHT: H };
+  return { keyColor, lit, draw, stillTime, WIDTH: W, HEIGHT: H };
 });

@@ -35,13 +35,15 @@ function loadGlass(saved) {
 
 // ---- glass.js
 
-test('glass.js: Normal is the default type, anything unknown is Normal, and only Realistic is another type', () => {
+test('glass.js: Normal is the default type, anything unknown is Normal, and Realistic is the other one (a saved GPU is Realistic)', () => {
   const { G } = loadGlass({ style: 'glass' });
   assert.strictEqual(G.type(), 'normal');
   assert.strictEqual(G.DEFAULT_TYPE, 'normal');
   assert.deepStrictEqual([...G.TYPES], ['normal', 'realistic']);
-  for (const bad of [undefined, null, '', 'glass', 'REALISTIC', 1, {}]) assert.strictEqual(G.cleanType(bad), 'normal');
+  for (const bad of [undefined, null, '', 'glass', 'REALISTIC', 'GPU', 1, {}]) assert.strictEqual(G.cleanType(bad), 'normal');
   assert.strictEqual(G.cleanType('realistic'), 'realistic');
+  assert.strictEqual(G.cleanType('gpu'), 'realistic', 'the old name of the graphics card type is Realistic now');
+  assert.strictEqual(loadGlass({ style: 'glass', glassType: 'gpu' }).G.type(), 'realistic');
   assert.strictEqual(loadGlass({ style: 'glass', glassType: 'realistic' }).G.type(), 'realistic');
   assert.strictEqual(loadGlass({ style: 'glass', glassType: 'wobbly' }).G.type(), 'normal');
 });
@@ -101,7 +103,7 @@ test('glass.js: in Normal the Blur setting is the whole look: 0 is clear, the de
   assert.strictEqual(vars.get('--ag-filter'), `blur(${G.normalBlur()}px)`);
 });
 function G0() {
-  return { blur: 2.5, bezel: 14, amount: 30, chroma: 30 };
+  return { blur: 2.5, bezel: 14, amount: 60, chroma: 30 };
 }
 
 test('glass.js: light glass (Normal, or Realistic with no bending) builds nothing per surface: its flush only marks, before any filter, map or defs are made', () => {
@@ -135,7 +137,7 @@ test('glass.js: switching type drops every Realistic filter and inline filter, a
 
 test('glass.js: the public settings of Realistic are untouched (the four numbers, the four looks, the Blur glass default)', () => {
   const { G } = loadGlass({ style: 'glass' });
-  assert.deepStrictEqual({ ...G.DEFAULTS }, { blur: 2.5, bezel: 14, amount: 30, chroma: 30 });
+  assert.deepStrictEqual({ ...G.DEFAULTS }, { blur: 2.5, bezel: 14, amount: 60, chroma: 30 });
   assert.strictEqual(G.presetOf(G.DEFAULTS), 'blur');
   assert.deepStrictEqual(Object.keys(G.PRESETS), ['clear', 'blur', 'frosted', 'default']);
 });
@@ -191,6 +193,8 @@ test('index.html: glass-normal.css comes right after glass.css (and after lite.c
   const seg = html.match(/<div class="seg seg-2" id="segGlassType"[\s\S]*?<\/div>\s*<\/div>/);
   assert.ok(seg, 'the Glass type switch is missing');
   assert.ok(seg[0].includes('data-glass-type="normal"') && seg[0].includes('data-glass-type="realistic"'));
+  assert.ok(!seg[0].includes('data-glass-type="gpu"'), 'there is no separate GPU type any more');
+  assert.strictEqual((seg[0].match(/data-glass-type=/g) || []).length, 2, 'two types: Normal and Realistic');
   assert.ok(html.includes('id="glassTypeHint"') && html.includes('id="glassCustomHint"'));
   // Normal is listed first, it is the default
   assert.ok(seg[0].indexOf('data-glass-type="normal"') < seg[0].indexOf('data-glass-type="realistic"'));
@@ -236,7 +240,7 @@ test('app.js and the question: the type goes to the live pictures, and the quest
   const ui = src('js', 'stylepick-ui.js');
   assert.ok(/glassType: draftState\.glassType,\s*bg:/.test(ui), 'the live picture opens with it');
   assert.ok(/glass: draftState\.glass, glassType: draftState\.glassType \}/.test(ui), 'and is told when a slider moves');
-  assert.ok(/\[data-glass-real\]'\)\) row\.hidden = draftState\.glassType !== 'realistic'/.test(ui));
+  assert.ok(/\[data-glass-real\]'\)\) row\.hidden = draftState\.glassType === 'normal'/.test(ui));
   // answering the question applies the sliders only, never changes the type the person set in Settings
   assert.ok(!/glassType/.test(ui.slice(ui.indexOf('function draft()'), ui.indexOf('// ----', ui.indexOf('function draft()')))));
 });
@@ -328,7 +332,8 @@ test('glass.js: the path is chosen in one place (isLight), and Realistic boxes k
   const js = src('js', 'glass.js');
   assert.ok(/const isLight = \(\) => type === 'normal' \|\| params\.amount === 0;/.test(js));
   // nothing that decides how a surface is painted asks for the type any more, except the blur scale and the boxes' extra frost
-  const asks = js.split('\n').filter((l) => /type === '(normal|realistic)'/.test(l) && !l.trim().startsWith('//'));
+  // (gpuWanted also asks, but it only decides whether the graphics card draws Realistic, not how a surface is painted)
+  const asks = js.split('\n').filter((l) => /type [!=]== '(normal|realistic)'/.test(l) && !l.trim().startsWith('//') && !l.includes('gpuWanted'));
   assert.strictEqual(asks.length, 3, `only isLight, lightBlur and markNormal ask for the type:\n${asks.join('\n')}`);
   const mark = js.slice(js.indexOf('function markNormal'), js.indexOf('// ---- displacement map'));
   assert.ok(mark.includes('panelFrost(true)'), 'a box of Realistic keeps its extra frost');
