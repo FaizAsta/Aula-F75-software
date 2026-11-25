@@ -36,16 +36,48 @@ h1,h2,h3{line-height:1.08;letter-spacing:-.03em}
 h2{font-weight:800;font-size:clamp(1.8rem,4.2vw,2.7rem)}
 h3{font-weight:600;font-size:1.25rem;letter-spacing:-.015em}
 
+/* liquid glass: the engine from Aula Control 1.5.5 (src/js/glass.js + css/glass.css + css/glass-normal.css), see the script at the bottom.
+   Every browser gets Normal glass: one blur, a tint and a painted edge. Chromium also gets Realistic: the script gives each glass
+   surface an SVG filter that bends the picture at the rim, and switches the edge to the reflection that filter draws (html.ag-refract). */
+:root{--ag-filter:blur(11px);
+  --ag-rim:inset 0 0 0 1px rgb(20 28 50/.07),inset 1px 1px 0 rgb(255 255 255/.9),inset -1px -1px 0 rgb(255 255 255/.6),inset 0 0 16px -4px rgb(255 255 255/.55)}
+:root.ag-refract{--ag-rim:inset 0 0 0 1px rgb(20 28 50/.06)}
+@media(prefers-color-scheme:dark){
+  :root{--ag-rim:inset 0 0 0 1px rgb(255 255 255/.1),inset 1px 1px 0 rgb(255 255 255/.4),inset -1px -1px 0 rgb(255 255 255/.22),inset 0 0 16px -4px rgb(255 255 255/.12)}
+  :root.ag-refract{--ag-rim:inset 0 0 0 1px rgb(255 255 255/.07)}
+}
+/* The bar is a PANEL in the engine's terms: it holds other glass controls (the pill, the button), so it must not carry the backdrop-filter
+   itself (that would hide the picture from them). Its glass is this layer, z-index -1 inside the header's own stacking context. */
+header::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(135deg,rgb(255 255 255/.34),rgb(255 255 255/0) 36%,rgb(255 255 255/0) 72%,rgb(255 255 255/.14)),rgb(255 255 255/.52);
+  -webkit-backdrop-filter:var(--ag-filter) saturate(1.3) brightness(1.03);backdrop-filter:var(--ag-filter) saturate(1.3) brightness(1.03);box-shadow:var(--ag-rim)}
+@media(prefers-color-scheme:dark){
+  header::before{background:linear-gradient(135deg,rgb(255 255 255/.1),rgb(255 255 255/0) 34%,rgb(255 255 255/0) 72%,rgb(255 255 255/.04)),rgb(13 16 22/.56);
+    -webkit-backdrop-filter:var(--ag-filter) saturate(1.3) brightness(.9);backdrop-filter:var(--ag-filter) saturate(1.3) brightness(.9)}
+  .pill{background:rgb(255 255 255/.14);-webkit-backdrop-filter:var(--ag-filter) saturate(1.6) brightness(1.3);backdrop-filter:var(--ag-filter) saturate(1.6) brightness(1.3)}
+}
+/* The picture behind the bar changes as the page scrolls (dark screenshots under a light bar and the other way round), so the links use the full ink colour. */
+header nav a{color:color-mix(in srgb,var(--ink) 76%,transparent)}
+/* The Download button is a leaf (.ag in the engine): it carries its own backdrop-filter, tinted with the accent like .btn.primary.ag. */
+header .btn.p{border-color:transparent;background:color-mix(in srgb,var(--acc) 82%,transparent);-webkit-backdrop-filter:var(--ag-filter) saturate(1.5) brightness(.95);backdrop-filter:var(--ag-filter) saturate(1.5) brightness(.95);
+  box-shadow:var(--ag-rim),0 8px 22px -10px var(--acc)}
+header .btn.p:hover{background:color-mix(in srgb,var(--accd) 88%,transparent);box-shadow:var(--ag-rim),0 10px 26px -8px var(--acc)}
+@media(prefers-reduced-transparency:reduce){
+  header::before{background:var(--card);-webkit-backdrop-filter:none;backdrop-filter:none}
+  .pill{background:var(--soft);-webkit-backdrop-filter:none;backdrop-filter:none}
+}
+
 /* nav */
 header{position:sticky;top:calc(10px + env(safe-area-inset-top,0px));z-index:20;width:calc(100% - 24px);max-width:1040px;margin:10px auto 0;display:flex;align-items:center;justify-content:space-between;gap:16px;
-  padding:8px 8px 8px 18px;border:1px solid var(--line);border-radius:999px;background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+  padding:9px 9px 9px 19px;border-radius:999px;background:transparent;box-shadow:0 10px 28px -20px rgb(0 0 0/.3)}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--ink);text-decoration:none;letter-spacing:-.01em}
 .brand svg{width:28px;height:28px}
 nav{display:flex;gap:2px;margin-left:auto}
 nav{position:relative}
 nav a{position:relative;z-index:1;padding:8px 14px;border-radius:999px;color:var(--mut);text-decoration:none;font-weight:500;font-size:.9rem;transition:color .2s}
 nav a:hover,nav a.on{color:var(--ink)}
-.pill{position:absolute;top:0;left:0;height:100%;width:0;border-radius:999px;background:var(--soft);opacity:0;pointer-events:none;
+.pill{position:absolute;top:0;left:0;height:100%;width:0;border-radius:999px;opacity:0;pointer-events:none;
+  background:rgb(14 16 22/.07);-webkit-backdrop-filter:var(--ag-filter) saturate(1.6) brightness(1.04);backdrop-filter:var(--ag-filter) saturate(1.6) brightness(1.04);box-shadow:var(--ag-rim);
   transition:transform .4s cubic-bezier(.4,0,.2,1),width .4s cubic-bezier(.4,0,.2,1),opacity .25s}
 
 /* buttons */
@@ -138,6 +170,39 @@ footer .w{display:flex;justify-content:space-between;align-items:center;gap:16px
 .top.show{opacity:1;visibility:visible;transform:none}
 .top:hover{box-shadow:0 0 22px -2px var(--glow)}
 .top svg{width:20px;height:20px}
+
+/* liquid glass settings: a tuning panel (button bottom left). Hidden: open index.html?glass to show it. */
+.gs-btn{position:fixed;left:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:16;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;padding:0;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;
+  box-shadow:0 8px 24px -10px var(--shadow);transition:.2s}
+.gs-btn[hidden]{display:none}
+.gs-btn:hover{box-shadow:0 0 22px -2px var(--glow)}
+.gs-btn[aria-expanded="true"]{border-color:var(--acc);color:var(--acc)}
+.gs-btn svg{width:22px;height:22px}
+.gs-panel{position:fixed;left:18px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:17;width:min(340px,calc(100% - 36px));max-height:min(66vh,580px);overflow:auto;overscroll-behavior:contain;padding:16px;
+  border:1px solid var(--line);border-radius:22px;background:var(--card);box-shadow:0 30px 80px -24px var(--shadow);font-size:.88rem;line-height:1.4}
+.gs-panel [hidden],.gs-panel[hidden]{display:none!important}
+.gs-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.gs-top b{font-size:1rem;letter-spacing:-.01em}
+.gs-x{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--mut);font:400 1.2rem/1 var(--font);cursor:pointer}
+.gs-x:hover{color:var(--ink);border-color:var(--acc)}
+.gs-lab{display:block;margin:14px 0 6px;font-size:.72rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.gs-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:999px;background:var(--soft)}
+.gs-chips{display:flex;flex-wrap:wrap;gap:6px}
+.gs-seg button,.gs-chips button,.gs-foot button{min-height:38px;padding:0 14px;border-radius:999px;border:1px solid transparent;background:transparent;color:var(--mut);font:600 .84rem var(--font);cursor:pointer;transition:.15s}
+.gs-chips button{border-color:var(--line)}
+.gs-seg button:hover,.gs-chips button:hover{color:var(--ink)}
+.gs-seg button[aria-checked="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 6px -1px var(--shadow)}
+.gs-chips button[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:#fff}
+.gs-seg button:disabled{opacity:.4;cursor:not-allowed}
+.gs-hint{margin-top:8px;font-size:.8rem;color:var(--mut)}
+.gs-row{margin-top:12px}
+.gs-row label{display:flex;justify-content:space-between;gap:10px;font-weight:600}
+.gs-row output{font-variant-numeric:tabular-nums;color:var(--mut);font-weight:500}
+.gs-row input{display:block;width:100%;margin:8px 0 0;accent-color:var(--acc)}
+.gs-foot{display:flex;gap:8px;position:sticky;bottom:0;margin:12px -16px -16px;padding:12px 16px 16px;background:var(--card);border-radius:0 0 22px 22px}
+.gs-foot button{flex:1;border-color:var(--line);color:var(--ink)}
+.gs-foot button.p{background:var(--acc);border-color:var(--acc);color:#fff}
+.gs-foot button:hover{border-color:var(--acc)}
 
 /* viewer */
 dialog{border:0;padding:0;background:transparent;color:#fff;width:min(94vw,1180px);max-height:96vh;overflow:visible}
@@ -276,8 +341,571 @@ dialog img{margin:0 auto;border-radius:12px;max-height:78vh;width:auto}
   </span>
 </div></footer>
 
+<button class="gs-btn" id="gsBtn" type="button" aria-label="Liquid glass settings" aria-expanded="false" aria-controls="gsPanel" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+<div class="gs-panel" id="gsPanel" role="group" aria-label="Liquid glass settings" hidden>
+  <div class="gs-top"><b>Liquid glass</b><button class="gs-x" id="gsX" type="button" aria-label="Close">×</button></div>
+  <span class="gs-lab">Glass type</span>
+  <div class="gs-seg" role="radiogroup" aria-label="Glass type">
+    <button type="button" role="radio" data-type="normal">Normal</button>
+    <button type="button" role="radio" data-type="realistic">Realistic</button>
+  </div>
+  <p class="gs-hint" id="gsHint"></p>
+  <span class="gs-lab">Glass style</span>
+  <div class="gs-chips" role="group" aria-label="Glass style">
+    <button type="button" data-preset="clear" aria-pressed="false">Clear</button>
+    <button type="button" data-preset="blur" aria-pressed="false">Blur</button>
+    <button type="button" data-preset="frosted" aria-pressed="false">Frosted</button>
+    <button type="button" data-preset="default" aria-pressed="false">Default</button>
+  </div>
+  <div class="gs-row"><label for="gsBlur">Blur <output id="gsBlurV"></output></label><input id="gsBlur" data-k="blur" type="range" min="0" max="12" step="0.5"></div>
+  <div class="gs-row" data-real><label for="gsBezel">Edge width <output id="gsBezelV"></output></label><input id="gsBezel" data-k="bezel" type="range" min="4" max="28" step="1"></div>
+  <div class="gs-row" data-real><label for="gsAmount">Refraction <output id="gsAmountV"></output></label><input id="gsAmount" data-k="amount" type="range" min="0" max="60" step="1"></div>
+  <div class="gs-row" data-real><label for="gsChroma">Colour fringe <output id="gsChromaV"></output></label><input id="gsChroma" data-k="chroma" type="range" min="0" max="100" step="5"></div>
+  <div class="gs-foot"><button type="button" id="gsReset">Reset</button><button type="button" class="p" id="gsCopy">Copy values</button></div>
+</div>
 <button class="top" id="toTop" type="button" aria-label="Back to top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
 <dialog id="lb" aria-label="Screenshot viewer"><button class="lb-x" type="button" aria-label="Close">×</button><img alt=""><div class="lb-bar"><button class="lb-p" type="button" aria-label="Previous">‹</button><span class="lb-cap"></span><button class="lb-n" type="button" aria-label="Next">›</button></div></dialog>
+<script>
+/* Liquid glass engine, ported from Aula Control 1.5.5 (src/js/glass.js). Same displacement map, same rim reflection, same SVG filter, same numbers
+   as the app's default "Blur glass" look. What is left out is what a web page does not have: the settings, the GPU renderer, sliders and scroll bars.
+
+   How it works: every glass surface gets its own SVG filter. A canvas draws a displacement map for the surface's size and corner radius (at the
+   rim it pushes each pixel towards the middle, fading to nothing inside). The filter blurs what is behind the surface, shifts it by that map and
+   adds a thin reflection along the edge. CSS applies it with backdrop-filter (--ag-filter). Only Chromium can use an SVG filter there; every other
+   browser keeps the Normal glass the CSS above already paints. */
+(() => {
+  'use strict';
+  const root = document.documentElement;
+  const uad = navigator.userAgentData;
+  const chromium = uad && uad.brands ? uad.brands.some((b) => /Chromium/i.test(b.brand)) : /Chrome\//.test(navigator.userAgent) && !/(CriOS|FxiOS|EdgiOS|OPiOS)/.test(navigator.userAgent);
+  const api = { chromium, surface() {}, fit() {} };
+  window.AulaGlass = api;
+  const canBend = chromium && !!document.createElement('canvas').getContext; // only Chromium can bend the picture with an SVG filter
+
+  // The settings, as in the app (Settings > Theme > Liquid glass): the four numbers, the four ready-made looks and the glass type.
+  const DEFAULTS = { blur: 1.5, bezel: 8, amount: 60, chroma: 0 }; // px, px, px, percent: this page's look (tuned with the settings panel)
+  const LIMITS = { blur: [0, 12], bezel: [4, 28], amount: [0, 60], chroma: [0, 100] };
+  const PRESETS = {
+    clear: { blur: 0, bezel: 16, amount: 40, chroma: 35 },
+    blur: { blur: 2.5, bezel: 14, amount: 30, chroma: 30 }, // the app's default Blur glass
+    frosted: { blur: 9, bezel: 10, amount: 12, chroma: 0 },
+    default: { blur: 2.5, bezel: 14, amount: 60, chroma: 0 },
+  };
+  const NORMAL_BLUR = 4.5; // Normal glass has nothing that bends, so one point of the Blur slider is worth this many px of blur
+  const STORE = 'aula.glass.page'; // the tuning panel remembers what you set in this browser
+  const TUNING = /[?&]glass(=|&|$)/.test(location.search); // index.html?glass shows the settings button; without it the page always uses DEFAULTS
+  const clean = (p) => {
+    const out = {};
+    for (const k of Object.keys(DEFAULTS)) {
+      const v = p && p[k] != null && p[k] !== '' && Number.isFinite(+p[k]) ? +p[k] : DEFAULTS[k];
+      out[k] = Math.min(LIMITS[k][1], Math.max(LIMITS[k][0], v));
+    }
+    return out;
+  };
+  let saved = {};
+  try {
+    if (TUNING) saved = JSON.parse(localStorage.getItem(STORE) || '{}') || {};
+  } catch (e) {
+    saved = {};
+  }
+  const params = clean(saved);
+  const DEFAULT_TYPE = canBend ? 'realistic' : 'normal';
+  let type = canBend && (saved.type === 'normal' || saved.type === 'realistic') ? saved.type : DEFAULT_TYPE;
+  // LIGHT glass is one plain blur and a painted edge, no SVG filter: Normal always, Realistic while Refraction is 0 (nothing to bend).
+  const isLight = () => !canBend || type === 'normal' || params.amount === 0;
+  const lightBlur = () => (type === 'normal' ? Math.round(params.blur * NORMAL_BLUR * 10) / 10 : Math.round(params.blur * 10) / 10);
+  const presetOf = () => {
+    for (const name of Object.keys(PRESETS)) if (Object.keys(DEFAULTS).every((k) => params[k] === PRESETS[name][k])) return name;
+    return 'custom';
+  };
+  const PANEL = { bezel: 1.6, amount: 0.6, blur: 2 }; // a box is big next to its rim: wider, stronger bend and a little more frost
+  const PANEL_FRINGE = 0.5;
+  const PANEL_RIM = { gain: 1.45, lift: 0.05, floor: 0.12, width: -0.5 };
+  const panelFrost = (panel) => (panel ? PANEL.blur * Math.min(1, params.blur / 2.5) : 0);
+  const REACH = 0.3; // the strongest pull, as a share of the shorter side
+  const FRINGE = 0.1; // the widest gap between the red and the blue shift, as a share of the shorter side
+  const FLAT_BELOW = 36; // px: under this a surface is only frosted
+  const FRINGE_FROM = 64; // px: the red/blue split is only for surfaces at least this size
+  const RIM = {
+    light: [-0.62, -0.78], // direction towards the light: top left
+    floor: 0.2, hi: 1, bounce: 0.7, power: 1.3, sat: 1.5, gain: 2.2, lift: 0.12,
+    width: [2, 3], widthShare: 0.05,
+    lens: { gain: 2.8, lift: 0.3, floor: 0.4, width: 0.9 }, // the sliding highlight: a clear lens, so a brighter, deeper reflection
+    pull: [3, 9], pullShare: 0.32,
+  };
+  const lensRim = (lens) => (lens === 'panel' ? PANEL_RIM : lens ? RIM.lens : null);
+
+  // ---- displacement map: for a w x h rounded box, where each pixel at the rim should look from (R = x, G = y; 128 = still).
+  const maps = new Map();
+  const MAPS_MAX = 120;
+  function trimMaps() {
+    while (maps.size >= MAPS_MAX) maps.delete(maps.keys().next().value);
+  }
+  let scratch = null;
+  function scratchCanvas(w, h) {
+    if (!scratch) {
+      const cv = document.createElement('canvas');
+      scratch = { cv, ctx: cv.getContext('2d') };
+    }
+    scratch.cv.width = w;
+    scratch.cv.height = h;
+    return scratch;
+  }
+  const dpr = () => Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+  const FLAT = new Uint32Array(1);
+  new Uint8Array(FLAT.buffer).set([128, 128, 128, 255]);
+  function mapUrl(w, h, r, bezel) {
+    const key = `${w}x${h}r${Math.round(r)}b${bezel}`;
+    if (maps.has(key)) return maps.get(key);
+    trimMaps();
+    const mw = Math.max(1, w);
+    const mh = Math.max(1, h);
+    const mb = Math.max(1, bezel);
+    const { cv, ctx } = scratchCanvas(mw, mh);
+    const img = ctx.createImageData(mw, mh);
+    const px = img.data;
+    new Uint32Array(px.buffer).fill(FLAT[0]);
+    const hw = mw / 2;
+    const hh = mh / 2;
+    const side = Math.ceil(mb) + 1;
+    const cell = (x, y) => {
+      const cx = x + 0.5 - hw;
+      const cy = y + 0.5 - hh;
+      const qx = Math.abs(cx) - (hw - r);
+      const qy = Math.abs(cy) - (hh - r);
+      const outside = Math.hypot(Math.max(qx, 0), Math.max(qy, 0));
+      const depth = r - outside - Math.min(Math.max(qx, qy), 0); // how far inside the rim this pixel is
+      if (depth >= mb) return;
+      let nx;
+      let ny; // outward normal
+      if (qx > 0 && qy > 0) {
+        const len = Math.hypot(qx, qy);
+        nx = (Math.sign(cx) * qx) / len;
+        ny = (Math.sign(cy) * qy) / len;
+      } else if (qx > qy) {
+        nx = Math.sign(cx);
+        ny = 0;
+      } else {
+        nx = 0;
+        ny = Math.sign(cy);
+      }
+      const t = Math.max(depth, 0) / mb;
+      const mag = (1 - t) * (1 - t); // strongest on the rim, eases to nothing
+      const i = (y * mw + x) * 4;
+      px[i] = Math.round(127.5 - nx * mag * 127.5); // look from further in: the rim bends the picture inwards
+      px[i + 1] = Math.round(127.5 - ny * mag * 127.5);
+    };
+    for (let y = 0; y < mh; y++) {
+      const qy = Math.abs(y + 0.5 - hh) - (hh - r);
+      if (qy >= -mb - 1 || side * 2 >= mw) {
+        for (let x = 0; x < mw; x++) cell(x, y);
+      } else {
+        for (let x = 0; x < side; x++) cell(x, y);
+        for (let x = mw - side; x < mw; x++) cell(x, y);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const url = cv.toDataURL('image/png');
+    maps.set(key, url);
+    return url;
+  }
+
+  // ---- the rim map: a thin band along the edge that says, pixel by pixel, how much reflection shows (B) and which way the edge faces (R, G).
+  const RIM_LIGHT = (() => {
+    const len = Math.hypot(RIM.light[0], RIM.light[1]) || 1;
+    return [RIM.light[0] / len, RIM.light[1] / len];
+  })();
+  const FLAT_RIM = new Uint32Array(1);
+  new Uint8Array(FLAT_RIM.buffer).set([128, 128, 0, 255]);
+  function rimSpec(w, h, lens) {
+    const side = Math.min(w, h);
+    const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
+    const width = Math.round((clamp(side * RIM.widthShare, RIM.width) + (lens ? lensRim(lens).width : 0)) * 10) / 10;
+    const pull = Math.round(Math.min(clamp(side * RIM.pullShare, RIM.pull), side * 0.45) * 10) / 10;
+    return { width, pull };
+  }
+  function rimLight(nx, ny, lens) {
+    const d = nx * RIM_LIGHT[0] + ny * RIM_LIGHT[1];
+    const lit = RIM.hi * Math.pow(Math.max(d, 0), RIM.power);
+    const back = RIM.bounce * Math.pow(Math.max(-d, 0), RIM.power);
+    return Math.min(1, (lens ? lensRim(lens).floor : RIM.floor) + lit + back);
+  }
+  function rimMapUrl(w, h, r, width, lens) {
+    const key = `rim${w}x${h}r${Math.round(r)}w${width}${lens === 'panel' ? 'P' : lens ? 'L' : ''}`;
+    if (maps.has(key)) return maps.get(key);
+    trimMaps();
+    const mw = Math.max(1, w);
+    const mh = Math.max(1, h);
+    const { cv, ctx } = scratchCanvas(mw, mh);
+    const img = ctx.createImageData(mw, mh);
+    const px = img.data;
+    new Uint32Array(px.buffer).fill(FLAT_RIM[0]);
+    const hw = mw / 2;
+    const hh = mh / 2;
+    const reach = width + 0.5;
+    const side = Math.ceil(reach) + 1;
+    const cell = (x, y) => {
+      const cx = x + 0.5 - hw;
+      const cy = y + 0.5 - hh;
+      const qx = Math.abs(cx) - (hw - r);
+      const qy = Math.abs(cy) - (hh - r);
+      const outside = Math.hypot(Math.max(qx, 0), Math.max(qy, 0));
+      const depth = r - outside - Math.min(Math.max(qx, qy), 0);
+      if (depth >= reach) return;
+      let nx;
+      let ny; // outward normal: the way this bit of edge faces
+      if (qx > 0 && qy > 0) {
+        const len = Math.hypot(qx, qy);
+        nx = (Math.sign(cx) * qx) / len;
+        ny = (Math.sign(cy) * qy) / len;
+      } else if (qx > qy) {
+        nx = Math.sign(cx);
+        ny = 0;
+      } else {
+        nx = 0;
+        ny = Math.sign(cy);
+      }
+      const t = Math.min(1, Math.max(0, 1 - (Math.max(depth, 0) - 0.5) / width));
+      const fade = t * t * (3 - 2 * t);
+      const i = (y * mw + x) * 4;
+      px[i] = Math.round(127.5 - nx * 127.5);
+      px[i + 1] = Math.round(127.5 - ny * 127.5);
+      px[i + 2] = Math.round(255 * fade * rimLight(nx, ny, lens));
+    };
+    for (let y = 0; y < mh; y++) {
+      const qy = Math.abs(y + 0.5 - hh) - (hh - r);
+      if (qy >= -reach - 1 || side * 2 >= mw) {
+        for (let x = 0; x < mw; x++) cell(x, y);
+      } else {
+        for (let x = 0; x < side; x++) cell(x, y);
+        for (let x = mw - side; x < mw; x++) cell(x, y);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const url = cv.toDataURL('image/png');
+    maps.set(key, url);
+    return url;
+  }
+
+  // ---- one SVG filter per distinct (size, radius, settings); shared by surfaces that match, and dropped when none uses it
+  let defs = null;
+  const filters = new Map(); // key -> { id, node, refs }
+  let seq = 0;
+  function ensureDefs() {
+    if (defs && defs.isConnected) return;
+    const holder = document.createElement('div');
+    holder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true" style="position:absolute;width:0;height:0;pointer-events:none"><defs></defs></svg>';
+    const svg = holder.firstChild;
+    document.body.append(svg);
+    defs = svg.firstChild;
+    filters.clear();
+  }
+  const keep = (r, g, b) => `${r} 0 0 0 0  0 ${g} 0 0 0  0 0 ${b} 0 0  0 0 0 1 0`;
+  const smoothing = (blur) => (blur >= 4 ? 0 : Math.max(0.3, 0.75 / dpr())); // hides the one-pixel stairs of the shift
+  function rimBoost(lens) {
+    const { sat } = RIM;
+    const gain = lens ? lensRim(lens).gain : RIM.gain;
+    const lift = lens ? lensRim(lens).lift : RIM.lift;
+    const lum = [0.2126, 0.7152, 0.0722];
+    const rows = lum.map((_, row) => lum.map((l, col) => (l * (1 - sat) + (row === col ? sat : 0)) * gain));
+    const f = (v) => v.toFixed(4);
+    return rows.map((r3) => `${r3.map(f).join(' ')} 0 ${f(lift)}`).join('  ') + '  0 0 0 1 0';
+  }
+  function rimPass(w, h, r, base, bent, lens) {
+    const { width, pull } = rimSpec(w, h, lens);
+    const map = `<feImage href="${rimMapUrl(w, h, r, width, lens)}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="rm"/>`;
+    const fetch = bent ? '' : `<feDisplacementMap in="${base}" in2="rm" scale="${(pull * 2).toFixed(2)}" xChannelSelector="R" yChannelSelector="G" result="rr"/>`;
+    return (
+      map +
+      fetch +
+      `<feColorMatrix in="${bent ? 'o' : 'rr'}" type="matrix" values="${rimBoost(lens)}" result="rc"/>` +
+      '<feColorMatrix in="rm" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 1 0 0" result="ra"/>' +
+      '<feComposite in="rc" in2="ra" operator="in" result="rl"/>' +
+      `<feComposite in="rl" in2="${base}" operator="over" result="f"/>`
+    );
+  }
+  function makeFilter(id, w, h, r, bezel, blur, amount, ca, lens) {
+    const s = amount * 2; // feDisplacementMap moves a pixel by scale * (value - 0.5)
+    const src = blur > 0 ? 'b' : 'SourceGraphic';
+    const frost = blur > 0 ? `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" edgeMode="duplicate" result="b"/>` : '';
+    const disp = (k, result) => `<feDisplacementMap in="${src}" in2="m" scale="${(s * k).toFixed(2)}" xChannelSelector="R" yChannelSelector="G" result="${result}"/>`;
+    let body;
+    let post = '';
+    if (s === 0) {
+      body = frost; // nothing to bend: just the frost
+    } else {
+      const soft = smoothing(blur);
+      const map = `<feImage href="${mapUrl(w, h, r, bezel)}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="m"/>`;
+      post = soft ? `<feGaussianBlur in="f" stdDeviation="${soft.toFixed(2)}" edgeMode="duplicate"/>` : '';
+      if (ca === 0) {
+        body = frost + map + disp(1, 'o'); // no colour fringe: one shift
+      } else {
+        // Red is shifted a little more and blue a little less. Green is the mean of both, so two shifts give three colours.
+        body =
+          frost + map + disp(1 + ca, 'dA') + disp(1 - ca, 'dB') +
+          `<feColorMatrix in="dA" type="matrix" values="${keep(1, 0.5, 0)}" result="cA"/>` +
+          `<feColorMatrix in="dB" type="matrix" values="${keep(0, 0.5, 1)}" result="cB"/>` +
+          '<feComposite in="cA" in2="cB" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="o"/>';
+      }
+    }
+    body += rimPass(w, h, r, s === 0 ? src : 'o', s !== 0, lens) + post;
+    const holder = document.createElement('div');
+    holder.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg"><filter id="${id}" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">${body}</filter></svg>`;
+    return holder.firstChild.firstChild;
+  }
+  // How hard the rim pulls the picture (amount, px) and how far apart red and blue are pulled (ca), held to what fits the surface.
+  function rim(w, h, panel) {
+    const side = Math.min(w, h);
+    if (side < FLAT_BELOW) return { amount: 0, ca: 0 };
+    const gain = panel ? PANEL.amount : 1;
+    const amount = Math.round(Math.min(params.amount * gain, side * REACH) * 100) / 100;
+    let ca = (params.chroma / 100) * 0.6;
+    if (amount > 0) ca = Math.min(ca, (side * FRINGE) / (2 * amount));
+    if (panel) ca *= PANEL_FRINGE;
+    if (side < FRINGE_FROM) ca = 0;
+    ca = ca < 0.01 ? 0 : Math.round(ca * 1000) / 1000;
+    return { amount, ca };
+  }
+  function describe(w, h, radius, panel, lens) {
+    const r = Math.min(radius, w / 2, h / 2);
+    const bezel = Math.min(params.bezel * (panel ? PANEL.bezel : 1), Math.min(w, h) / 2);
+    const blur = Math.round((params.blur + panelFrost(panel)) * 100) / 100;
+    const { amount, ca } = rim(w, h, panel);
+    const kind = panel ? 'panel' : lens;
+    const key = `${w}x${h}r${Math.round(r)}b${bezel}|${blur}|${amount}|${ca}|${lens ? 'L' : ''}${panel ? 'P' : ''}|${dpr()}`;
+    return { r, bezel, blur, amount, ca, kind, key };
+  }
+  function ensure(w, h, d) {
+    let f = filters.get(d.key);
+    if (!f) {
+      const id = `ag-${++seq}`;
+      const node = makeFilter(id, w, h, d.r, d.bezel, d.blur, d.amount, d.ca, d.kind);
+      defs.append(node);
+      f = { id, node, refs: 0, key: d.key };
+      filters.set(d.key, f);
+    }
+    return f;
+  }
+  function drop(el) {
+    const f = el._agKey && filters.get(el._agKey);
+    el._agKey = null;
+    if (f && --f.refs <= 0) {
+      f.node.remove();
+      filters.delete(f.key);
+    }
+  }
+  function acquire(el, w, h, radius, panel, lens) {
+    ensureDefs();
+    const d = describe(w, h, radius, panel, lens);
+    if (el._agKey === d.key && filters.has(d.key)) return filters.get(d.key).id;
+    const f = ensure(w, h, d);
+    f.refs++;
+    drop(el); // let go of the old one only after the new one exists, so the surface is never without glass
+    el._agKey = d.key;
+    return f.id;
+  }
+  function paint(el, w, h, opts) {
+    if (isLight()) return;
+    try {
+      const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+      el.style.setProperty('--ag-filter', `url(#${acquire(el, w, h, radius, !!opts.panel, !!opts.lens)})`);
+      root.classList.add('ag-refract'); // the edge now comes from the filter's reflection, not from the painted one
+    } catch (e) {
+      el.style.removeProperty('--ag-filter'); // anything wrong: this surface keeps Normal glass
+    }
+  }
+
+  // ---- surfaces: measured when they appear and whenever their size changes. A change after the first paint waits for the size to settle
+  // (a window being dragged would otherwise draw a new map on every frame).
+  const live = new Map(); // el -> options
+  const dirty = new Set();
+  const timers = new Map();
+  let raf = 0;
+  // Light glass: a surface takes the one blur on <html>, except a panel, which carries a little more frost on its own (as in the app).
+  function markLight(el, o) {
+    drop(el);
+    if (o.panel && type !== 'normal') el.style.setProperty('--ag-filter', `blur(${Math.round((params.blur + panelFrost(true)) * 100) / 100}px)`);
+    else el.style.removeProperty('--ag-filter');
+  }
+  function flush() {
+    raf = 0;
+    const batch = [];
+    for (const el of dirty) {
+      const o = live.get(el);
+      if (!o || !el.isConnected) continue;
+      if (isLight()) {
+        markLight(el, o);
+        continue;
+      }
+      const w = o.size ? o.size.w : el.offsetWidth;
+      const h = o.size ? o.size.h : el.offsetHeight;
+      if (w && h) batch.push([el, w, h, o]); // hidden for now: the observer fires again when it is shown
+    }
+    dirty.clear();
+    for (const [el, w, h, o] of batch) paint(el, w, h, o);
+  }
+  function queue(el) {
+    clearTimeout(timers.get(el));
+    const go = () => {
+      dirty.add(el);
+      if (!raf) raf = requestAnimationFrame(flush);
+    };
+    if (el._agKey) timers.set(el, setTimeout(go, 110));
+    else go();
+  }
+  const ro = new ResizeObserver((entries) => entries.forEach((e) => live.has(e.target) && queue(e.target)));
+  api.surface = (el, opts) => {
+    if (!el || live.has(el)) return;
+    live.set(el, opts || {});
+    ro.observe(el); // reports the size straight away, which paints it
+  };
+  // A surface whose size is not its own right now (the sliding highlight is animating its width): paint for the size it is going to.
+  api.fit = (el, w, h, opts) => {
+    if (!el || !w || !h) return;
+    const o = Object.assign({}, opts || {}, { size: { w: Math.round(w), h: Math.round(h) } });
+    live.set(el, o); // the size is kept even in light glass, so switching to Realistic paints the right one
+    if (isLight()) markLight(el, o);
+    else paint(el, o.size.w, o.size.h, o); // acquire() caches by size, so the five sizes of the nav are built once
+  };
+
+  // ---- the settings. A change repaints every surface once per frame; each surface's filter key holds the settings, so a surface gets
+  // the new filter first and lets go of the old one after (it is never without glass).
+  function applyMode() {
+    if (isLight()) {
+      root.style.setProperty('--ag-filter', `blur(${lightBlur()}px)`);
+      root.classList.remove('ag-refract'); // the edge is the painted one again
+    } else root.style.removeProperty('--ag-filter'); // each bending surface carries its own filter
+  }
+  function repaintAll() {
+    applyMode();
+    live.forEach((o, el) => {
+      if (isLight()) return markLight(el, o);
+      const w = o.size ? o.size.w : el.offsetWidth;
+      const h = o.size ? o.size.h : el.offsetHeight;
+      if (w && h && el.isConnected) paint(el, w, h, o);
+    });
+  }
+  let again = 0;
+  const listeners = [];
+  function changed() {
+    try {
+      if (TUNING) localStorage.setItem(STORE, JSON.stringify({ type, ...params }));
+    } catch (e) {}
+    if (!again)
+      again = requestAnimationFrame(() => {
+        again = 0;
+        repaintAll();
+      });
+    const now = api.get();
+    listeners.forEach((fn) => fn(now));
+  }
+  api.canBend = canBend;
+  api.tuning = TUNING;
+  api.limits = LIMITS;
+  api.get = () => ({ type, ...params, preset: presetOf(), light: isLight(), canBend });
+  api.set = (patch) => {
+    Object.assign(params, clean({ ...params, ...patch }));
+    changed();
+  };
+  api.preset = (name) => {
+    if (!PRESETS[name]) return;
+    Object.assign(params, PRESETS[name]);
+    changed();
+  };
+  api.setType = (t) => {
+    if (t !== 'normal' && !(t === 'realistic' && canBend)) return;
+    type = t;
+    changed();
+  };
+  api.reset = () => {
+    Object.assign(params, DEFAULTS);
+    type = DEFAULT_TYPE;
+    changed();
+  };
+  api.onChange = (fn) => listeners.push(fn);
+  applyMode();
+  window.addEventListener('resize', () => live.forEach((o, el) => !o.size && queue(el)), { passive: true });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => live.forEach((o, el) => !o.size && queue(el)));
+  const start = () => {
+    api.surface(document.querySelector('header'), { panel: true });
+    api.surface(document.querySelector('header .btn.p'), {});
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>
+<script>
+/* Liquid glass settings panel (temporary): drives window.AulaGlass, the engine above. */
+(() => {
+  const G = window.AulaGlass;
+  const $ = (id) => document.getElementById(id);
+  const btn = $('gsBtn'), panel = $('gsPanel');
+  if (!G || !btn || !panel || !G.tuning) return; // hidden unless the page is opened as index.html?glass
+  btn.hidden = false;
+  const types = [].slice.call(panel.querySelectorAll('[data-type]'));
+  const presets = [].slice.call(panel.querySelectorAll('[data-preset]'));
+  const ranges = [].slice.call(panel.querySelectorAll('input[data-k]'));
+  const real = [].slice.call(panel.querySelectorAll('[data-real]'));
+  const UNIT = { blur: ' px', bezel: ' px', amount: ' px', chroma: ' %' };
+  const HINT = {
+    normal: 'Soft blurred glass with a light edge. Light on the computer.',
+    realistic: 'Thick glass that also bends the picture at its edge, with a colour fringe.',
+  };
+  const open = (v) => {
+    panel.hidden = !v;
+    btn.setAttribute('aria-expanded', String(v));
+  };
+  const sync = (st) => {
+    types.forEach((b) => {
+      b.setAttribute('aria-checked', String(b.dataset.type === st.type));
+      if (b.dataset.type === 'realistic') b.disabled = !st.canBend;
+    });
+    presets.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.preset === st.preset)));
+    ranges.forEach((r) => {
+      const k = r.dataset.k;
+      if (document.activeElement !== r || +r.value !== st[k]) r.value = st[k];
+      $('gs' + k.charAt(0).toUpperCase() + k.slice(1) + 'V').textContent = st[k] + UNIT[k];
+    });
+    real.forEach((el) => (el.hidden = st.type === 'normal')); // Normal glass has nothing that bends: Blur is its whole look
+    $('gsHint').textContent = st.canBend ? HINT[st.type] : HINT.normal + ' Realistic needs Chrome, Edge or another Chromium browser.';
+  };
+  btn.addEventListener('click', () => open(panel.hidden));
+  $('gsX').addEventListener('click', () => {
+    open(false);
+    btn.focus();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !panel.hidden && !document.querySelector('dialog[open]')) {
+      open(false);
+      btn.focus();
+    }
+  });
+  types.forEach((b) => b.addEventListener('click', () => G.setType(b.dataset.type)));
+  presets.forEach((b) => b.addEventListener('click', () => G.preset(b.dataset.preset)));
+  ranges.forEach((r) =>
+    r.addEventListener('input', () => {
+      const o = {};
+      o[r.dataset.k] = +r.value;
+      G.set(o);
+    })
+  );
+  $('gsReset').addEventListener('click', () => G.reset());
+  $('gsCopy').addEventListener('click', async () => {
+    const st = G.get();
+    const text = `const params = { blur: ${st.blur}, bezel: ${st.bezel}, amount: ${st.amount}, chroma: ${st.chroma} }; // glass type: ${st.type}`;
+    const b = $('gsCopy'), t = b.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      b.textContent = 'Copied';
+    } catch (e) {
+      window.prompt('Copy these values:', text);
+    }
+    setTimeout(() => (b.textContent = t), 1600);
+  });
+  G.onChange(sync);
+  sync(G.get());
+})();
+</script>
 <script>
 (function(){
 var $=function(s){return[].slice.call(document.querySelectorAll(s))};
@@ -310,6 +938,7 @@ var links=$('nav a[href^="#"]'),pill=document.querySelector('.pill'),act=null;
 function mv(l){if(!l||!pill)return;var first=pill.style.opacity!=='1';
   if(first)pill.style.transition='none';
   pill.style.width=l.offsetWidth+'px';pill.style.transform='translateX('+l.offsetLeft+'px)';
+  if(window.AulaGlass)AulaGlass.fit(pill,l.offsetWidth,l.offsetHeight,{lens:true});
   if(first){pill.offsetWidth;pill.style.transition=''}
   pill.style.opacity='1'}
 function setOn(id){links.forEach(function(l){var on=l.getAttribute('href')==='#'+id;l.classList.toggle('on',on);if(on){act=l;mv(l)}})}
