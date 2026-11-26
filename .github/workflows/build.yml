@@ -1,12 +1,18 @@
 name: Build and release
 
-# Run it by hand: Actions > Build and release > Run workflow (use the main branch). It asks for two things:
+# Run it by hand: Actions > Build and release > Run workflow (use the main branch). It asks for three things:
 #   - Version: the version to release, for example 1.5.3 (or 1.5.3-beta.1). It is written into package.json on main (and into the
 #     README's Version badge, which the tests compare with it), so the version the app shows, the update the app looks for on
 #     GitHub and the release tag v<version> all say the same thing. A version with a "-" part (1.5.3-beta.1) is a beta and must
 #     be run as pre-release: a beta published as "stable" would hide the real latest release from everyone who runs a stable app.
 #   - Release type: stable (published as the latest release, so the app's updater offers it) or pre-release (marked as a
 #     pre-release and never "latest"; the app's updater ignores it).
+#   - What's new (optional): the text of the release. It is put on the release page under the header "What's new in <version>",
+#     and it is exactly what the app shows in its "What's new" window after an update. GitHub gives a one-line box, so type \n
+#     (a backslash and an n) where a new line should start, and use Markdown: for example
+#       - **Fixed:** the knob stays where you set it\n- **New:** a tray icon
+#     Left empty, the release has only the header and can be written on the release page afterwards (the app reads the release
+#     page when the window opens, so a text written there later is shown too, as long as it is there before the update is installed).
 # Nothing starts by itself any more: uploading a zip to main does not build anything. After you upload a zip, run this.
 #
 # What it does:
@@ -14,8 +20,8 @@ name: Build and release
 #      replaced by the zip's, and the .github folder is never touched,
 #   2. sets the version you typed in package.json on main,
 #   3. builds Windows (Setup + Portable) and Linux (AppImage + .deb + .tar.gz),
-#   4. publishes the release v<version>. Its text is only the header "What's new in <version>": never the older sections of
-#      RELEASE_NOTES.md and no description (the description is written on the release page afterwards),
+#   4. publishes the release v<version> with the header "What's new in <version>" and the text you typed under it (a release that
+#      already exists keeps the text on its page when you type nothing; typing a text replaces it),
 #   5. moves the zip to the dev branch (it is removed from main).
 #
 # With no zip in main's top folder it builds main as it is (with the version you typed).
@@ -35,6 +41,11 @@ on:
           - stable
           - pre-release
         default: stable
+      description:
+        description: "What's new (optional). Shown in the app after the update. New line: type \\n. Example: - Fixed the knob\\n- New tray icon"
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -161,9 +172,6 @@ jobs:
               echo "::warning::$VERSION is not newer than the latest release ($LATEST_TAG), so people who already have $LATEST_TAG will not be offered it as an update."
             fi
           fi
-          if ! grep -qxF "## What's new in $VERSION" RELEASE_NOTES.md 2>/dev/null; then
-            echo "::warning::RELEASE_NOTES.md has no \"## What's new in $VERSION\" header, so the app's What's new window will have nothing to show for this version."
-          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -236,8 +244,8 @@ jobs:
           SHA: ${{ needs.extract.outputs.sha }}
           VERSION: ${{ needs.extract.outputs.version }}
           RELEASE_TYPE: ${{ inputs.release_type }}
+          DESCRIPTION: ${{ inputs.description }}
         run: |
-          [ -f RELEASE_NOTES.md ] || { echo "RELEASE_NOTES.md is missing."; exit 1; }
           TAG="v$VERSION"
           # Stable is the latest release (the app's updater offers it). A pre-release is marked as one and is never the latest.
           if [ "$RELEASE_TYPE" = "pre-release" ]; then
@@ -248,13 +256,22 @@ jobs:
             EDIT_FLAGS="--prerelease=false --latest"
           fi
           echo "Publishing $TAG as a $RELEASE_TYPE."
-          # The release text: only the header of this version, never the older sections and no description.
-          printf "## What's new in %s\n" "$VERSION" > "$RUNNER_TEMP/release-body.md"
+          # The release text: the header of this version, then the text typed when the workflow was run (the two characters \n in it
+          # start a new line; the box on GitHub has only one line). It reaches this script through an environment variable, never
+          # pasted into the script, so whatever is typed is only ever text.
+          HAVE_TEXT=false
+          if [ -n "$(printf '%s' "$DESCRIPTION" | tr -d '[:space:]')" ]; then HAVE_TEXT=true; fi
+          {
+            printf "## What's new in %s\n" "$VERSION"
+            if [ "$HAVE_TEXT" = true ]; then printf '\n%s\n' "${DESCRIPTION//\\n/$'\n'}"; fi
+          } > "$RUNNER_TEMP/release-body.md"
+          echo "--- release text ---"; cat "$RUNNER_TEMP/release-body.md"; echo "--------------------"
           FILES=$(find artifacts -type f)
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" $FILES --clobber
-            # A description that is already on the release page is kept; only an empty text gets the header.
-            if [ -z "$(gh release view "$TAG" --json body --jq .body | tr -d '[:space:]')" ]; then
+            # A text typed now replaces the one on the release page. With nothing typed, a text that is already on the release
+            # page is kept; only an empty one gets the header.
+            if [ "$HAVE_TEXT" = true ] || [ -z "$(gh release view "$TAG" --json body --jq .body | tr -d '[:space:]')" ]; then
               gh release edit "$TAG" --notes-file "$RUNNER_TEMP/release-body.md" $EDIT_FLAGS
             else
               gh release edit "$TAG" $EDIT_FLAGS
